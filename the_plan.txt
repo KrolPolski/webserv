@@ -1,0 +1,7 @@
+the plan:
+1. Configuration file layout and parsing: with server name, ports, etc. Patrik
+
+2. Main loop- creating and managing sockets; Panu
+
+3. Parsing and building of the requests and responses, with appropriate headers etc; Ryan
+

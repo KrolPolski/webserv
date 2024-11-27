@@ -109,12 +109,12 @@ int		ConnectionHandler::startServers()
 		// Check status of polled sockets
 		for (int i = 0; i < (int)m_pollfdVec.size(); ++i) // the int casting... not good
 		{
-			// Check if server has a new connection --> OWN FUNCTION...?
-			if (m_pollfdVec[i].revents & POLLIN && isServerSocket(m_pollfdVec[i].fd))
+			bool isServerSocket = checkForServerSocket(m_pollfdVec[i].fd);
+			if (m_pollfdVec[i].revents & POLLIN && isServerSocket)
 				acceptNewClient(m_pollfdVec[i].fd);
-			else if (m_pollfdVec[i].revents & POLLIN && !isServerSocket(m_pollfdVec[i].fd))
+			else if (m_pollfdVec[i].revents & POLLIN && !isServerSocket)
 				recieveDataFromClient(m_pollfdVec[i].fd);
-			else if (m_pollfdVec[i].revents & POLLOUT && !isServerSocket(m_pollfdVec[i].fd)) // do i need to check the response ready-flag...?
+			else if (m_pollfdVec[i].revents & POLLOUT && !isServerSocket) // do i need to check the response ready-flag...?
 				sendDataToClient(m_pollfdVec[i].fd);
 		}
 	}
@@ -145,7 +145,13 @@ void		ConnectionHandler::acceptNewClient(const unsigned int serverFd)
 
 void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 {
-	clientInfo *clientPTR = getClientPTR(clientFd); // nullptr check...?
+	clientInfo *clientPTR = getClientPTR(clientFd);
+	if (clientPTR == nullptr)
+	{
+		std::cout << RED << "Client data could not be recieved; client not found\n";
+		return ;
+	}
+
 	char	buf[1024] = {0};
 	int		bufLen = 1023; // what is the correct size for recv() buffer...?
 
@@ -196,6 +202,11 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 void		ConnectionHandler::sendDataToClient(const unsigned int clientFd)
 {
 	clientInfo *clientPTR = getClientPTR(clientFd);
+	if (clientPTR == nullptr)
+	{
+		std::cout << RED << "Client data could not be sent; client not found\n";
+		return ;
+	}
 
 	// Send response to client
 	int sendBytes = send(clientPTR->fd, clientPTR->responseString.c_str(), clientPTR->responseString.length(), 0);
@@ -211,8 +222,9 @@ void		ConnectionHandler::sendDataToClient(const unsigned int clientFd)
 	// What should we do if these don't match...? Most likely do another send starting from response[bytesSent]...?
 	if (clientPTR->bytesSent == (int)clientPTR->responseString.length()) // int casting... not good
 	{
-		removeFromClientVec(clientPTR->fd);
-		removeFromPollfdVec(clientPTR->fd);
+		int fdToRemove = clientPTR->fd;
+		removeFromClientVec(fdToRemove);
+		removeFromPollfdVec(fdToRemove);
 	}
 }
 
@@ -225,6 +237,7 @@ void	ConnectionHandler::addNewPollfd(int newFd)
 	pollfd	tempPollfd;
 	tempPollfd.fd = newFd;
 	tempPollfd.events = POLLIN; // should we also have POLLOUT here for every socket...?
+	tempPollfd.revents = 0;
 
 	m_pollfdVec.push_back(tempPollfd);
 }
@@ -260,7 +273,7 @@ void	ConnectionHandler::closeAllSockets()
 	HELPER FUNCTIONS
 */
 
-bool	ConnectionHandler::isServerSocket(const int fdToCheck)
+bool	ConnectionHandler::checkForServerSocket(const int fdToCheck)
 {
 	for (auto server : m_serverVec)
 	{

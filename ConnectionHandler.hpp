@@ -37,7 +37,7 @@ class ConnectionHandler
 	// socket functions
 	int		initServerSocket(const unsigned int portNum);
 	void	closeAllSockets();
-	bool	isServerSocket(const int socketFd);
+	bool	checkForServerSocket(const int socketFd);
 
 	// poll() helper functions
 	void	addNewPollfd(int newFd);

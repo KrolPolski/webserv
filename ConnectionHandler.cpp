@@ -188,10 +188,10 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 
 		// JUST A TEST FOR NOW
 
-		/*if (clientPTR->requestString[5] == 's')
+		if (clientPTR->requestString[5] == 's')
 			clientPTR->responseString = createSecondPageResponse();
 		else
-			clientPTR->responseString = createHomeResponse();*/
+			clientPTR->responseString = createHomeResponse();
 	}
 	
 }

@@ -4,7 +4,10 @@
 int ResponseHandler::checkRequestType(clientInfo *ClientPTR, std::string requestString)
 {
     std::cout << "We managed to get to checkRequestType" << std::endl;
-    exit(0);
+    std::cout << requestString << std::endl;
+    std::string value;
+    //std::cin >> value;
+    //exit(0);
 }
 
 int ResponseHandler::checkFile(std::string filePath)

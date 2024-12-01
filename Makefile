@@ -2,9 +2,9 @@ NAME = webserv
 
 COMP = c++
 
-CFLAGS = -Wall -Wextra -Werror -std=c++17
+CFLAGS = #-Wall -Wextra -Werror -std=c++17
 
-SRC = main.cpp ConnectionHandler.cpp
+SRC = main.cpp ConnectionHandler.cpp ResponseHandler.cpp
 
 OBJ = $(SRC:.cpp=.o)
 

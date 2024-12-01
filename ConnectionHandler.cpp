@@ -1,5 +1,5 @@
 #include "ConnectionHandler.hpp"
-
+#include "ResponseHandler.hpp"
 /*
 	CONSTRUCTOR
 */
@@ -176,7 +176,8 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 	{
 		clientPTR->requestReady = true;
 		getClientPollfd(clientFd)->events = POLLOUT;
-
+		ResponseHandler respHdlr;
+		respHdlr.checkRequestType(clientPTR, clientPTR->requestString);
 		/*
 		RYAN:
 
@@ -187,10 +188,10 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 
 		// JUST A TEST FOR NOW
 
-		if (clientPTR->requestString[5] == 's')
+		/*if (clientPTR->requestString[5] == 's')
 			clientPTR->responseString = createSecondPageResponse();
 		else
-			clientPTR->responseString = createHomeResponse();
+			clientPTR->responseString = createHomeResponse();*/
 	}
 	
 }

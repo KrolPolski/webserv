@@ -51,3 +51,11 @@ struct serverInfo
 	{
 	}
 };
+
+enum requestTypes
+{
+	GET,
+	POST,
+	DELETE,
+	INVALID
+};

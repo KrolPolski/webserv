@@ -5,13 +5,13 @@
 class ResponseHandler
 {
     private:
-        unsigned int requestType;
+        enum requestTypes requestType;
         unsigned int responseCode;
     public:
         ResponseHandler() = default;
         ResponseHandler(const ResponseHandler& other) = delete;
         const ResponseHandler& operator=(const ResponseHandler& other) = delete;
         ~ResponseHandler() = default;
-        int checkRequestType(clientInfo * ClientPTR, std::string requestString);
+        enum requestTypes checkRequestType(clientInfo *ClientPTR, std::string requestString);
         int checkFile(std::string filePath);
 };

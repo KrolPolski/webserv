@@ -176,8 +176,11 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 	{
 		clientPTR->requestReady = true;
 		getClientPollfd(clientFd)->events = POLLOUT;
-		ResponseHandler respHdlr;
-		respHdlr.checkRequestType(clientPTR, clientPTR->requestString);
+		if (clientPTR)
+		{
+			ResponseHandler respHdlr;
+			respHdlr.checkRequestType(clientPTR, clientPTR->requestString);
+		}
 		/*
 		RYAN:
 
@@ -185,7 +188,7 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 		and parse the request that is in clientPTR->requestString
 		and then form a proper response and store it in clientPTR->responseString
 		*/
-
+		//std::cout << "Got back from checkRequestType" << std::endl;
 		// JUST A TEST FOR NOW
 
 		if (clientPTR->requestString[5] == 's')

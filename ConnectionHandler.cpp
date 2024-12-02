@@ -179,8 +179,8 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 		if (clientPTR)
 		{
 			ResponseHandler respHdlr;
-			enum requestTypes reqType = respHdlr.checkRequestType(clientPTR, clientPTR->requestString);
-			std::cout << reqType << std::endl;
+			respHdlr.checkRequestType(clientPTR, clientPTR->requestString);
+			respHdlr.parseRequest(clientPTR->requestString);
 		}
 		/*
 		RYAN:

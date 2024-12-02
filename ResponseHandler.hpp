@@ -1,5 +1,7 @@
 #pragma once
 #include <string>
+#include <sstream>
+#include <vector>
 #include "Types.hpp"
 
 class ResponseHandler
@@ -12,6 +14,7 @@ class ResponseHandler
         ResponseHandler(const ResponseHandler& other) = delete;
         const ResponseHandler& operator=(const ResponseHandler& other) = delete;
         ~ResponseHandler() = default;
-        enum requestTypes checkRequestType(clientInfo *ClientPTR, std::string requestString);
+        void checkRequestType(clientInfo *ClientPTR, std::string requestString);
+		void parseRequest(std::string requestString);
         int checkFile(std::string filePath);
 };

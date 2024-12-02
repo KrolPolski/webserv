@@ -1,7 +1,10 @@
 #pragma once
 #include <string>
+#include <fstream>
 #include <sstream>
 #include <vector>
+#include <cerrno>
+#include <cstring>
 #include "Types.hpp"
 
 class ResponseHandler
@@ -15,6 +18,6 @@ class ResponseHandler
         const ResponseHandler& operator=(const ResponseHandler& other) = delete;
         ~ResponseHandler() = default;
         void checkRequestType(clientInfo *ClientPTR, std::string requestString);
-		void parseRequest(std::string requestString);
-        int checkFile(std::string filePath);
+		void parseRequest(clientInfo *ClientPTR, std::string requestString);
+        int checkFile(clientInfo *ClientPTR, std::string filePath);
 };

@@ -180,7 +180,9 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 		{
 			ResponseHandler respHdlr;
 			respHdlr.checkRequestType(clientPTR, clientPTR->requestString);
-			respHdlr.parseRequest(clientPTR->requestString);
+			//if it is invalid we should stop here, and just return the error page
+			respHdlr.parseRequest(clientPTR, clientPTR->requestString);
+			//might have an error here now too.
 		}
 		/*
 		RYAN:
@@ -191,11 +193,11 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 		*/
 		//std::cout << "Got back from checkRequestType" << std::endl;
 		// JUST A TEST FOR NOW
-
+		/*
 		if (clientPTR->requestString[5] == 's')
 			clientPTR->responseString = createSecondPageResponse();
 		else
-			clientPTR->responseString = createHomeResponse();
+			clientPTR->responseString = createHomeResponse();*/
 	}
 	
 }

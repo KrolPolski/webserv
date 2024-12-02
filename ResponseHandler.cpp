@@ -29,14 +29,49 @@ void ResponseHandler::checkRequestType(clientInfo *ClientPTR, std::string reques
 	}
 }
 
-int ResponseHandler::checkFile(std::string filePath)
+int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 {
-    std::cout << "We should check if the file exists" << std::endl;
+    std::cout << "We should now check if the file exists" << std::endl;
+	// this has to be fixed once we have a configuration parsing appropriately
+	if (filePath == "/")
+		filePath = "home/index.html";
+	else
+		filePath = "home" + filePath;
+	std::string content;
+	std::ifstream ourFile(filePath);
+	/*We need to detect which type of error we got with the file, so we 
+	can send the appropriate response code*/
+	if (!ourFile)
+	{
+		std::cerr << "Error: " << strerror(errno) << errno << std::endl;
+		if (errno == 2) //file missing
+			responseCode = 404;
+		else if (errno == 13) //bad permissions
+			responseCode = 403;
+		else
+			responseCode = 500;
+		std::cerr << "Response Code: " << responseCode << std::endl;
+		return -1;
+	}
+	std::string line;
+	while (std::getline(ourFile, line))
+		content += line;
+	std::string	headers;
 
+	//this assumes all files are html, this is a mistake.
+	headers = "HTTP/1.1 200 OK\r\n";
+	headers += "Content-Type: text/html\r\n";
+	headers += "Content-Length: ";
+	headers += std::to_string(content.length());
+	headers += "\r\n\r\n";
+	clientPTR->responseString = headers + content;
+	ourFile.close();
+	responseCode = 200;
+	std::cout << "Must have opened the file with no errors" << std::endl;
 	return (0);
 }
 
-void ResponseHandler::parseRequest(std::string requestString)
+void ResponseHandler::parseRequest(clientInfo *clientPTR, std::string requestString)
 {
 	switch (requestType)
 	{
@@ -62,6 +97,7 @@ void ResponseHandler::parseRequest(std::string requestString)
 				lineOne.push_back(phrase);
 				std::cout << phrase << std::endl;
 			}
+			checkFile(clientPTR, lineOne.at(1));
 			break;
 		}	
 		default:

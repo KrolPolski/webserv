@@ -1,3 +1,4 @@
+#include "ResponseHandler.hpp"
 #include "ConnectionHandler.hpp"
 
 int main(int argc, char *argv[])
@@ -14,6 +15,7 @@ int main(int argc, char *argv[])
 	ConnectionHandler	handler;
 	unsigned int		portArr[1]; // Just a test
 	int					portArrSize = 1; // Just a test
+	//ResponseHandler		responseHandler;
 
 	/*
 		Patrik:

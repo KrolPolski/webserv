@@ -51,3 +51,20 @@ struct serverInfo
 	{
 	}
 };
+
+enum requestTypes
+{
+	GET,
+	POST,
+	DELETE,
+	INVALID
+};
+
+/*enum contentTypes
+{
+	HTML,
+	CSS,
+	JAVASCRIPT,
+	PNG,
+	JSON
+}*/

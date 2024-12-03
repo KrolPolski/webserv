@@ -1,0 +1,43 @@
+div {display: flex;}
+
+.container {
+    background-color: red;
+    width: 80vh;
+    aspect-ratio: 1 / 1;
+    display: flex;
+    justify-content: stretch;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    flex: 1 1 auto;
+    align-items: stretch;
+    padding: 10px;}
+    
+
+h1 {text-align: center;}
+
+.rowDiv {
+    background-color: blue;
+    display: flex;
+    justify-content: stretch;
+    align-items: stretch;    
+    flex-direction: row;
+    flex: 1;
+    min-width: 80vh;
+    min-height:1px;
+
+    }
+.sqDiv {background-color: white;
+    display: flex;
+    border: 1px solid black;
+    min-width: 1px;
+    min-height: 1px;
+    flex: 1 1 auto;
+}
+
+.hovered {background-color: black;}
+
+body {display: flex;
+    gap: 10px;
+flex-direction: column;
+justify-content: center;
+align-items: center;}

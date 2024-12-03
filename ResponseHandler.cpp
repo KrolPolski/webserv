@@ -129,7 +129,7 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 	
 	std::string line;
 	while (std::getline(ourFile, line))
-		content += line;
+		content += line + "\n";
 	checkExtension(filePath);
 	
 	std::string	headers;

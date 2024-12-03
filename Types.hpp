@@ -59,3 +59,12 @@ enum requestTypes
 	DELETE,
 	INVALID
 };
+
+/*enum contentTypes
+{
+	HTML,
+	CSS,
+	JAVASCRIPT,
+	PNG,
+	JSON
+}*/

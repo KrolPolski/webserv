@@ -1,5 +1,5 @@
 #include "ConnectionHandler.hpp"
-#include "ResponseHandler.hpp"
+
 /*
 	CONSTRUCTOR
 */
@@ -179,6 +179,7 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 		if (clientPTR)
 		{
 			ResponseHandler respHdlr;
+			//std::unique_ptr<ResponseHandler> respHdlr;
 			respHdlr.checkRequestType(clientPTR, clientPTR->requestString);
 			//if it is invalid we should stop here, and just return the error page
 			respHdlr.parseRequest(clientPTR, clientPTR->requestString);

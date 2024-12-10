@@ -178,11 +178,11 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 		getClientPollfd(clientFd)->events = POLLOUT;
 		if (clientPTR)
 		{
-			ResponseHandler respHdlr;
+			std::unique_ptr<ResponseHandler> respHdlr(new ResponseHandler);
 			//std::unique_ptr<ResponseHandler> respHdlr;
-			respHdlr.checkRequestType(clientPTR, clientPTR->requestString);
+			respHdlr->checkRequestType(clientPTR, clientPTR->requestString);
 			//if it is invalid we should stop here, and just return the error page
-			respHdlr.parseRequest(clientPTR, clientPTR->requestString);
+			respHdlr->parseRequest(clientPTR, clientPTR->requestString);
 			//might have an error here now too.
 		}
 		/*

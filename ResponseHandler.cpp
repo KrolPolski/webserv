@@ -47,7 +47,8 @@ const std::map<std::string, std::string> ResponseHandler::extensionTypes =
 const std::map<const unsigned int, std::string> ResponseHandler::errorCodes =
 {
 	{404, "Not Found"},
-	{403, "Forbidden"}
+	{403, "Forbidden"},
+	{400, "Bad Request"}
 };
 void ResponseHandler::checkRequestType(clientInfo *ClientPTR, std::string requestString)
 {

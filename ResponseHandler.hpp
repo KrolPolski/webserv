@@ -15,8 +15,10 @@ class ResponseHandler
         unsigned int responseCode;
 		std::string contentType;
 		static const std::map<std::string, std::string> extensionTypes;
+		static const std::map<const unsigned int, std::string> errorCodes;
 		void setRequestType(enum requestTypes reqType);
 		void setResponseCode(unsigned int code);
+		void buildErrorResponse(clientInfo *ClientPTR);
 	
     public:
         ResponseHandler() = default;
@@ -29,7 +31,7 @@ class ResponseHandler
         int checkFile(clientInfo *ClientPTR, std::string filePath);
 		void checkExtension(std::string filePath);
 		const enum requestTypes& getRequestType() const;
-		const unsigned int& getResponseCode() const;
+		const unsigned int getResponseCode() const;
 		
 };
 

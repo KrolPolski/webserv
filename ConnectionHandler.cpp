@@ -180,7 +180,10 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 		{
 			std::unique_ptr<ResponseHandler> respHdlr(new ResponseHandler);
 			respHdlr->checkRequestType(clientPTR, clientPTR->requestString);
-			
+			if (respHdlr->getRequestType() == INVALID)
+			{
+				return ;
+			}
 			//if it is invalid we should stop here, and just return the error page
 			respHdlr->parseRequest(clientPTR, clientPTR->requestString);
 			//might have an error here now too.
@@ -215,7 +218,7 @@ void		ConnectionHandler::sendDataToClient(const unsigned int clientFd)
 		std::cout << RED << "Client data could not be sent; client not found\n";
 		return ;
 	}
-
+	
 	// Send response to client
 	int sendBytes = send(clientPTR->fd, clientPTR->responseString.c_str(), clientPTR->responseString.length(), 0);
 

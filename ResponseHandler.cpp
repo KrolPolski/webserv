@@ -44,7 +44,11 @@ const std::map<std::string, std::string> ResponseHandler::extensionTypes =
 	{".zip", "application/zip"}, {".3gp", "video/3gpp"},
 	{".3g2", "video/3gpp2"}, {".7z", "application/x-7z-compressed"}
 };
-
+const std::map<const unsigned int, std::string> ResponseHandler::errorCodes =
+{
+	{404, "Not Found"},
+	{403, "Forbidden"}
+};
 void ResponseHandler::checkRequestType(clientInfo *ClientPTR, std::string requestString)
 {
     std::cout << "We managed to get to checkRequestType" << std::endl;
@@ -70,6 +74,7 @@ void ResponseHandler::checkRequestType(clientInfo *ClientPTR, std::string reques
 		std::cout << "INVALID request detected woo" << std::endl;
 		setRequestType(INVALID);
 		setResponseCode(400);
+		buildErrorResponse(ClientPTR);
 	}
 }
 
@@ -124,6 +129,7 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 		else
 			setResponseCode(500);
 		std::cerr << "Response Code: " << getResponseCode() << std::endl;
+		buildErrorResponse(clientPTR);
 		return -1;
 	}
 	
@@ -133,7 +139,7 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 	checkExtension(filePath);
 	
 	std::string	headers;
-
+	setResponseCode(200);
 	headers = "HTTP/1.1 200 OK\r\n";
 	headers += "Content-Type: " + contentType + "\r\n";
 	headers += "Content-Length: ";
@@ -142,7 +148,7 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 	clientPTR->responseString = headers + content;
 	std::cout << "responseString: " << clientPTR->responseString << std::endl;
 	ourFile.close();
-	setResponseCode(200);
+	
 	std::cout << "Must have opened the file with no errors" << std::endl;
 	return (0);
 }
@@ -187,9 +193,9 @@ const enum requestTypes& ResponseHandler::getRequestType() const
 	return requestType;
 }
 
-const unsigned int& ResponseHandler::getResponseCode() const
+const unsigned int ResponseHandler::getResponseCode() const
 {
-	return responseCode;
+	return (const unsigned int)responseCode;
 }
 
 void ResponseHandler::setRequestType(enum requestTypes reqType)
@@ -205,4 +211,28 @@ void ResponseHandler::setResponseCode(unsigned int code)
 void ResponseHandler::ServeErrorPages(clientInfo *ClientPTR, std::string requestString)
 {
 
+}
+
+void ResponseHandler::buildErrorResponse(clientInfo *clientPTR)
+{
+	std::string content;
+	std::cout << "We got to buildErrorResponse" << std::endl;
+	//need to update this based on config file path to error pages
+	std::string errorFileName = "default-error-pages/" + std::to_string(getResponseCode()) + ".html";
+	std::ifstream ourFile(errorFileName);
+	std::string line;
+	while (std::getline(ourFile, line))
+		content += line + "\n";
+	checkExtension(errorFileName);
+	
+	std::string	headers;
+
+	headers = "HTTP/1.1 " + std::to_string(getResponseCode()) + " " + errorCodes.at(getResponseCode()) + "\r\n";
+	headers += "Content-Type: " + contentType + "\r\n";
+	headers += "Content-Length: ";
+	headers += std::to_string(content.length());
+	headers += "\r\n\r\n";
+	clientPTR->responseString = headers + content;
+	std::cout << "responseString: " << clientPTR->responseString << std::endl;
+	ourFile.close();
 }

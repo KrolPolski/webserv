@@ -19,6 +19,7 @@ const std::map<std::string, std::string> ResponseHandler::extensionTypes =
 	{".jar", "application/java-archive"}, {".jpeg", "image/jpeg"},
 	{".jpg", "image/jpeg"}, {".js","text/javascript"},
 	{".json", "application/json"}, {".jsonld", "application/ld+json"},
+	{".md", "text/markdown"},
 	{".mid", "audio/x-midi"}, {".midi",	"audio/x-midi"},
 	{".mjs", "text/javascript"}, {".mp3", "audio/mpeg"},
 	{".mp4", "video/mp4"}, {".mpeg", "video/mpeg"},

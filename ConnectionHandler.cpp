@@ -179,8 +179,8 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 		if (clientPTR)
 		{
 			std::unique_ptr<ResponseHandler> respHdlr(new ResponseHandler);
-			//std::unique_ptr<ResponseHandler> respHdlr;
 			respHdlr->checkRequestType(clientPTR, clientPTR->requestString);
+			
 			//if it is invalid we should stop here, and just return the error page
 			respHdlr->parseRequest(clientPTR, clientPTR->requestString);
 			//might have an error here now too.

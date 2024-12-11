@@ -53,23 +53,23 @@ void ResponseHandler::checkRequestType(clientInfo *ClientPTR, std::string reques
 	if (!requestString.compare(0, 3, "GET"))
 	{
 		std::cout << "GET request detected woo" << std::endl;
-		requestType = GET;
+		setRequestType(GET);
 	}
 	else if (!requestString.compare(0, 4, "POST"))
 	{
 		std::cout << "POST request detected woo" << std::endl;
-		requestType = POST;
+		setRequestType(POST);
 	}
 	else if (!requestString.compare(0, 6, "DELETE"))
 	{
 		std::cout << "DELETE request detected woo" << std::endl;
-		requestType = DELETE;
+		setRequestType(DELETE);
 	}
 	else
 	{
 		std::cout << "INVALID request detected woo" << std::endl;
-		requestType = INVALID;
-		responseCode = 400;
+		setRequestType(INVALID);
+		setResponseCode(400);
 	}
 }
 
@@ -118,12 +118,12 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 	{
 		std::cerr << "Error: " << strerror(errno) << errno << std::endl;
 		if (errno == 2) //file missing
-			responseCode = 404;
+			setResponseCode(404);
 		else if (errno == 13) //bad permissions
-			responseCode = 403;
+			setResponseCode(403);
 		else
-			responseCode = 500;
-		std::cerr << "Response Code: " << responseCode << std::endl;
+			setResponseCode(500);
+		std::cerr << "Response Code: " << getResponseCode() << std::endl;
 		return -1;
 	}
 	
@@ -134,7 +134,6 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 	
 	std::string	headers;
 
-	//this assumes all files are html, this is a mistake.
 	headers = "HTTP/1.1 200 OK\r\n";
 	headers += "Content-Type: " + contentType + "\r\n";
 	headers += "Content-Length: ";
@@ -143,7 +142,7 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 	clientPTR->responseString = headers + content;
 	std::cout << "responseString: " << clientPTR->responseString << std::endl;
 	ourFile.close();
-	responseCode = 200;
+	setResponseCode(200);
 	std::cout << "Must have opened the file with no errors" << std::endl;
 	return (0);
 }
@@ -181,4 +180,29 @@ void ResponseHandler::parseRequest(clientInfo *clientPTR, std::string requestStr
 		default:
 			std::cout << "unhandled parseRequest" << std::endl;
 	}
+}
+
+const enum requestTypes& ResponseHandler::getRequestType() const
+{
+	return requestType;
+}
+
+const unsigned int& ResponseHandler::getResponseCode() const
+{
+	return responseCode;
+}
+
+void ResponseHandler::setRequestType(enum requestTypes reqType)
+{
+	requestType = reqType;
+}
+
+void ResponseHandler::setResponseCode(unsigned int code)
+{
+	responseCode = code;
+}
+
+void ResponseHandler::ServeErrorPages(clientInfo *ClientPTR, std::string requestString)
+{
+
 }

@@ -15,7 +15,7 @@ ConnectionHandler::ConnectionHandler()
 
 ConnectionHandler::~ConnectionHandler()
 {
-
+	closeAllSockets();
 }
 
 /*
@@ -49,6 +49,16 @@ int		ConnectionHandler::initServerSocket(const unsigned int portNum)
 	{
 		std::cerr << RED << "\nsocket() failed:\n" << RESET << std::strerror(errno) << "\n\n";
 		// Error handling...?
+		return (-1);
+	}
+
+	// This solves the bind() issue
+	int opt = 1;
+	if (setsockopt(socketFd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1)
+	{
+		std::cerr << RED << "\nsetsockopt() failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		// Error handling...?
+		close(socketFd);
 		return (-1);
 	}
 
@@ -95,12 +105,18 @@ int		ConnectionHandler::startServers()
 {
 	while (1)
 	{
+		// Why doesn't this work...? the poll() always gets interrupted instead of this
+		if (isSigInt)
+		{
+			std::cout << GREEN << "Recieved SIGINT signal, exiting program\n" << RESET;
+			exit (0);
+		}
+
 		int	readySocketCount = poll(&m_pollfdVec[0], m_pollfdVec.size(), 0);
 		if (readySocketCount == -1)
 		{
 			std::cerr << RED << "\npoll() failed:\n" << RESET << std::strerror(errno) << "\n\n";
 			// Error handling
-			closeAllSockets();
 			return (-1); // should we quit the server...? Probably not
 		}
 		else if (readySocketCount == 0)
@@ -134,6 +150,15 @@ void		ConnectionHandler::acceptNewClient(const unsigned int serverFd)
 	}
 	else
 	{
+
+		if (fcntl(newClientFd, F_SETFL, O_NONBLOCK) == -1)
+		{
+			std::cerr << RED << "\nfcntl() failed:\n" << RESET << std::strerror(errno) << "\n\n";
+			// Error handling...?
+			close (newClientFd);
+			return ; // What should happen here...?
+		}
+
 		addNewPollfd(newClientFd);
 		m_clientVec.push_back({newClientFd});
 	}
@@ -148,7 +173,7 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 	clientInfo *clientPTR = getClientPTR(clientFd);
 	if (clientPTR == nullptr)
 	{
-		std::cout << RED << "Client data could not be recieved; client not found\n";
+		std::cout << RED << "Client data could not be recieved; client not found\n" << RESET;
 		return ;
 	}
 
@@ -326,10 +351,13 @@ void		ConnectionHandler::removeFromClientVec(const int clientFd)
 	}
 }
 
+
+
 /*
 	TEST FUNCTIONS TO CREATE HTML CONTENT
 */
 
+/*
 std::string ConnectionHandler::createHomeResponse()
 {
 	// Create html string
@@ -373,3 +401,4 @@ std::string ConnectionHandler::createSecondPageResponse()
 
 	return (finalResponse);
 }
+*/

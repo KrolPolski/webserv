@@ -68,3 +68,10 @@ enum requestTypes
 	PNG,
 	JSON
 }*/
+
+
+/*
+	GLOBAL VARIABLE
+*/
+
+extern bool	isSigInt; // is this needed...?

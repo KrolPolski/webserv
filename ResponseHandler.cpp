@@ -44,12 +44,15 @@ const std::map<std::string, std::string> ResponseHandler::extensionTypes =
 	{".zip", "application/zip"}, {".3gp", "video/3gpp"},
 	{".3g2", "video/3gpp2"}, {".7z", "application/x-7z-compressed"}
 };
+
 const std::map<const unsigned int, std::string> ResponseHandler::errorCodes =
 {
 	{404, "Not Found"},
 	{403, "Forbidden"},
-	{400, "Bad Request"}
+	{400, "Bad Request"},
+	{500, "Internal Server Error"}
 };
+
 void ResponseHandler::checkRequestType(clientInfo *ClientPTR, std::string requestString)
 {
     std::cout << "We managed to get to checkRequestType" << std::endl;

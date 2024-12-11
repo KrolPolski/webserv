@@ -59,17 +59,17 @@ void ResponseHandler::checkRequestType(clientInfo *ClientPTR, std::string reques
     std::cout << "We managed to get to checkRequestType" << std::endl;
     std::cout << requestString << std::endl;
 	std::cout << "We should have printed the http request by now" << std::endl;
-	if (!requestString.compare(0, 3, "GET"))
+	if (!requestString.compare(0, 4, "GET "))
 	{
 		std::cout << "GET request detected woo" << std::endl;
 		setRequestType(GET);
 	}
-	else if (!requestString.compare(0, 4, "POST"))
+	else if (!requestString.compare(0, 5, "POST "))
 	{
 		std::cout << "POST request detected woo" << std::endl;
 		setRequestType(POST);
 	}
-	else if (!requestString.compare(0, 6, "DELETE"))
+	else if (!requestString.compare(0, 7, "DELETE "))
 	{
 		std::cout << "DELETE request detected woo" << std::endl;
 		setRequestType(DELETE);

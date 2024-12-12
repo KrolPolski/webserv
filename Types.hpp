@@ -5,6 +5,7 @@
 */
 
 #include <iostream>
+#include "ConfigurationHandler.hpp"
 
 /*
 	DEFINES (some nice colors for terminal output =))
@@ -31,6 +32,8 @@ struct clientInfo
 	std::string responseString;
 	int		bytesSent;
 
+//	serverInfo &relatedServer; --> PANU FIX THIS
+
 	clientInfo(int clientFd) : 
 	fd(clientFd), requestReady(false), requestString(""), responseString(""), bytesSent(0)
 	{
@@ -42,12 +45,14 @@ struct serverInfo
 {
 	int			fd;
 	std::string	name;
+
+	ConfigurationHandler *serverConfig;
 	// something to store valid methods
 	// error page information
 	// root folder info
 
 	// need to update this later
-	serverInfo(int serverFd) : fd(serverFd), name("test_server_" + std::to_string(serverFd))
+	serverInfo(int serverFd, ConfigurationHandler *config) : fd(serverFd), name("test_server_" + std::to_string(serverFd)), serverConfig(config)
 	{
 	}
 };

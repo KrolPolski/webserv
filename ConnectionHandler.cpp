@@ -22,8 +22,14 @@ ConnectionHandler::~ConnectionHandler()
 	INIT SERVERS
 */
 
-int		ConnectionHandler::initServers(unsigned int *portArr, int portCount)
+int		ConnectionHandler::initServers(unsigned int *portArr, int portCount) // filename
 {
+
+/*
+	m_config.init(filename);
+*/
+
+
 	for (int i = 0; i < portCount; ++i)
 	{
 		int socketfd = initServerSocket(portArr[i]);
@@ -107,17 +113,19 @@ int		ConnectionHandler::startServers()
 	{
 		// Why doesn't this work...? the poll() always gets interrupted instead of this
 		if (isSigInt)
-		{
-			std::cout << GREEN << "Recieved SIGINT signal, exiting program\n" << RESET;
-			exit (0);
-		}
+			return (sigIntMessage());
 
 		int	readySocketCount = poll(&m_pollfdVec[0], m_pollfdVec.size(), 0);
 		if (readySocketCount == -1)
 		{
-			std::cerr << RED << "\npoll() failed:\n" << RESET << std::strerror(errno) << "\n\n";
-			// Error handling
-			return (-1); // should we quit the server...? Probably not
+			if (isSigInt) // is it bad that this is here...?
+				return (sigIntMessage());
+			else
+			{
+				std::cerr << RED << "\npoll() failed:\n" << RESET << std::strerror(errno) << "\n\n";
+				// Error handling
+				return (-1); // should we quit the server...? Probably not
+			}
 		}
 		else if (readySocketCount == 0)
 			continue ;
@@ -142,6 +150,8 @@ int		ConnectionHandler::startServers()
 
 void		ConnectionHandler::acceptNewClient(const unsigned int serverFd)
 {
+	// Should this start with a isSigInt -check...?
+
 	int newClientFd = accept(serverFd, nullptr, nullptr); // why are these nullptr...?	
 	if (newClientFd == -1)
 	{
@@ -170,6 +180,8 @@ void		ConnectionHandler::acceptNewClient(const unsigned int serverFd)
 
 void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 {
+	// Should this start with a isSigInt -check...?
+
 	clientInfo *clientPTR = getClientPTR(clientFd);
 	if (clientPTR == nullptr)
 	{
@@ -234,6 +246,9 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 
 void		ConnectionHandler::sendDataToClient(const unsigned int clientFd)
 {
+	// Should this start with a isSigInt -check...?
+
+
 	clientInfo *clientPTR = getClientPTR(clientFd);
 	if (clientPTR == nullptr)
 	{

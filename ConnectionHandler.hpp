@@ -29,6 +29,8 @@ class ConnectionHandler
 
 	private:
 
+	// map: ConfigHandler	m_config;
+
 	std::vector<serverInfo>	m_serverVec;
 	std::vector<clientInfo>	m_clientVec;
 	std::vector<pollfd>		m_pollfdVec;

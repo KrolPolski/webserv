@@ -71,7 +71,12 @@ enum requestTypes
 
 
 /*
-	GLOBAL VARIABLE
+	SIGNAL HANDLING
 */
 
-extern bool	isSigInt; // is this needed...?
+#include <signal.h> // for signal handling
+
+extern bool	isSigInt;
+
+void	sigIntHandler(int signal);
+int		sigIntMessage();

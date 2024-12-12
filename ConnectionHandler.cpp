@@ -111,7 +111,6 @@ int		ConnectionHandler::startServers()
 {
 	while (1)
 	{
-		// Why doesn't this work...? the poll() always gets interrupted instead of this
 		if (isSigInt)
 			return (sigIntMessage());
 
@@ -124,7 +123,7 @@ int		ConnectionHandler::startServers()
 			{
 				std::cerr << RED << "\npoll() failed:\n" << RESET << std::strerror(errno) << "\n\n";
 				// Error handling
-				return (-1); // should we quit the server...? Probably not
+				return (-1); // should we quit the server...? Probably yea
 			}
 		}
 		else if (readySocketCount == 0)

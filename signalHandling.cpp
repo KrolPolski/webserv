@@ -2,7 +2,6 @@
 
 bool	isSigInt = false;
 
-
 void	sigIntHandler(int signal)
 {
 	isSigInt = true;

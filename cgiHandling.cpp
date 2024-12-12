@@ -1,13 +1,23 @@
 #include "Types.hpp"
 #include <chrono> // for timer building
 #include <cstring> // for errno
-
 #include <unistd.h> // fork()
 #include <sys/wait.h> // waitpid()
 #include <stdlib.h> // getenv()
 
+int	executeCgi(std::string filepath);
+
+
+int main()
+{
+	executeCgi("home/cgi-php/index.php");
+
+	return (0);
+}
+
+
 // Returns -1 on failure
-int	executePhpInterpreter(std::string filepath)
+int	executeCgi(std::string filepath)
 {
 	pid_t	cgiPid;
 	int		pipeFd[2];
@@ -33,7 +43,9 @@ int	executePhpInterpreter(std::string filepath)
 
 	if (cgiPid == 0)
 	{
-		close (pipeFd[0]); // do we need to check for errors...?
+		// chdir() to right folder...?
+
+		close (pipeFd[0]); // do we need to check for errors with close()...?
 
 		if (dup2(pipeFd[1], STDOUT_FILENO) == -1)
 		{
@@ -42,26 +54,28 @@ int	executePhpInterpreter(std::string filepath)
 			return (-1);			
 		}
 
-
 		std::string interpreterPath;
-		std::string interpreterExec;
+		std::string interpreterExecName;
 		char 		*argArr[3];
 		// char *envVarArr[]...?
 
 		// if (content = PHP)
-		interpreterPath = "/usr/bin/php";
-		interpreterExec = "php";
+		interpreterPath = "/usr/local/bin/php"; // does this have to be dynamic / searched from the computer...?
+		interpreterExecName = "php";
 		// else if (content = Python)
 		// interpreterPath = ???;
 		// interpreterExec = ???;
 
-		argArr[0] = (char *) interpreterExec.c_str();
+		argArr[0] = (char *) interpreterExecName.c_str();
 		argArr[1] = (char *) filepath.c_str();
 		argArr[2] = NULL;
 
 		if (execve(interpreterPath.c_str(), argArr, NULL) == -1)
 		{
 			close(pipeFd[1]);
+			std::cerr << RED << "\nExecve() failed:\n" << RESET << std::strerror(errno) << "\n\n";
+			// Other error handling?
+			return (1); // or some other exit code...?
 		}
 	}
 	else
@@ -69,7 +83,7 @@ int	executePhpInterpreter(std::string filepath)
 		close(pipeFd[1]);
 		int statloc;
 		int	waitpidStatus = 0;
-		int	cgiTimeOut = 3;
+		int	cgiTimeOut = 3; // in seconds
 
 		std::chrono::time_point<std::chrono::high_resolution_clock> startTime = std::chrono::high_resolution_clock::now();
 		std::chrono::time_point<std::chrono::high_resolution_clock> curTime;
@@ -79,7 +93,7 @@ int	executePhpInterpreter(std::string filepath)
 			if (curTime - startTime >= std::chrono::seconds(cgiTimeOut))
 			{
 				kill(cgiPid, SIGKILL); // Or sigint...?
-				std::cerr << RED << "\nCGI failed due to time out:\n" << RESET << std::strerror(errno) << "\n\n";
+				std::cerr << RED << "\nCGI failed due to time out\n" << RESET << "\n";
 				// Other error handling?
 				return (-1);
 			}
@@ -98,11 +112,10 @@ int	executePhpInterpreter(std::string filepath)
 		char 	buffer[1024];
 		int		bytesRead;
 
-		read(pipeFd[0], buffer, 1023);
+		bytesRead = read(pipeFd[0], buffer, 1023);
 		buffer[bytesRead] = '\0';
 
 		std::cout << "This is what we got:\n\n" << buffer << "\n";
-
 
 		close(pipeFd[0]);
 
@@ -124,8 +137,7 @@ int	executePhpInterpreter(std::string filepath)
 			}
 		*/
 
-		return (0);
-		
-		
 	}
+	return (0);
+
 }

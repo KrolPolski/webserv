@@ -21,13 +21,33 @@
 	STRUCTS
 */
 
+
+struct requestInfo
+{
+	bool 	isCgi;
+
+	int			contentLen;
+	std::string requestedFilePath;
+	std::string	contentType;
+	std::string queryString;
+	std::string	method;
+
+	requestInfo() : isCgi(false), contentLen(0), requestedFilePath(""), contentType(""), queryString(""), method("")
+	{
+	}
+};
+
 // Not final version
 struct clientInfo
 {
+//	serverInfo	&server;
+	requestInfo	requestInfo;
+
 	int		fd;
 	int		bytesSent;
 	bool 	requestReady;
 //	bool	responseReady; --> is this needed...?
+	std::string	clientIP; // we should probably get this in the constructor
 	std::string	requestString;
 	std::string responseHeaders; // might not be needed
 	std::string responseBody; // might not be needed
@@ -35,7 +55,7 @@ struct clientInfo
 	
 
 	clientInfo(int clientFd) : 
-	fd(clientFd), bytesSent(0), requestReady(false), requestString(""),
+	fd(clientFd), bytesSent(0), requestReady(false), clientIP(""), requestString(""),
 	responseHeaders(""), responseBody(""), responseString("")
 	{
 	}
@@ -44,14 +64,13 @@ struct clientInfo
 // Not final version
 struct serverInfo
 {
-	int			fd;
-	std::string	name;
-	// something to store valid methods
-	// error page information
-	// root folder info
+	int				fd;
+	unsigned int	port;
+	std::string		name;
 
 	// need to update this later
-	serverInfo(int serverFd) : fd(serverFd), name("test_server_" + std::to_string(serverFd))
+	serverInfo(int serverFd, unsigned int serverPort, std::string serverName) : 
+	fd(serverFd), port(serverPort), name(serverName)
 	{
 	}
 };

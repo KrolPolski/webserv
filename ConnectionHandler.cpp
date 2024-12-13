@@ -36,7 +36,7 @@ int		ConnectionHandler::initServers(unsigned int *portArr, int portCount) // fil
 		if (socketfd == -1)
 			return (-1);
 		
-		m_serverVec.push_back({socketfd}); // here we need to add all relevant info to serverInfo struct
+		m_serverVec.push_back({socketfd, portArr[i], "test_server"}); // here we need to add all relevant info to serverInfo struct
 		addNewPollfd(socketfd);
 	}
 
@@ -214,6 +214,8 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 		getClientPollfd(clientFd)->events = POLLOUT;
 		if (clientPTR)
 		{
+			parseRequest(clientPTR);
+
 			ResponseHandler respHdlr;
 			//std::unique_ptr<ResponseHandler> respHdlr;
 			respHdlr.checkRequestType(clientPTR, clientPTR->requestString);
@@ -240,6 +242,31 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 }
 
 /*
+	PARSE REQUEST
+*/
+
+int			ConnectionHandler::parseRequest(clientInfo *clientPTR)
+{
+	getMethod(clientPTR); // Maybe this could be "processFirstRow" etc, and the following code could be added here
+	// Should I check for "INVALID" here, or later in the ResponseHandler...? Mainly thinking about error code setting
+
+	size_t	startIndex;
+	size_t	endIndex;
+	std::string &reqStr = clientPTR->requestString;
+
+	startIndex = reqStr.find_first_of(' ');
+	startIndex++;
+	endIndex = reqStr.find(' ', startIndex);
+	clientPTR->requestInfo.requestedFilePath = reqStr.substr(startIndex, endIndex - startIndex);
+
+	std::cout << "\nMETHOD:\n" << clientPTR->requestInfo.method << "\n\n";
+	std::cout << "FILE PATH:\n" << clientPTR->requestInfo.requestedFilePath << "\n\n";
+
+	return (0);
+}
+
+
+/*
 	SEND DATA TO CLIENT
 */
 
@@ -258,7 +285,7 @@ void		ConnectionHandler::sendDataToClient(const unsigned int clientFd)
 	// Send response to client
 	int sendBytes = send(clientPTR->fd, clientPTR->responseString.c_str(), clientPTR->responseString.length(), 0);
 
-	if (sendBytes <= 0) // should 0 be included...?
+	if (sendBytes < 0) // should 0 be included...?
 	{
 		std::cerr << RED << "\nsend() failed:\n" << RESET << std::strerror(errno) << "\n\n";
 		// Do we need any other error handling...? For example close the client connection?

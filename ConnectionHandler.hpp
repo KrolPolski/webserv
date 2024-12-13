@@ -47,7 +47,13 @@ class ConnectionHandler
 	// client data functions
 	void		acceptNewClient(const unsigned int serverFd);
 	void		recieveDataFromClient(const unsigned int clientFd);
+	int			parseRequest(clientInfo *clientPTR);
 	void		sendDataToClient(const unsigned int clientFd);
+
+	// request parsing helpers
+
+	void		getMethod(clientInfo *clientPTR);
+
 
 	// client helper functions
 	clientInfo	*getClientPTR(const int clientFd);
@@ -55,8 +61,9 @@ class ConnectionHandler
 	void		removeFromClientVec(const int clientFd);
 
 
-	// These are just for testing
+/*	// These are just for testing
 	std::string createHomeResponse();
 	std::string createSecondPageResponse();
+*/
 
 };

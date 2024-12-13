@@ -4,7 +4,7 @@ COMP = c++
 
 CFLAGS = -Wall -Wextra -Werror -std=c++17
 
-SRC = main.cpp ConnectionHandler.cpp ResponseHandler.cpp signalHandling.cpp cgiHandling.cpp
+SRC = main.cpp ConnectionHandler.cpp ResponseHandler.cpp signalHandling.cpp cgiHandling.cpp requestParsing.cpp
 
 OBJ = $(SRC:.cpp=.o)
 

@@ -4,7 +4,8 @@ bool	isSigInt = false;
 
 void	sigIntHandler(int signal)
 {
-	isSigInt = true;
+	if (signal == 2)
+		isSigInt = true;
 }
 // Returns -1 for error handling purposes
 int	sigIntMessage()

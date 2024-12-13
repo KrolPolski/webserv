@@ -47,6 +47,10 @@ const std::map<std::string, std::string> ResponseHandler::extensionTypes =
 
 void ResponseHandler::checkRequestType(clientInfo *ClientPTR, std::string requestString)
 {
+	// unused clientPTR, just made this to satisfy compiler
+	if (ClientPTR == nullptr)
+		return ;
+
     std::cout << "We managed to get to checkRequestType" << std::endl;
     std::cout << requestString << std::endl;
 	std::cout << "We should have printed the http request by now" << std::endl;
@@ -102,6 +106,28 @@ void ResponseHandler::checkExtension(std::string filePath)
 	}
 }
 
+// Panu addition
+
+CgiTypes	ResponseHandler::checkForCGI(std::string filePath)
+{
+	std::string extension;
+	size_t 		index;
+
+	index = filePath.find_last_of('.');
+	if (index == std::string::npos)
+		return (NONE);
+	extension = filePath.substr(index, filePath.length());
+	std::cout << GREEN << "filePath: " << filePath << " Extension: " << extension << RESET << std::endl; // TEST
+	
+	if (extension == ".php")
+		return (PHP);
+	else if (extension == ".py")
+		return (PYTHON);
+	
+	return (NONE);
+}
+
+
 int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 {
     std::cout << "We should now check if the file exists" << std::endl;
@@ -110,6 +136,36 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 		filePath = "home/index.html";
 	else
 		filePath = "home" + filePath;
+
+	/*
+		Panu addition (CGI)
+	*/
+
+	
+//	CgiTypes type = checkForCGI(filePath);
+/*
+	if (type != NONE)
+	{
+		if (executeCgi(clientPTR, filePath, type) == -1)
+			return (-1);
+
+		clientPTR->responseHeaders = "HTTP/1.1 200 OK\r\n";
+		clientPTR->responseHeaders += "Content-Type: text/html\r\n"; // fix later if needed
+		clientPTR->responseHeaders += "Content-Length: ";
+		clientPTR->responseHeaders += std::to_string(clientPTR->responseBody.length());
+		clientPTR->responseHeaders += "\r\n\r\n";
+		clientPTR->responseString = clientPTR->responseHeaders + clientPTR->responseBody;
+		std::cout << "responseString: " << clientPTR->responseString << std::endl;
+		responseCode = 200;
+		return (0);
+	} 
+*/
+
+	// Addition end
+
+
+
+
 	std::string content;
 	std::ifstream ourFile(filePath);
 	/*We need to detect which type of error we got with the file, so we 
@@ -175,7 +231,7 @@ void ResponseHandler::parseRequest(clientInfo *clientPTR, std::string requestStr
 				std::cout << phrase << std::endl;
 			}
 			if (lineOne.size() >= 2)
-				checkFile(clientPTR, lineOne.at(1));
+				checkFile(clientPTR, lineOne.at(1)); // we need to check return value here in case something goes wrong
 			break;
 		}	
 		default:

@@ -25,14 +25,18 @@
 struct clientInfo
 {
 	int		fd;
+	int		bytesSent;
 	bool 	requestReady;
 //	bool	responseReady; --> is this needed...?
 	std::string	requestString;
+	std::string responseHeaders; // might not be needed
+	std::string responseBody; // might not be needed
 	std::string responseString;
-	int		bytesSent;
+	
 
 	clientInfo(int clientFd) : 
-	fd(clientFd), requestReady(false), requestString(""), responseString(""), bytesSent(0)
+	fd(clientFd), bytesSent(0), requestReady(false), requestString(""),
+	responseHeaders(""), responseBody(""), responseString("")
 	{
 	}
 };
@@ -58,6 +62,13 @@ enum requestTypes
 	POST,
 	DELETE,
 	INVALID
+};
+
+enum CgiTypes
+{
+	PHP,
+	PYTHON,
+	NONE
 };
 
 /*enum contentTypes

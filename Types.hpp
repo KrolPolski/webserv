@@ -21,31 +21,30 @@
 	STRUCTS
 */
 
+#include <map> // is this needed here...?
 
-struct requestInfo
+struct requestParseInfo
 {
-	bool 	isCgi;
+	bool 	isCgi = false;
 
-	int			contentLen;
-	std::string requestedFilePath;
-	std::string	contentType;
-	std::string queryString;
+	std::string		startLine;
+	std::map<std::string, std::string>	headerMap;
+	std::string		rawContent;
+
 	std::string	method;
-
-	requestInfo() : isCgi(false), contentLen(0), requestedFilePath(""), contentType(""), queryString(""), method("")
-	{
-	}
+	std::string requestedFilePath;
+	std::string queryString;
 };
 
 // Not final version
 struct clientInfo
 {
 //	serverInfo	&server;
-	requestInfo	requestInfo;
+	requestParseInfo	parsedRequest;
 
 	int		fd;
-	int		bytesSent;
-	bool 	requestReady;
+	int		bytesSent = 0;
+	bool 	requestReady = false;
 //	bool	responseReady; --> is this needed...?
 	std::string	clientIP; // we should probably get this in the constructor
 	std::string	requestString;
@@ -53,10 +52,7 @@ struct clientInfo
 	std::string responseBody; // might not be needed
 	std::string responseString;
 	
-
-	clientInfo(int clientFd) : 
-	fd(clientFd), bytesSent(0), requestReady(false), clientIP(""), requestString(""),
-	responseHeaders(""), responseBody(""), responseString("")
+	clientInfo(int clientFd) : fd(clientFd)
 	{
 	}
 };

@@ -247,20 +247,13 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 
 int			ConnectionHandler::parseRequest(clientInfo *clientPTR)
 {
-	getMethod(clientPTR); // Maybe this could be "processFirstRow" etc, and the following code could be added here
-	// Should I check for "INVALID" here, or later in the ResponseHandler...? Mainly thinking about error code setting
 
-	size_t	startIndex;
-	size_t	endIndex;
-	std::string &reqStr = clientPTR->requestString;
+	/*
+		ERROR HANDLING AND VALID REQUEST CHECKING...?
+	*/
 
-	startIndex = reqStr.find_first_of(' ');
-	startIndex++;
-	endIndex = reqStr.find(' ', startIndex);
-	clientPTR->requestInfo.requestedFilePath = reqStr.substr(startIndex, endIndex - startIndex);
+	parseBlocks(clientPTR);
 
-	std::cout << "\nMETHOD:\n" << clientPTR->requestInfo.method << "\n\n";
-	std::cout << "FILE PATH:\n" << clientPTR->requestInfo.requestedFilePath << "\n\n";
 
 	return (0);
 }

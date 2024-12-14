@@ -52,7 +52,8 @@ class ConnectionHandler
 
 	// request parsing helpers
 
-	void		getMethod(clientInfo *clientPTR);
+	int		parseBlocks(clientInfo *clientPTR);
+	void	getMethod(clientInfo *clientPTR);
 
 
 	// client helper functions

@@ -68,7 +68,7 @@ int		ConnectionHandler::parseBlocks(clientInfo *clientPTR)
 	std::string 	&reqStr = clientPTR->requestString;
 	requestParseInfo	&parseInfo = clientPTR->parsedRequest;
 
-	std::cout << "REQUEST:\n" << reqStr << "\n";
+//	std::cout << "REQUEST:\n" << reqStr << "\n";
 
 	// Separate start line from request
 

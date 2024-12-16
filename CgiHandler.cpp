@@ -13,7 +13,7 @@ CgiHandler::CgiHandler(clientInfo &client) : m_client(client)
 	CgiTypes 	type = m_client.parsedRequest.cgiType;
 
 	if (type == PHP)
-		m_pathToInterpreter = "/usr/bin/php-cgi";
+		m_pathToInterpreter = "/usr/local/bin/php-cgi";
 	else if (type == PYTHON)
 		m_pathToInterpreter = "/usr/bin/python3"; // check this later
 
@@ -28,6 +28,8 @@ CgiHandler::CgiHandler(clientInfo &client) : m_client(client)
 	m_gatewayInterface = "GATEWAY_INTERFACE=CGI/1.1";
 	m_pathInfo = "PATH_INFO=" + m_pathToScript; // check this later (full path or not)
 	m_requestMethod = "REQUEST_METHOD=" + m_client.parsedRequest.method;
+	m_scriptName = "SCRIPT_FILENAME=" + m_pathToScript;
+	m_redirectStatus = "REDIRECT_STATUS=";
 
 	setExecveArgs();
 	setExecveEnvArr();
@@ -44,8 +46,8 @@ void	CgiHandler::setExecveArgs()
 	m_argsForExecve[1] = (char * )m_pathToScript.c_str(); // check the casting later
 	m_argsForExecve[2] = NULL;
 
-//	for (int i = 0; i < 2; ++i)
-//		std::cout << "EXECVE ARG " << i << " IS:\n" << m_argsForExecve[i] << "\n\n";
+	for (int i = 0; i < 2; ++i)
+		std::cout << "EXECVE ARG " << i << " IS:\n" << m_argsForExecve[i] << "\n\n";
 }
 
 void	CgiHandler::setExecveEnvArr()
@@ -65,9 +67,11 @@ void	CgiHandler::setExecveEnvArr()
 	m_envArrExecve[4] = (char *) m_gatewayInterface.c_str();
 	m_envArrExecve[5] = (char *) m_pathInfo.c_str();
 	m_envArrExecve[6] = (char *) m_requestMethod.c_str();
+	m_envArrExecve[7] = (char *) m_scriptName.c_str();
+	m_envArrExecve[8] = (char *) m_redirectStatus.c_str(); // check this at school
 
-//	for (int i = 0; i < 3; ++i)
-//		std::cout << "ENV VAR " << i << " IS:\n" << m_envArrExecve[i] << "\n\n";
+	for (int i = 0; i < 9; ++i)
+		std::cout << "ENV VAR " << i << " IS:\n" << m_envArrExecve[i] << "\n\n";
 
 }
 

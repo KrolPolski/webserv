@@ -35,7 +35,6 @@ int	CgiHandler::executeCgi(clientInfo *clientPTR)
 
 		close (pipeFd[0]); // do we need to check for errors with close()...?
 
-
 		if (dup2(pipeFd[1], STDOUT_FILENO) == -1)
 		{
 			std::cerr << RED << "\nDup2() failed:\n" << RESET << std::strerror(errno) << "\n\n";
@@ -125,7 +124,14 @@ int	CgiHandler::executeCgi(clientInfo *clientPTR)
 
 		buffer[bytesRead] = '\0';
 
-		clientPTR->responseBody = buffer;
+		std::string bufStr = buffer;
+
+		size_t index = bufStr.find_first_of('\n');
+		index = bufStr.find_first_of('\n', index + 1);
+
+		clientPTR->responseBody = bufStr.substr(index + 1, bufStr.length() - index);
+
+		std::cout << "RESPONSE" << clientPTR->responseBody << "\n";
 
 		close(pipeFd[0]);
 	}

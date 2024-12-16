@@ -53,8 +53,6 @@ class ConnectionHandler
 	// request parsing helpers
 
 	int		parseBlocks(clientInfo *clientPTR);
-	void	getMethod(clientInfo *clientPTR);
-
 
 	// client helper functions
 	clientInfo	*getClientPTR(const int clientFd);

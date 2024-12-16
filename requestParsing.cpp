@@ -10,12 +10,12 @@ void	splitStartLine(requestParseInfo	&parseInfo)
 	size_t		startIndex = 0;
 	size_t		endIndex = 0;
 
-	// Extract method from start line
+	// Extract HTTP method from start line
 	endIndex = parseInfo.startLine.find_first_of(' ');
 	parseInfo.method = parseInfo.startLine.substr(0, endIndex);
 	startIndex = endIndex + 1;
 
-	// Extract file path (and possible query string) from start line
+	// Extract requested file path (and possible query string) from start line
 	std::string tempStr;
 
 	endIndex = parseInfo.startLine.find_first_of(' ', startIndex);
@@ -23,17 +23,33 @@ void	splitStartLine(requestParseInfo	&parseInfo)
 	startIndex = endIndex + 1;
 
 	if (tempStr.find_first_of('?') == tempStr.npos)
-		parseInfo.requestedFilePath = tempStr;
+		parseInfo.filePath = tempStr;
 	else
 	{
 		endIndex = tempStr.find_first_of('?');
-		parseInfo.requestedFilePath = tempStr.substr(0, endIndex);
+		parseInfo.filePath = tempStr.substr(0, endIndex);
 		endIndex++;
 		parseInfo.queryString = tempStr.substr(endIndex, tempStr.length() - endIndex);
 	}
 
-	// Do I have to extraxt also the protocol and check that it is indeed HTTP/1.1...?
+	// Parse extension
+	startIndex = parseInfo.filePath.find_last_of('.');
+	if (startIndex != parseInfo.filePath.npos)
+		parseInfo.extension = parseInfo.filePath.substr(startIndex, parseInfo.filePath.length() - startIndex);
 
+	// Check CGI
+	if (parseInfo.extension == ".php")
+	{
+		parseInfo.isCgi = true;
+		parseInfo.cgiType = PHP;
+	}
+	else if (parseInfo.extension == ".py")
+	{
+		parseInfo.isCgi = true;
+		parseInfo.cgiType = PYTHON;
+	}
+
+	// Do I have to extraxt also the protocol and check that it is indeed HTTP/1.1...?
 }
 
 /*
@@ -42,6 +58,8 @@ void	splitStartLine(requestParseInfo	&parseInfo)
 	1. Splits start line and extracts method and filepath (+ possible query string)
 	2. Parses all headers into a map (key = header name, value = header value)
 	3. Extracts content from the request body (if one is found)
+
+	This function could be broken into smaller pieces
 */
 int		ConnectionHandler::parseBlocks(clientInfo *clientPTR)
 {
@@ -50,7 +68,7 @@ int		ConnectionHandler::parseBlocks(clientInfo *clientPTR)
 	std::string 	&reqStr = clientPTR->requestString;
 	requestParseInfo	&parseInfo = clientPTR->parsedRequest;
 
-//	std::cout << "REQUEST:\n" << reqStr << "\n\n";
+	std::cout << "REQUEST:\n" << reqStr << "\n";
 
 	// Separate start line from request
 
@@ -63,13 +81,7 @@ int		ConnectionHandler::parseBlocks(clientInfo *clientPTR)
 	parseInfo.startLine = reqStr.substr(0, endIndex - startIndex);
 	startIndex = endIndex + 1;
 
-//	std::cout << "START LINE:\n" << parseInfo.startLine << "\n\n";
-
 	splitStartLine(parseInfo);
-
-	std::cout << GREEN << "Method:\n" << parseInfo.method 
-	<< "\nFilepath:\n" << parseInfo.requestedFilePath << "\nQuery string:\n" << parseInfo.queryString
-	<< RESET << "\nEnd of test\n"; 
 
 	// Set header map
 
@@ -102,6 +114,15 @@ int		ConnectionHandler::parseBlocks(clientInfo *clientPTR)
 			break ;
 	}
 
+		std::map<std::string, std::string>::iterator itTest = headerMap.find("Content-Length");
+
+		while (itTest != headerMap.end())
+		{
+			std::cout << itTest->first << " " << itTest->second << "\n";
+			++itTest;
+		}
+
+
 	// Get content from request
 
 	std::map<std::string, std::string>::iterator it = headerMap.find("Content-Length");
@@ -114,9 +135,6 @@ int		ConnectionHandler::parseBlocks(clientInfo *clientPTR)
 		parseInfo.rawContent = reqStr.substr(startIndex, contenLen);
 	}
 
-//	std::cout << RED << "CONTENT:\n" << parseInfo.rawContent << "END OF CONTENT\n\n" << RESET;
-
 	return (0);
-
 }
 

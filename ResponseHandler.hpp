@@ -15,9 +15,6 @@ class ResponseHandler
         unsigned int responseCode;
 		std::string contentType;
 		static const std::map<std::string, std::string> extensionTypes;
-
-//		int			executeCgi(clientInfo *clientPTR, std::string filepath, CgiTypes type);
-		CgiTypes	checkForCGI(std::string filePath);
 	
     public:
         ResponseHandler() = default;

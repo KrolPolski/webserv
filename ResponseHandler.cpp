@@ -1,4 +1,5 @@
 #include "ResponseHandler.hpp"
+#include "CgiHandler.hpp"
 #include <iostream>
 
 const std::map<std::string, std::string> ResponseHandler::extensionTypes = 
@@ -106,28 +107,6 @@ void ResponseHandler::checkExtension(std::string filePath)
 	}
 }
 
-// Panu addition
-
-CgiTypes	ResponseHandler::checkForCGI(std::string filePath)
-{
-	std::string extension;
-	size_t 		index;
-
-	index = filePath.find_last_of('.');
-	if (index == std::string::npos)
-		return (NONE);
-	extension = filePath.substr(index, filePath.length());
-//	std::cout << GREEN << "filePath: " << filePath << " Extension: " << extension << RESET << std::endl; // TEST
-	
-	if (extension == ".php")
-		return (PHP);
-	else if (extension == ".py")
-		return (PYTHON);
-	
-	return (NONE);
-}
-
-
 int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 {
 //    std::cout << "We should now check if the file exists" << std::endl;
@@ -141,25 +120,10 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 		Panu addition (CGI)
 	*/
 
-	
-//	CgiTypes type = checkForCGI(filePath);
-/*
-	if (type != NONE)
-	{
-		if (executeCgi(clientPTR, filePath, type) == -1)
-			return (-1);
+	CgiHandler	cgiHandler(*clientPTR);
 
-		clientPTR->responseHeaders = "HTTP/1.1 200 OK\r\n";
-		clientPTR->responseHeaders += "Content-Type: text/html\r\n"; // fix later if needed
-		clientPTR->responseHeaders += "Content-Length: ";
-		clientPTR->responseHeaders += std::to_string(clientPTR->responseBody.length());
-		clientPTR->responseHeaders += "\r\n\r\n";
-		clientPTR->responseString = clientPTR->responseHeaders + clientPTR->responseBody;
-		std::cout << "responseString: " << clientPTR->responseString << std::endl;
-		responseCode = 200;
-		return (0);
-	} 
-*/
+
+
 
 	// Addition end
 

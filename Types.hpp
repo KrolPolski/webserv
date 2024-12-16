@@ -17,6 +17,36 @@
 // # define PURPLE	"\033[35m"
 // # define CYAN   "\033[36m"
 
+
+/*
+	ENUMS	
+*/
+
+
+enum requestTypes
+{
+	GET,
+	POST,
+	DELETE,
+	INVALID
+};
+
+enum CgiTypes
+{
+	NONE,
+	PHP,
+	PYTHON
+};
+
+/*enum contentTypes
+{
+	HTML,
+	CSS,
+	JAVASCRIPT,
+	PNG,
+	JSON
+}*/
+
 /*
 	STRUCTS
 */
@@ -25,14 +55,16 @@
 
 struct requestParseInfo
 {
-	bool 	isCgi = false;
+	bool 		isCgi = false;
+	CgiTypes	cgiType = NONE;
 
 	std::string		startLine;
 	std::map<std::string, std::string>	headerMap;
 	std::string		rawContent;
 
 	std::string	method;
-	std::string requestedFilePath;
+	std::string filePath;
+	std::string	extension; // has the first . included (for example '.php')
 	std::string queryString;
 };
 
@@ -70,30 +102,6 @@ struct serverInfo
 	{
 	}
 };
-
-enum requestTypes
-{
-	GET,
-	POST,
-	DELETE,
-	INVALID
-};
-
-enum CgiTypes
-{
-	PHP,
-	PYTHON,
-	NONE
-};
-
-/*enum contentTypes
-{
-	HTML,
-	CSS,
-	JAVASCRIPT,
-	PNG,
-	JSON
-}*/
 
 
 /*

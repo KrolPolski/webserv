@@ -120,12 +120,32 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 		Panu addition (CGI)
 	*/
 
-	CgiHandler	cgiHandler(*clientPTR);
+	if (clientPTR->parsedRequest.isCgi)
+	{
+		// This needs to be saved in the connection handler somehow... So we can use it in the poll() loop
 
+		CgiHandler	cgiHandler(*clientPTR);
 
+		cgiHandler.executeCgi(clientPTR);
 
+		std::string	headers;
 
-	// Addition end
+		headers = "HTTP/1.1 200 OK\r\n";
+		headers += "Content-Type: text/html\r\n"; // check this
+		headers += "Content-Length: ";
+		headers += std::to_string(clientPTR->responseBody.length());
+		headers += "\r\n\r\n";
+		clientPTR->responseString = headers + clientPTR->responseBody;
+
+		responseCode = 200; // just a test
+
+		return (0);
+	}
+
+	/*
+		Addition end
+	*/
+
 
 	std::string content;
 	std::ifstream ourFile(filePath);
@@ -195,6 +215,10 @@ void ResponseHandler::parseRequest(clientInfo *clientPTR, std::string requestStr
 				checkFile(clientPTR, lineOne.at(1)); // we need to check return value here in case something goes wrong
 			break;
 		}	
+		case POST:
+		{
+			checkFile(clientPTR, ""); // JUST A TEST
+		}
 		default:
 			std::cout << "unhandled parseRequest" << std::endl;
 	}

@@ -23,11 +23,11 @@ void	splitStartLine(requestParseInfo	&parseInfo)
 	startIndex = endIndex + 1;
 
 	if (tempStr.find_first_of('?') == tempStr.npos)
-		parseInfo.filePath = tempStr;
+		parseInfo.filePath = tempStr; // add also the root folder to the beginning!
 	else
 	{
 		endIndex = tempStr.find_first_of('?');
-		parseInfo.filePath = tempStr.substr(0, endIndex);
+		parseInfo.filePath = tempStr.substr(0, endIndex); // add also the root folder to the beginning!
 		endIndex++;
 		parseInfo.queryString = tempStr.substr(endIndex, tempStr.length() - endIndex);
 	}

@@ -6,7 +6,7 @@
 
 
 // Returns -1 on failure
-int	CgiHandler::executeCgi(clientInfo *clientPTR, std::string filepath, CgiTypes type)
+int	CgiHandler::executeCgi(clientInfo *clientPTR)
 {
 	pid_t	cgiPid;
 	int		pipeFd[2];
@@ -43,25 +43,8 @@ int	CgiHandler::executeCgi(clientInfo *clientPTR, std::string filepath, CgiTypes
 			return (-1);	
 		}
 
-		std::string interpreterPath = "";
-		std::string interpreterExecName = "";
-		char 		*argArr[3] = {};
-		// char *envVarArr[]...? --> Do we need these?
 
-		if (type == PHP)
-		{
-			interpreterPath = "/usr/bin/php";
-			interpreterExecName = "php";
-		}
-		// else if (content = Python)
-		// interpreterPath = ???;
-		// interpreterExec = ???;
-
-		argArr[0] = (char *) interpreterExecName.c_str();
-		argArr[1] = (char *) filepath.c_str();
-		argArr[2] = NULL;
-
-		if (execve(interpreterPath.c_str(), argArr, NULL) == -1)
+		if (execve(m_pathToInterpreter.c_str(), m_argsForExecve, m_envArrExecve) == -1)
 		{
 			close(pipeFd[1]);
 			std::cerr << RED << "\nExecve() failed:\n" << RESET << std::strerror(errno) << "\n\n";
@@ -75,17 +58,18 @@ int	CgiHandler::executeCgi(clientInfo *clientPTR, std::string filepath, CgiTypes
 		close(pipeFd[1]);
 		int statloc;
 		int	waitpidStatus = 0;
-		int	cgiTimeOut = 3; // in seconds
 
+		/*
+			PANU:
+			Evantually do this timeout check in the poll loop!
+		*/
 		std::chrono::time_point<std::chrono::high_resolution_clock> startTime = std::chrono::high_resolution_clock::now();
 		std::chrono::time_point<std::chrono::high_resolution_clock> curTime;
-
-		// Build this differently? Now it slows down other serving if problems occur
 
 		while (waitpidStatus == 0)
 		{
 			curTime = std::chrono::high_resolution_clock::now();
-			if (curTime - startTime >= std::chrono::seconds(cgiTimeOut))
+			if (curTime - startTime >= std::chrono::seconds(m_cgiTimeOut))
 			{
 				kill(cgiPid, SIGKILL); // Or sigint...?
 				std::cerr << RED << "\nCGI failed due to time out\n" << RESET << "\n";
@@ -93,10 +77,7 @@ int	CgiHandler::executeCgi(clientInfo *clientPTR, std::string filepath, CgiTypes
 				return (-1);
 			}
 
-
 			waitpidStatus = waitpid(cgiPid, &statloc, WNOHANG);
-	//		std::cout << "PARENT waitpid status: " << waitpidStatus << "\n";
-
 		}
 
 
@@ -110,29 +91,27 @@ int	CgiHandler::executeCgi(clientInfo *clientPTR, std::string filepath, CgiTypes
 
 		if (WIFEXITED(statloc) == 1)
 		{
-			std::cout << "EXIT STATUS: " << WEXITSTATUS(statloc) << "\n";
 			if (WEXITSTATUS(statloc) != 0)
 				return (-1);
 		}
 		else if (WIFSIGNALED(statloc) == 1)
 		{
 			if (WTERMSIG(statloc) == 2)
-			{
-				std::cout << "EXIT STATUS: SIGINT" << "\n";
-			}
+				std::cout << "EXIT STATUS: SIGINT" << "\n"; // what should we do...?
 			else if (WTERMSIG(statloc) == 3)
-			{
-				std::cout << "EXIT STATUS: SIGQUIT" << "\n";
-			}
-
-			std::cout << "EXIT STATUS: something else" << "\n";
-
+				std::cout << "EXIT STATUS: SIGQUIT" << "\n"; // what should we do...?
 			return (-1);
-
 		}
 
 
-		char 	buffer[1024]; // what if this is not big enough?
+		/*
+			PANU:
+
+			This needs a rebuild. 
+			It needs to happen like the response building: read one chunk per round, and check if all has been read.
+			Also: Do I need to do poll() check before entering this...?
+		*/
+		char 	buffer[1024];
 		int		bytesRead;
 
 		bytesRead = read(pipeFd[0], buffer, 1023); // This needs to go thorugh poll()...?
@@ -149,7 +128,6 @@ int	CgiHandler::executeCgi(clientInfo *clientPTR, std::string filepath, CgiTypes
 		clientPTR->responseBody = buffer;
 
 		close(pipeFd[0]);
-
 	}
 	return (0);
 

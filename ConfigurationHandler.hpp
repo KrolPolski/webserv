@@ -51,11 +51,16 @@ class ConfigurationHandler
 		ConfigurationHandler(std::vector<std::string>);
 		~ConfigurationHandler() {};
 
-		std::string	getPort() const;
 		std::string	getHost() const;
+		std::string	getPort() const;
 		std::string	getIndex() const;
-		std::string	getNames() const;
 		uint		getMCBSize() const;
+		std::string	getNames() const;
+		std::string	getRoot(std::string) const;
+		std::string	getMethods(std::string) const;
+		bool		getDirListing(std::string) const;
+		std::string	getErrorPages(uint) const;
+
 };
 
 std::string	fileNameCheck(char *);

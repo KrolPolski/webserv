@@ -104,14 +104,14 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : 
 GETTERS
 */
 
-std::string	ConfigurationHandler::getPort() const
-{
-	return m_port;
-}
-
 std::string	ConfigurationHandler::getHost() const
 {
 	return m_host;
+}
+
+std::string	ConfigurationHandler::getPort() const
+{
+	return m_port;
 }
 
 std::string	ConfigurationHandler::getIndex() const
@@ -129,9 +129,43 @@ std::string	ConfigurationHandler::getNames() const
 	return m_names;
 }
 
+std::string	ConfigurationHandler::getRoot(std::string key) const
+{
+	auto map_key = m_routes.find(key);
+	if (map_key == m_routes.end())
+		std::cout << "Error: could not find route" << std::endl;
+	return map_key->second.m_root;
+}
+
+std::string	ConfigurationHandler::getMethods(std::string key) const
+{
+	auto map_key = m_routes.find(key);
+	if (map_key == m_routes.end())
+		std::cout << "Error: could not find route" << std::endl;
+	return map_key->second.m_methods;
+}
+
+bool	ConfigurationHandler::getDirListing(std::string key) const
+{
+	auto map_key = m_routes.find(key);
+	if (map_key == m_routes.end())
+		std::cout << "Error: could not find route" << std::endl;
+	return map_key->second.m_dirListing;
+}
+
+std::string	ConfigurationHandler::getErrorPages(uint key) const
+{
+	auto map_key = m_errorPages.find(key);
+	if (map_key == m_errorPages.end())
+		std::cout << "Error: could not find this error page directory" << std::endl;
+	return map_key->second;
+}
+
 /*
 CHECK THE FILE NAME
 */
+
+// this is not final!! ----- Patrik
 
 std::string	fileNameCheck(char *argv)
 {

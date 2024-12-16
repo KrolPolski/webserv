@@ -22,15 +22,28 @@ ConnectionHandler::~ConnectionHandler()
 	INIT SERVERS
 */
 
-int		ConnectionHandler::initServers(unsigned int *portArr, int portCount)
+int		ConnectionHandler::initServers(char *configFile)
 {
-	for (int i = 0; i < portCount; ++i)
+	std::vector<std::string>					rawFile;
+
+	try
 	{
-		int socketfd = initServerSocket(portArr[i]);
+		readFile(fileNameCheck(configFile), rawFile);
+		extractServerBlocks(m_configMap, rawFile);
+	}
+	catch(const std::exception& e)
+	{
+		std::cerr << e.what() << '\n';
+		throw;
+	}
+
+	for (auto iter = m_configMap.begin(); iter != m_configMap.end(); iter++)
+	{
+		int socketfd = initServerSocket(std::stoi(iter->first));
 		if (socketfd == -1)
 			return (-1);
 		
-		m_serverVec.push_back({socketfd}); // here we need to add all relevant info to serverInfo struct
+		m_serverVec.push_back({socketfd, &iter->second}); // here we need to add all relevant info to serverInfo struct
 		addNewPollfd(socketfd);
 	}
 

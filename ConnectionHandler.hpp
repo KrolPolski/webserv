@@ -22,12 +22,14 @@ class ConnectionHandler
 
 	// Do we need canonical form here...?
 
-	int		initServers(unsigned int *portArr, int portCount);
+	int		initServers(char *configFile);
 	int		startServers();
 
 //////
 
 	private:
+	
+	std::map<std::string, ConfigurationHandler>	m_configMap;
 
 	std::vector<serverInfo>	m_serverVec;
 	std::vector<clientInfo>	m_clientVec;

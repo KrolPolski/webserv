@@ -7,6 +7,7 @@
 #include <cstring>
 #include <map>
 #include "Types.hpp"
+#include <filesystem>
 
 class ResponseHandler
 {
@@ -19,6 +20,7 @@ class ResponseHandler
 		void setRequestType(enum requestTypes reqType);
 		void setResponseCode(unsigned int code);
 		void buildErrorResponse(clientInfo *ClientPTR);
+		void buildDirListingResponse(const std::string& pathToDir, clientInfo *ClientPTR);
 	
     public:
         ResponseHandler() = default;

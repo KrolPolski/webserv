@@ -241,3 +241,30 @@ void ResponseHandler::buildErrorResponse(clientInfo *clientPTR)
 	std::cout << "responseString: " << clientPTR->responseString << std::endl;
 	ourFile.close();
 }
+
+void	ResponseHandler::buildDirListingResponse(const std::string& pathForDirToList, clientInfo *clientPTR)
+{
+	std::string	content;
+	content += "<html>\n<body>\n";
+	content += " <h1>In directory with path: " + pathForDirToList + "</h1>\n";
+	content += "<ul>\n";
+
+	for(const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(pathForDirToList))
+	{
+		std::string href = entry.path().filename().string();
+		std::string name = entry.path().filename().string();
+
+		content += "  <li><a href=\"" + href + "\">" + name + "</a></li>\n";
+	}
+	content += "</ul>\n</body>\n</html>\n";
+
+	std::string headers;
+	contentType = "text/html";
+
+	headers = "HTTP/1.1 200 OK\r\n";
+	headers += "Content-Type: " + contentType + "\r\n";
+	headers += "Content-Length: ";
+	headers += std::to_string(content.length());
+	headers += "\r\n\r\n";
+	clientPTR->responseString = headers + content;
+}

@@ -111,41 +111,13 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 {
 //    std::cout << "We should now check if the file exists" << std::endl;
 	// this has to be fixed once we have a configuration parsing appropriately
+
+	filePath = clientPTR->parsedRequest.filePath;
+
 	if (filePath == "/")
 		filePath = "home/index.html";
 	else
 		filePath = "home" + filePath;
-
-	/*
-		Panu addition (CGI)
-	*/
-
-	if (clientPTR->parsedRequest.isCgi)
-	{
-		// This needs to be saved in the connection handler somehow... So we can use it in the poll() loop
-
-		CgiHandler	cgiHandler(*clientPTR);
-
-		cgiHandler.executeCgi(clientPTR);
-
-		std::string	headers;
-
-		headers = "HTTP/1.1 200 OK\r\n";
-		headers += "Content-Type: text/html\r\n"; // check this
-		headers += "Content-Length: ";
-		headers += std::to_string(clientPTR->responseBody.length());
-		headers += "\r\n\r\n";
-		clientPTR->responseString = headers + clientPTR->responseBody;
-
-		responseCode = 200; // just a test
-
-		return (0);
-	}
-
-	/*
-		Addition end
-	*/
-
 
 	std::string content;
 	std::ifstream ourFile(filePath);
@@ -163,6 +135,27 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 		std::cerr << "Response Code: " << responseCode << std::endl;
 		return -1;
 	}
+
+	/*
+		Panu addition (CGI)
+	*/
+
+	if (clientPTR->parsedRequest.isCgi)
+	{
+		// This needs to be saved in the connection handler somehow... So we can use it in the poll() loop
+
+		CgiHandler	cgiHandler(*clientPTR);
+
+		if (cgiHandler.executeCgi() == -1)
+			return (-1);
+		
+		responseCode = 200; // just a test
+		return (0);
+	}
+
+	/*
+		Addition end
+	*/
 	
 	std::string line;
 	while (std::getline(ourFile, line))

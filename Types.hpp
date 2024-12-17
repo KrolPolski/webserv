@@ -53,43 +53,6 @@ enum CgiTypes
 
 #include <map> // is this needed here...?
 
-struct requestParseInfo
-{
-	bool 		isCgi = false;
-	CgiTypes	cgiType = NONE;
-
-	std::string		startLine;
-	std::map<std::string, std::string>	headerMap;
-	std::string		rawContent;
-
-	std::string	method;
-	std::string filePath;
-	std::string	extension; // has the first . included (for example '.php')
-	std::string queryString;
-};
-
-// Not final version
-struct clientInfo
-{
-//	serverInfo	&server;
-	requestParseInfo	parsedRequest;
-
-	int		fd;
-	int		bytesSent = 0;
-	bool 	requestReady = false;
-//	bool	responseReady; --> is this needed...?
-	std::string	clientIP; // we should probably get this in the constructor
-	std::string	requestString;
-	std::string responseHeaders; // might not be needed
-	std::string responseBody; // might not be needed
-	std::string responseString;
-	
-	clientInfo(int clientFd) : fd(clientFd)
-	{
-	}
-};
-
-// Not final version
 struct serverInfo
 {
 	int				fd;
@@ -102,6 +65,42 @@ struct serverInfo
 	{
 	}
 };
+
+struct requestParseInfo
+{
+	bool 		isCgi = false;
+	CgiTypes	cgiType = NONE;
+
+	std::string		startLine; // Whole starting line
+	std::map<std::string, std::string>	headerMap; // All headers as key value pairs
+	std::string		rawContent; // The body of request, if there is any
+
+	std::string	method; // GET POST etc
+	std::string filePath; // Relative requested path
+	std::string	extension; // has the first . included (for example '.php')
+	std::string queryString; // Everything from the URI after '?' character
+};
+
+struct clientInfo
+{
+	const serverInfo	*relatedServer;
+	requestParseInfo	parsedRequest;
+
+	int		fd;
+	int		bytesSent = 0;
+	bool 	requestReady = false;
+//	bool	responseReady; --> is this needed...?
+	std::string	clientIP; // we should probably get this in the constructor
+	std::string	requestString;
+	std::string responseHeaders; // might not be needed
+	std::string responseBody; // might not be needed
+	std::string responseString;
+	
+	clientInfo(int clientFd, const serverInfo *server) : relatedServer(server), fd(clientFd)
+	{
+	}
+};
+
 
 
 /*

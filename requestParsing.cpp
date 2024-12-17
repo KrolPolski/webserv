@@ -61,7 +61,7 @@ void	splitStartLine(requestParseInfo	&parseInfo)
 
 	This function could be broken into smaller pieces
 */
-int		ConnectionHandler::parseBlocks(clientInfo *clientPTR)
+int		ConnectionHandler::parseRequest(clientInfo *clientPTR)
 {
 	size_t			startIndex = 0;
 	size_t			endIndex = 0;
@@ -70,8 +70,7 @@ int		ConnectionHandler::parseBlocks(clientInfo *clientPTR)
 
 //	std::cout << "REQUEST:\n" << reqStr << "\n";
 
-	// Separate start line from request
-
+	// Separate start line from client's request
 	endIndex = reqStr.find_first_of('\n');
 	if (endIndex == reqStr.npos)
 	{
@@ -80,11 +79,9 @@ int		ConnectionHandler::parseBlocks(clientInfo *clientPTR)
 	}
 	parseInfo.startLine = reqStr.substr(0, endIndex - startIndex);
 	startIndex = endIndex + 1;
-
 	splitStartLine(parseInfo);
 
 	// Set header map
-
 	std::string headerLine = "";
 	std::string key = "";
 	std::string value = "";
@@ -113,15 +110,6 @@ int		ConnectionHandler::parseBlocks(clientInfo *clientPTR)
 		if (reqStr[startIndex] == '\0' || reqStr[startIndex + 1] == '\n')
 			break ;
 	}
-
-		std::map<std::string, std::string>::iterator itTest = headerMap.find("Content-Length");
-
-		while (itTest != headerMap.end())
-		{
-			std::cout << itTest->first << " " << itTest->second << "\n";
-			++itTest;
-		}
-
 
 	// Get content from request
 

@@ -9,14 +9,11 @@
 	
 <?php
 
-//phpinfo(INFO_ENVIRONMENT);
-//echo "<br><br>";
-
 $user = $_GET['username'];
 $hobby = $_GET['hobby'];
 
-echo "Hello user $user! <br>";
-echo "You must really love $hobby <br>";
+echo "Hello $user! <br>";
+echo "You must really love $hobby. <br>";
 
 ?>
 

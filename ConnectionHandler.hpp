@@ -47,12 +47,14 @@ class ConnectionHandler
 	// client data functions
 	void		acceptNewClient(const unsigned int serverFd);
 	void		recieveDataFromClient(const unsigned int clientFd);
-	int			parseRequest(clientInfo *clientPTR);
 	void		sendDataToClient(const unsigned int clientFd);
 
-	// request parsing helpers
+	// request parsing
+	int		parseRequest(clientInfo *clientPTR);
 
-	int		parseBlocks(clientInfo *clientPTR);
+	// server helper functions
+
+	serverInfo *getServerByFd(const int fd);
 
 	// client helper functions
 	clientInfo	*getClientPTR(const int clientFd);

@@ -168,8 +168,14 @@ void		ConnectionHandler::acceptNewClient(const unsigned int serverFd)
 			return ; // What should happen here...?
 		}
 
+		serverInfo *relatedServerPTR = getServerByFd(serverFd);
+		if (relatedServerPTR == nullptr)
+		{
+			std::cerr << RED << "\nacceptNewClient() failed:\n" << RESET << "server not found" << "\n\n";
+			return ;
+		}
 		addNewPollfd(newClientFd);
-		m_clientVec.push_back({newClientFd});
+		m_clientVec.push_back({newClientFd, relatedServerPTR});
 	}
 }
 
@@ -214,7 +220,7 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 		getClientPollfd(clientFd)->events = POLLOUT;
 		if (clientPTR)
 		{
-			parseRequest(clientPTR);
+			parseRequest(clientPTR); // this code is in separate file ('requestParsing.cpp')
 
 			ResponseHandler respHdlr;
 			//std::unique_ptr<ResponseHandler> respHdlr;
@@ -239,23 +245,6 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 			clientPTR->responseString = createHomeResponse();*/
 	}
 	
-}
-
-/*
-	PARSE REQUEST
-*/
-
-int			ConnectionHandler::parseRequest(clientInfo *clientPTR)
-{
-
-	/*
-		ERROR HANDLING AND VALID REQUEST CHECKING...?
-	*/
-
-	parseBlocks(clientPTR);
-
-
-	return (0);
 }
 
 
@@ -342,12 +331,23 @@ void	ConnectionHandler::closeAllSockets()
 
 bool	ConnectionHandler::checkForServerSocket(const int fdToCheck)
 {
-	for (auto server : m_serverVec)
+	for (auto &server : m_serverVec)
 	{
 		if (server.fd == fdToCheck)
 			return (true);
 	}
 	return (false);
+}
+
+// Returns nullptr if server is not found
+serverInfo *ConnectionHandler::getServerByFd(const int fd)
+{
+	for (auto &server : m_serverVec)
+	{
+		if (server.fd == fd)
+			return (&server);
+	}
+	return (nullptr);
 }
 
 // returns nullptr if (for some reason) the client is not found
@@ -386,53 +386,3 @@ void		ConnectionHandler::removeFromClientVec(const int clientFd)
 }
 
 
-
-/*
-	TEST FUNCTIONS TO CREATE HTML CONTENT
-*/
-
-/*
-std::string ConnectionHandler::createHomeResponse()
-{
-	// Create html string
-	std::string	htmlString = "<html><body style=\"background-color:lightgreen;\">";
-	htmlString += "<h1>Hello world! =)</h1>";
-	htmlString += "<a href=\"secondPage\">Click me to go to the Second page</a>";
-	htmlString += "</body></html>";
-
-	// Create headers for HTTP response
-	std::string	headers;
-
-	headers = "HTTP/1.1 200 OK\r\n";
-	headers += "Content-Type: text/html\r\n";
-	headers += "Content-Length: ";
-	headers += std::to_string(htmlString.length());
-	headers += "\r\n\r\n";
-
-	std::string finalResponse = headers + htmlString;
-
-	return (finalResponse);
-}
-
-std::string ConnectionHandler::createSecondPageResponse()
-{
-	// Create html string
-	std::string	htmlString = "<html><body style=\"background-color:lightblue;\">";
-	htmlString += "<h1>Oh nice, we have another page!</h1>";
-	htmlString += "<a href=\"/\">Go back to home page</a>";
-	htmlString += "</body></html>";
-
-	// Create headers for HTTP response
-	std::string	headers;
-
-	headers = "HTTP/1.1 200 OK\r\n";
-	headers += "Content-Type: text/html\r\n";
-	headers += "Content-Length: ";
-	headers += std::to_string(htmlString.length());
-	headers += "\r\n\r\n";
-
-	std::string finalResponse = headers + htmlString;
-
-	return (finalResponse);
-}
-*/

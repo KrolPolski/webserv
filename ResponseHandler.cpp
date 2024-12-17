@@ -111,16 +111,37 @@ void ResponseHandler::checkExtension(std::string filePath)
 		//there's probably a response code for this
 	}
 }
-
+void ResponseHandler::listDirectoryContents(std::string filePath)
+{
+	std::cout << "We decided we should list directory contents instead of returning a 404 error" << std::endl;
+	/* We need here:
+	return HTML file that includes:
+	Name (as link) Size and Date Modified information.
+	*/
+}
 int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 {
     std::cout << "We should now check if the file exists" << std::endl;
+	std::string defaultFilePath;
 	// this has to be fixed once we have a configuration parsing appropriately
 	if (filePath == "/")
 		filePath = "home/index.html";
 	else
 		filePath = "home" + filePath;
 	std::string content;
+	if (std::filesystem::is_directory(filePath))
+	{
+		if (filePath.back() == '/')
+			defaultFilePath = filePath + "index.html";
+		else
+			defaultFilePath = filePath + "/index.html";
+		if (std::filesystem::exists(defaultFilePath))
+			filePath = defaultFilePath;
+		else
+			std::cout <<"Call Patrik's function for directory listing" << std::endl;
+	}
+	// If we get here then we have concluded that it isn't a directory.
+	
 	std::ifstream ourFile(filePath);
 	/*We need to detect which type of error we got with the file, so we 
 	can send the appropriate response code*/
@@ -128,7 +149,9 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 	{
 		std::cerr << "Error: " << strerror(errno) << errno << std::endl;
 		if (errno == 2) //file missing
+		{
 			setResponseCode(404);
+		}
 		else if (errno == 13) //bad permissions
 			setResponseCode(403);
 		else

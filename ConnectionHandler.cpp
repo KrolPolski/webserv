@@ -191,7 +191,7 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 		getClientPollfd(clientFd)->events = POLLOUT;
 		if (clientPTR)
 		{
-			std::unique_ptr<ResponseHandler> respHdlr(new ResponseHandler);
+			std::unique_ptr<ResponseHandler> respHdlr(new ResponseHandler); // we will need to pass the relevant config object, probably best to do in the constructor
 			respHdlr->checkRequestType(clientPTR, clientPTR->requestString);
 			if (respHdlr->getRequestType() == INVALID)
 			{

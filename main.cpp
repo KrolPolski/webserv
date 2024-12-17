@@ -10,8 +10,6 @@ int main(int argc, char *argv[])
 	}
 
 	ConnectionHandler	handler;
-	//ResponseHandler		responseHandler;
-
 
 	if (handler.initServers(argv[1]) == -1)
 		return (1);

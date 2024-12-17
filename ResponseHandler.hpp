@@ -5,6 +5,7 @@
 #include <vector>
 #include <cerrno>
 #include <cstring>
+#include <filesystem>
 #include <map>
 #include "Types.hpp"
 
@@ -32,6 +33,7 @@ class ResponseHandler
 		void checkExtension(std::string filePath);
 		const enum requestTypes& getRequestType() const;
 		const unsigned int getResponseCode() const;
+		void listDirectoryContents(std::string filePath);
 		
 };
 

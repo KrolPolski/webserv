@@ -22,21 +22,29 @@ ConnectionHandler::~ConnectionHandler()
 	INIT SERVERS
 */
 
-int		ConnectionHandler::initServers(unsigned int *portArr, int portCount) // filename
+
+int		ConnectionHandler::initServers(char *configFile)
 {
+	std::vector<std::string>					rawFile;
 
-/*
-	m_config.init(filename);
-*/
-
-
-	for (int i = 0; i < portCount; ++i)
+	try
 	{
-		int socketfd = initServerSocket(portArr[i]);
+		readFile(fileNameCheck(configFile), rawFile);
+		extractServerBlocks(m_configMap, rawFile);
+	}
+	catch(const std::exception& e)
+	{
+		std::cerr << e.what() << '\n';
+		throw;
+	}
+
+	for (auto iter = m_configMap.begin(); iter != m_configMap.end(); iter++)
+	{
+		int socketfd = initServerSocket(std::stoi(iter->first));
 		if (socketfd == -1)
 			return (-1);
 		
-		m_serverVec.push_back({socketfd, portArr[i], "test_server"}); // here we need to add all relevant info to serverInfo struct
+		m_serverVec.push_back({socketfd, &iter->second}); // here we need to add all relevant info to serverInfo struct
 		addNewPollfd(socketfd);
 	}
 
@@ -220,29 +228,20 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 		getClientPollfd(clientFd)->events = POLLOUT;
 		if (clientPTR)
 		{
+      
 			parseRequest(clientPTR); // this code is in separate file ('requestParsing.cpp')
 
-			ResponseHandler respHdlr;
-			//std::unique_ptr<ResponseHandler> respHdlr;
-			respHdlr.checkRequestType(clientPTR, clientPTR->requestString);
+			std::unique_ptr<ResponseHandler> respHdlr(new ResponseHandler);
+			respHdlr->checkRequestType(clientPTR, clientPTR->requestString);
+			if (respHdlr->getRequestType() == INVALID)
+			{
+				return ;
+			}
 			//if it is invalid we should stop here, and just return the error page
-			respHdlr.parseRequest(clientPTR, clientPTR->requestString);
+			respHdlr->parseRequest(clientPTR, clientPTR->requestString);
 			//might have an error here now too.
 		}
-		/*
-		RYAN:
 
-		Here you should take the current clientInfo struct (with clientPTR)
-		and parse the request that is in clientPTR->requestString
-		and then form a proper response and store it in clientPTR->responseString
-		*/
-		//std::cout << "Got back from checkRequestType" << std::endl;
-		// JUST A TEST FOR NOW
-		/*
-		if (clientPTR->requestString[5] == 's')
-			clientPTR->responseString = createSecondPageResponse();
-		else
-			clientPTR->responseString = createHomeResponse();*/
 	}
 	
 }
@@ -263,7 +262,7 @@ void		ConnectionHandler::sendDataToClient(const unsigned int clientFd)
 		std::cout << RED << "Client data could not be sent; client not found\n";
 		return ;
 	}
-
+	
 	// Send response to client
 	int sendBytes = send(clientPTR->fd, clientPTR->responseString.c_str(), clientPTR->responseString.length(), 0);
 

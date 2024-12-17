@@ -20,6 +20,7 @@ const std::map<std::string, std::string> ResponseHandler::extensionTypes =
 	{".jar", "application/java-archive"}, {".jpeg", "image/jpeg"},
 	{".jpg", "image/jpeg"}, {".js","text/javascript"},
 	{".json", "application/json"}, {".jsonld", "application/ld+json"},
+	{".md", "text/markdown"},
 	{".mid", "audio/x-midi"}, {".midi",	"audio/x-midi"},
 	{".mjs", "text/javascript"}, {".mp3", "audio/mpeg"},
 	{".mp4", "video/mp4"}, {".mpeg", "video/mpeg"},
@@ -46,35 +47,40 @@ const std::map<std::string, std::string> ResponseHandler::extensionTypes =
 	{".3g2", "video/3gpp2"}, {".7z", "application/x-7z-compressed"}
 };
 
-void ResponseHandler::checkRequestType(clientInfo *ClientPTR, std::string requestString)
+const std::map<const unsigned int, std::string> ResponseHandler::errorCodes =
 {
-	// unused clientPTR, just made this to satisfy compiler
-	if (ClientPTR == nullptr)
-		return ;
+	{404, "Not Found"},
+	{403, "Forbidden"},
+	{400, "Bad Request"},
+	{500, "Internal Server Error"}
+};
 
-//   std::cout << "We managed to get to checkRequestType" << std::endl;
-//   std::cout << requestString << std::endl;
-//	std::cout << "We should have printed the http request by now" << std::endl;
-	if (!requestString.compare(0, 3, "GET"))
+void ResponseHandler::checkRequestType(clientInfo *ClientPTR, std::string requestString)
+{    
+  std::cout << "We managed to get to checkRequestType" << std::endl;
+  std::cout << requestString << std::endl;
+	std::cout << "We should have printed the http request by now" << std::endl;
+	if (!requestString.compare(0, 4, "GET "))
 	{
-//		std::cout << "GET request detected woo" << std::endl;
-		requestType = GET;
+		std::cout << "GET request detected woo" << std::endl;
+		setRequestType(GET);
 	}
-	else if (!requestString.compare(0, 4, "POST"))
+	else if (!requestString.compare(0, 5, "POST "))
 	{
-//		std::cout << "POST request detected woo" << std::endl;
-		requestType = POST;
+		std::cout << "POST request detected woo" << std::endl;
+		setRequestType(POST);
 	}
-	else if (!requestString.compare(0, 6, "DELETE"))
+	else if (!requestString.compare(0, 7, "DELETE "))
 	{
-//		std::cout << "DELETE request detected woo" << std::endl;
-		requestType = DELETE;
+		std::cout << "DELETE request detected woo" << std::endl;
+		setRequestType(DELETE);
 	}
 	else
 	{
-//		std::cout << "INVALID request detected woo" << std::endl;
-		requestType = INVALID;
-		responseCode = 400;
+		std::cout << "INVALID request detected woo" << std::endl;
+		setRequestType(INVALID);
+		setResponseCode(400);
+		buildErrorResponse(ClientPTR);
 	}
 }
 
@@ -127,12 +133,13 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 	{
 		std::cerr << "Error: " << strerror(errno) << errno << std::endl;
 		if (errno == 2) //file missing
-			responseCode = 404;
+			setResponseCode(404);
 		else if (errno == 13) //bad permissions
-			responseCode = 403;
+			setResponseCode(403);
 		else
-			responseCode = 500;
-		std::cerr << "Response Code: " << responseCode << std::endl;
+			setResponseCode(500);
+		std::cerr << "Response Code: " << getResponseCode() << std::endl;
+		buildErrorResponse(clientPTR);
 		return -1;
 	}
 
@@ -149,7 +156,7 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 		if (cgiHandler.executeCgi() == -1)
 			return (-1);
 		
-		responseCode = 200; // just a test
+  	setResponseCode(200);
 		return (0);
 	}
 
@@ -163,8 +170,7 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 	checkExtension(filePath);
 	
 	std::string	headers;
-
-	//this assumes all files are html, this is a mistake.
+	setResponseCode(200);
 	headers = "HTTP/1.1 200 OK\r\n";
 	headers += "Content-Type: " + contentType + "\r\n";
 	headers += "Content-Length: ";
@@ -173,8 +179,8 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 	clientPTR->responseString = headers + content;
 //	std::cout << "responseString: " << clientPTR->responseString << std::endl;
 	ourFile.close();
-	responseCode = 200;
-//	std::cout << "Must have opened the file with no errors" << std::endl;
+  
+	std::cout << "Must have opened the file with no errors" << std::endl;
 	return (0);
 }
 
@@ -215,4 +221,53 @@ void ResponseHandler::parseRequest(clientInfo *clientPTR, std::string requestStr
 		default:
 			std::cout << "unhandled parseRequest" << std::endl;
 	}
+}
+
+const enum requestTypes& ResponseHandler::getRequestType() const
+{
+	return requestType;
+}
+
+const unsigned int ResponseHandler::getResponseCode() const
+{
+	return (const unsigned int)responseCode;
+}
+
+void ResponseHandler::setRequestType(enum requestTypes reqType)
+{
+	requestType = reqType;
+}
+
+void ResponseHandler::setResponseCode(unsigned int code)
+{
+	responseCode = code;
+}
+
+void ResponseHandler::ServeErrorPages(clientInfo *ClientPTR, std::string requestString)
+{
+
+}
+
+void ResponseHandler::buildErrorResponse(clientInfo *clientPTR)
+{
+	std::string content;
+	std::cout << "We got to buildErrorResponse" << std::endl;
+	//need to update this based on config file path to error pages
+	std::string errorFileName = "default-error-pages/" + std::to_string(getResponseCode()) + ".html";
+	std::ifstream ourFile(errorFileName);
+	std::string line;
+	while (std::getline(ourFile, line))
+		content += line + "\n";
+	checkExtension(errorFileName);
+	
+	std::string	headers;
+
+	headers = "HTTP/1.1 " + std::to_string(getResponseCode()) + " " + errorCodes.at(getResponseCode()) + "\r\n";
+	headers += "Content-Type: " + contentType + "\r\n";
+	headers += "Content-Length: ";
+	headers += std::to_string(content.length());
+	headers += "\r\n\r\n";
+	clientPTR->responseString = headers + content;
+	std::cout << "responseString: " << clientPTR->responseString << std::endl;
+	ourFile.close();
 }

@@ -5,6 +5,7 @@
 */
 
 #include <iostream>
+#include "ConfigurationHandler.hpp"
 
 /*
 	DEFINES (some nice colors for terminal output =))

@@ -15,12 +15,13 @@ ConnectionHandler::ConnectionHandler()
 
 ConnectionHandler::~ConnectionHandler()
 {
-
+	closeAllSockets();
 }
 
 /*
 	INIT SERVERS
 */
+
 
 int		ConnectionHandler::initServers(char *configFile)
 {
@@ -62,6 +63,16 @@ int		ConnectionHandler::initServerSocket(const unsigned int portNum)
 	{
 		std::cerr << RED << "\nsocket() failed:\n" << RESET << std::strerror(errno) << "\n\n";
 		// Error handling...?
+		return (-1);
+	}
+
+	// This solves the bind() issue
+	int opt = 1;
+	if (setsockopt(socketFd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1)
+	{
+		std::cerr << RED << "\nsetsockopt() failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		// Error handling...?
+		close(socketFd);
 		return (-1);
 	}
 
@@ -108,13 +119,20 @@ int		ConnectionHandler::startServers()
 {
 	while (1)
 	{
+		if (isSigInt)
+			return (sigIntMessage());
+
 		int	readySocketCount = poll(&m_pollfdVec[0], m_pollfdVec.size(), 0);
 		if (readySocketCount == -1)
 		{
-			std::cerr << RED << "\npoll() failed:\n" << RESET << std::strerror(errno) << "\n\n";
-			// Error handling
-			closeAllSockets();
-			return (-1); // should we quit the server...? Probably not
+			if (isSigInt) // is it bad that this is here...?
+				return (sigIntMessage());
+			else
+			{
+				std::cerr << RED << "\npoll() failed:\n" << RESET << std::strerror(errno) << "\n\n";
+				// Error handling
+				return (-1); // should we quit the server...? Probably yea
+			}
 		}
 		else if (readySocketCount == 0)
 			continue ;
@@ -139,6 +157,8 @@ int		ConnectionHandler::startServers()
 
 void		ConnectionHandler::acceptNewClient(const unsigned int serverFd)
 {
+	// Should this start with a isSigInt -check...?
+
 	int newClientFd = accept(serverFd, nullptr, nullptr); // why are these nullptr...?	
 	if (newClientFd == -1)
 	{
@@ -147,8 +167,23 @@ void		ConnectionHandler::acceptNewClient(const unsigned int serverFd)
 	}
 	else
 	{
+
+		if (fcntl(newClientFd, F_SETFL, O_NONBLOCK) == -1)
+		{
+			std::cerr << RED << "\nfcntl() failed:\n" << RESET << std::strerror(errno) << "\n\n";
+			// Error handling...?
+			close (newClientFd);
+			return ; // What should happen here...?
+		}
+
+		serverInfo *relatedServerPTR = getServerByFd(serverFd);
+		if (relatedServerPTR == nullptr)
+		{
+			std::cerr << RED << "\nacceptNewClient() failed:\n" << RESET << "server not found" << "\n\n";
+			return ;
+		}
 		addNewPollfd(newClientFd);
-		m_clientVec.push_back({newClientFd});
+		m_clientVec.push_back({newClientFd, relatedServerPTR});
 	}
 }
 
@@ -158,10 +193,12 @@ void		ConnectionHandler::acceptNewClient(const unsigned int serverFd)
 
 void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 {
+	// Should this start with a isSigInt -check...?
+
 	clientInfo *clientPTR = getClientPTR(clientFd);
 	if (clientPTR == nullptr)
 	{
-		std::cout << RED << "Client data could not be recieved; client not found\n";
+		std::cout << RED << "Client data could not be recieved; client not found\n" << RESET;
 		return ;
 	}
 
@@ -191,6 +228,9 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 		getClientPollfd(clientFd)->events = POLLOUT;
 		if (clientPTR)
 		{
+      
+			parseRequest(clientPTR); // this code is in separate file ('requestParsing.cpp')
+
 			std::unique_ptr<ResponseHandler> respHdlr(new ResponseHandler);
 			respHdlr->checkRequestType(clientPTR, clientPTR->requestString);
 			if (respHdlr->getRequestType() == INVALID)
@@ -201,23 +241,11 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 			respHdlr->parseRequest(clientPTR, clientPTR->requestString);
 			//might have an error here now too.
 		}
-		/*
-		RYAN:
 
-		Here you should take the current clientInfo struct (with clientPTR)
-		and parse the request that is in clientPTR->requestString
-		and then form a proper response and store it in clientPTR->responseString
-		*/
-		//std::cout << "Got back from checkRequestType" << std::endl;
-		// JUST A TEST FOR NOW
-		/*
-		if (clientPTR->requestString[5] == 's')
-			clientPTR->responseString = createSecondPageResponse();
-		else
-			clientPTR->responseString = createHomeResponse();*/
 	}
 	
 }
+
 
 /*
 	SEND DATA TO CLIENT
@@ -225,6 +253,9 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 
 void		ConnectionHandler::sendDataToClient(const unsigned int clientFd)
 {
+	// Should this start with a isSigInt -check...?
+
+
 	clientInfo *clientPTR = getClientPTR(clientFd);
 	if (clientPTR == nullptr)
 	{
@@ -235,7 +266,7 @@ void		ConnectionHandler::sendDataToClient(const unsigned int clientFd)
 	// Send response to client
 	int sendBytes = send(clientPTR->fd, clientPTR->responseString.c_str(), clientPTR->responseString.length(), 0);
 
-	if (sendBytes <= 0) // should 0 be included...?
+	if (sendBytes < 0) // should 0 be included...?
 	{
 		std::cerr << RED << "\nsend() failed:\n" << RESET << std::strerror(errno) << "\n\n";
 		// Do we need any other error handling...? For example close the client connection?
@@ -299,12 +330,23 @@ void	ConnectionHandler::closeAllSockets()
 
 bool	ConnectionHandler::checkForServerSocket(const int fdToCheck)
 {
-	for (auto server : m_serverVec)
+	for (auto &server : m_serverVec)
 	{
 		if (server.fd == fdToCheck)
 			return (true);
 	}
 	return (false);
+}
+
+// Returns nullptr if server is not found
+serverInfo *ConnectionHandler::getServerByFd(const int fd)
+{
+	for (auto &server : m_serverVec)
+	{
+		if (server.fd == fd)
+			return (&server);
+	}
+	return (nullptr);
 }
 
 // returns nullptr if (for some reason) the client is not found
@@ -342,50 +384,4 @@ void		ConnectionHandler::removeFromClientVec(const int clientFd)
 	}
 }
 
-/*
-	TEST FUNCTIONS TO CREATE HTML CONTENT
-*/
 
-std::string ConnectionHandler::createHomeResponse()
-{
-	// Create html string
-	std::string	htmlString = "<html><body style=\"background-color:lightgreen;\">";
-	htmlString += "<h1>Hello world! =)</h1>";
-	htmlString += "<a href=\"secondPage\">Click me to go to the Second page</a>";
-	htmlString += "</body></html>";
-
-	// Create headers for HTTP response
-	std::string	headers;
-
-	headers = "HTTP/1.1 200 OK\r\n";
-	headers += "Content-Type: text/html\r\n";
-	headers += "Content-Length: ";
-	headers += std::to_string(htmlString.length());
-	headers += "\r\n\r\n";
-
-	std::string finalResponse = headers + htmlString;
-
-	return (finalResponse);
-}
-
-std::string ConnectionHandler::createSecondPageResponse()
-{
-	// Create html string
-	std::string	htmlString = "<html><body style=\"background-color:lightblue;\">";
-	htmlString += "<h1>Oh nice, we have another page!</h1>";
-	htmlString += "<a href=\"/\">Go back to home page</a>";
-	htmlString += "</body></html>";
-
-	// Create headers for HTTP response
-	std::string	headers;
-
-	headers = "HTTP/1.1 200 OK\r\n";
-	headers += "Content-Type: text/html\r\n";
-	headers += "Content-Length: ";
-	headers += std::to_string(htmlString.length());
-	headers += "\r\n\r\n";
-
-	std::string finalResponse = headers + htmlString;
-
-	return (finalResponse);
-}

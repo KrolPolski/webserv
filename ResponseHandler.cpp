@@ -1,4 +1,5 @@
 #include "ResponseHandler.hpp"
+#include "CgiHandler.hpp"
 #include <iostream>
 
 const std::map<std::string, std::string> ResponseHandler::extensionTypes = 
@@ -55,9 +56,9 @@ const std::map<const unsigned int, std::string> ResponseHandler::errorCodes =
 };
 
 void ResponseHandler::checkRequestType(clientInfo *ClientPTR, std::string requestString)
-{
-    std::cout << "We managed to get to checkRequestType" << std::endl;
-    std::cout << requestString << std::endl;
+{    
+  std::cout << "We managed to get to checkRequestType" << std::endl;
+  std::cout << requestString << std::endl;
 	std::cout << "We should have printed the http request by now" << std::endl;
 	if (!requestString.compare(0, 4, "GET "))
 	{
@@ -99,11 +100,11 @@ void ResponseHandler::checkExtension(std::string filePath)
 		contentType = "Unknown";
 		return ;
 	}
-	std::cout << "filePath: " << filePath << " Extension: " << extension << " Type: " << extensionTypes.at(extension) << std::endl;
+//	std::cout << "filePath: " << filePath << " Extension: " << extension << " Type: " << extensionTypes.at(extension) << std::endl;
 	try
 	{
 		contentType = extensionTypes.at(extension);
-		std::cout << "contentType: " << contentType << std::endl;
+//		std::cout << "contentType: " << contentType << std::endl;
 	} 
 	catch (std::exception& e)
 	{
@@ -114,12 +115,16 @@ void ResponseHandler::checkExtension(std::string filePath)
 
 int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 {
-    std::cout << "We should now check if the file exists" << std::endl;
+//    std::cout << "We should now check if the file exists" << std::endl;
 	// this has to be fixed once we have a configuration parsing appropriately
+
+	filePath = clientPTR->parsedRequest.filePath;
+
 	if (filePath == "/")
 		filePath = "home/index.html";
 	else
 		filePath = "home" + filePath;
+
 	std::string content;
 	std::ifstream ourFile(filePath);
 	/*We need to detect which type of error we got with the file, so we 
@@ -137,6 +142,27 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 		buildErrorResponse(clientPTR);
 		return -1;
 	}
+
+	/*
+		Panu addition (CGI)
+	*/
+
+	if (clientPTR->parsedRequest.isCgi)
+	{
+		// This needs to be saved in the connection handler somehow... So we can use it in the poll() loop
+
+		CgiHandler	cgiHandler(*clientPTR);
+
+		if (cgiHandler.executeCgi() == -1)
+			return (-1);
+		
+  	setResponseCode(200);
+		return (0);
+	}
+
+	/*
+		Addition end
+	*/
 	
 	std::string line;
 	while (std::getline(ourFile, line))
@@ -151,9 +177,9 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 	headers += std::to_string(content.length());
 	headers += "\r\n\r\n";
 	clientPTR->responseString = headers + content;
-	std::cout << "responseString: " << clientPTR->responseString << std::endl;
+//	std::cout << "responseString: " << clientPTR->responseString << std::endl;
 	ourFile.close();
-	
+  
 	std::cout << "Must have opened the file with no errors" << std::endl;
 	return (0);
 }
@@ -167,27 +193,31 @@ void ResponseHandler::parseRequest(clientInfo *clientPTR, std::string requestStr
 			std::istringstream stream(requestString);
 			std::vector<std::string> reqVec;
 			std::string line;
-			std::cout <<"\nBeginning line splits" << std::endl;
+//			std::cout <<"\nBeginning line splits" << std::endl;
 			while (std::getline(stream, line, '\n'))
 			{
 				reqVec.push_back(line);
-				std::cout << line << std::endl;
+//				std::cout << line << std::endl;
 			}
-			std::cout << "Line splits done" << std::endl;
-			std::cout << "Line one is: " << reqVec.at(0) << std::endl;
+//			std::cout << "Line splits done" << std::endl;
+//			std::cout << "Line one is: " << reqVec.at(0) << std::endl;
 			std::istringstream streamL1(reqVec.at(0));
 			std::string phrase; 
 			std::vector<std::string> lineOne;
-			std::cout << "\nBeginning phrase split" << std::endl;
+//			std::cout << "\nBeginning phrase split" << std::endl;
 			while (std::getline(streamL1, phrase, ' '))
 			{
 				lineOne.push_back(phrase);
-				std::cout << phrase << std::endl;
+//				std::cout << phrase << std::endl;
 			}
 			if (lineOne.size() >= 2)
-				checkFile(clientPTR, lineOne.at(1));
+				checkFile(clientPTR, lineOne.at(1)); // we need to check return value here in case something goes wrong
 			break;
 		}	
+		case POST:
+		{
+			checkFile(clientPTR, ""); // JUST A TEST
+		}
 		default:
 			std::cout << "unhandled parseRequest" << std::endl;
 	}

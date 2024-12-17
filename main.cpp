@@ -1,6 +1,10 @@
 #include "ResponseHandler.hpp"
 #include "ConnectionHandler.hpp"
 
+/*
+	MAIN FUNCTION
+*/
+
 int main(int argc, char *argv[])
 {
 	if (argc != 2 || argv == NULL)
@@ -8,6 +12,8 @@ int main(int argc, char *argv[])
 		std::cerr << RED << "\nInvalid arguments! Please provide only one configuration file.\n\n" << RESET;
 		return (1);
 	}
+
+	signal(SIGINT, sigIntHandler); // is this needed...?
 
 	ConnectionHandler	handler;
 	//ResponseHandler		responseHandler;

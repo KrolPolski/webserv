@@ -228,9 +228,9 @@ const enum requestTypes& ResponseHandler::getRequestType() const
 	return requestType;
 }
 
-const unsigned int ResponseHandler::getResponseCode() const
+unsigned int ResponseHandler::getResponseCode() const
 {
-	return (const unsigned int)responseCode;
+	return responseCode;
 }
 
 void ResponseHandler::setRequestType(enum requestTypes reqType)

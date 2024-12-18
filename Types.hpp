@@ -56,16 +56,32 @@ enum CgiTypes
 
 struct serverInfo
 {
-	int				fd;
-	unsigned int	port;
-	std::string		name;
+	int			fd;
+	std::string	name;
+
+	ConfigurationHandler *serverConfig;
+	// something to store valid methods
+	// error page information
+	// root folder info
 
 	// need to update this later
-	serverInfo(int serverFd, unsigned int serverPort, std::string serverName) : 
-	fd(serverFd), port(serverPort), name(serverName)
+	serverInfo(int serverFd, ConfigurationHandler *config) : fd(serverFd), name("test_server_" + std::to_string(serverFd)), serverConfig(config)
 	{
 	}
 };
+// removing the below to resolve merge conflicts
+// struct serverInfo
+// {
+// 	int				fd;
+// 	unsigned int	port;
+// 	std::string		name;
+
+// 	// need to update this later
+// 	serverInfo(int serverFd, unsigned int serverPort, std::string serverName) : 
+// 	fd(serverFd), port(serverPort), name(serverName)
+// 	{
+// 	}
+// };
 
 struct requestParseInfo
 {

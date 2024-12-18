@@ -70,8 +70,8 @@ void	CgiHandler::setExecveEnvArr()
 	m_envArrExecve[7] = (char *) m_scriptName.c_str();
 	m_envArrExecve[8] = (char *) m_redirectStatus.c_str();
 
-//	for (int i = 0; i < 9; ++i)
-//		std::cout << "ENV VAR " << i << " IS:\n" << m_envArrExecve[i] << "\n\n";
+	for (int i = 0; i < 9; ++i)
+		std::cout << "ENV VAR " << i << " IS:\n" << m_envArrExecve[i] << "\n\n";
 
 }
 
@@ -82,7 +82,13 @@ void	CgiHandler::setExecveEnvArr()
 // Returns -1 on failure
 int	CgiHandler::executeCgi()
 {
-	if (pipe(m_pipeFromCgi) == -1)
+	if (pipe(m_pipeFromCgi) == -1) // make these O_NONBLOCK
+	{
+		std::cerr << RED << "\nPipe() failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		// Other error handling?
+		return (-1);
+	}
+	if (pipe(m_pipeToCgi) == -1) // make these O_NONBLOCK
 	{
 		std::cerr << RED << "\nPipe() failed:\n" << RESET << std::strerror(errno) << "\n\n";
 		// Other error handling?
@@ -96,6 +102,8 @@ int	CgiHandler::executeCgi()
 		std::cerr << RED << "\nFork() failed:\n" << RESET << std::strerror(errno) << "\n\n";
 		close(m_pipeFromCgi[0]);
 		close(m_pipeFromCgi[1]);
+		close(m_pipeToCgi[0]);
+		close(m_pipeToCgi[1]);
 		// Other error handling?
 		return (-1);
 	}
@@ -106,7 +114,19 @@ int	CgiHandler::executeCgi()
 	{
 		// In parent/main process
 
-		close(m_pipeFromCgi[1]);
+		close(m_pipeFromCgi[1]); // error handling...?
+		close(m_pipeToCgi[0]); // error handling...?
+
+		if (m_client.parsedRequest.method == "POST")
+		{
+			const char *buf = m_client.parsedRequest.rawContent.c_str();
+			size_t len = m_client.parsedRequest.rawContent.length();
+
+			std::cout << RED << "BUF IN PARENT:\n" << RESET << buf  << "\nLen:\n" << m_client.parsedRequest.rawContent.length() << "\n";
+
+			write(m_pipeToCgi[1], buf, len); // error handling...?
+			close(m_pipeToCgi[1]); // error handling...?
+		}
 		
 		if (waitForChildProcess(cgiPid) == -1)
 			return (-1);
@@ -170,6 +190,7 @@ int		CgiHandler::cgiChildProcess()
 	}
 
 	close (m_pipeFromCgi[0]); // do we need to check for errors with close()...?
+	close (m_pipeToCgi[1]); // error handling...?
 
 	if (dup2(m_pipeFromCgi[1], STDOUT_FILENO) == -1)
 	{
@@ -177,6 +198,15 @@ int		CgiHandler::cgiChildProcess()
 		// Other error handling?
 		return (1);	
 	}
+
+	
+	if (m_client.parsedRequest.method == "POST" && dup2(m_pipeToCgi[0], STDIN_FILENO) == -1)
+	{
+		std::cerr << RED << "\nDup2() failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		// Other error handling?
+		return (1);	
+	}
+
 
 	if (execve(m_pathToInterpreter.c_str(), m_argsForExecve, m_envArrExecve) == -1)
 	{

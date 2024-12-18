@@ -56,13 +56,10 @@ enum CgiTypes
 
 struct serverInfo
 {
-	int				fd;
-	unsigned int	port;
-	std::string		name;
+	int			fd;
+	ConfigurationHandler *serverConfig;
 
-	// need to update this later
-	serverInfo(int serverFd, unsigned int serverPort, std::string serverName) : 
-	fd(serverFd), port(serverPort), name(serverName)
+	serverInfo(int serverFd, ConfigurationHandler *config) : fd(serverFd), serverConfig(config)
 	{
 	}
 };

@@ -68,7 +68,7 @@ int		ConnectionHandler::parseRequest(clientInfo *clientPTR)
 	std::string 	&reqStr = clientPTR->requestString;
 	requestParseInfo	&parseInfo = clientPTR->parsedRequest;
 
-//	std::cout << "REQUEST:\n" << reqStr << "\n";
+	std::cout << "REQUEST:\n" << reqStr << "\n";
 
 	// Separate start line from client's request
 	endIndex = reqStr.find_first_of('\n');
@@ -121,6 +121,9 @@ int		ConnectionHandler::parseRequest(clientInfo *clientPTR)
 		int	contenLen = std::stoi(it->second);
 		startIndex += 2; // 2 because we first move to the nl and then over it
 		parseInfo.rawContent = reqStr.substr(startIndex, contenLen);
+
+		std::cout << RED << "RAW CONTENT:\n" << RESET << parseInfo.rawContent << "\n";
+
 	}
 
 	return (0);

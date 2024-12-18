@@ -57,9 +57,9 @@ const std::map<const unsigned int, std::string> ResponseHandler::errorCodes =
 
 void ResponseHandler::checkRequestType(clientInfo *ClientPTR, std::string requestString)
 {    
-  std::cout << "We managed to get to checkRequestType" << std::endl;
-  std::cout << requestString << std::endl;
-	std::cout << "We should have printed the http request by now" << std::endl;
+//  std::cout << "We managed to get to checkRequestType" << std::endl;
+//  std::cout << requestString << std::endl;
+//	std::cout << "We should have printed the http request by now" << std::endl;
 	if (!requestString.compare(0, 4, "GET "))
 	{
 		std::cout << "GET request detected woo" << std::endl;
@@ -115,15 +115,11 @@ void ResponseHandler::checkExtension(std::string filePath)
 
 int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 {
-//    std::cout << "We should now check if the file exists" << std::endl;
-	// this has to be fixed once we have a configuration parsing appropriately
+	// Should we build the root folder path already in request parsing...?
+	std::string currentDir = std::filesystem::current_path();
+	std::string	rootPath = currentDir + clientPTR->relatedServer->serverConfig->getRoot("/");
 
-	filePath = clientPTR->parsedRequest.filePath;
-
-	if (filePath == "/")
-		filePath = "home/index.html";
-	else
-		filePath = "home" + filePath;
+	filePath = rootPath += clientPTR->parsedRequest.filePath;
 
 	std::string content;
 	std::ifstream ourFile(filePath);
@@ -156,7 +152,7 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 		if (cgiHandler.executeCgi() == -1)
 			return (-1);
 		
-  	setResponseCode(200);
+  		setResponseCode(200);
 		return (0);
 	}
 
@@ -217,6 +213,7 @@ void ResponseHandler::parseRequest(clientInfo *clientPTR, std::string requestStr
 		case POST:
 		{
 			checkFile(clientPTR, ""); // JUST A TEST
+			break ;
 		}
 		default:
 			std::cout << "unhandled parseRequest" << std::endl;
@@ -228,7 +225,7 @@ const enum requestTypes& ResponseHandler::getRequestType() const
 	return requestType;
 }
 
-const unsigned int ResponseHandler::getResponseCode() const
+unsigned int ResponseHandler::getResponseCode() const
 {
 	return (const unsigned int)responseCode;
 }
@@ -245,7 +242,9 @@ void ResponseHandler::setResponseCode(unsigned int code)
 
 void ResponseHandler::ServeErrorPages(clientInfo *ClientPTR, std::string requestString)
 {
-
+	// This is just to satisfy compiler
+	if (ClientPTR == NULL || requestString == "")
+		return ;
 }
 
 void ResponseHandler::buildErrorResponse(clientInfo *clientPTR)

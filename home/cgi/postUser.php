@@ -3,17 +3,17 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Hello user -page</title>
+	<title>Post user -page</title>
 </head>
 <body>
 	
 <?php
 
-$user = $_GET['username'];
-$hobby = $_GET['hobby'];
+$user = $_POST['username'];
+$message = $_POST['message'];
 
-echo "Hello $user! <br>";
-echo "You must really love $hobby. <br>";
+echo "A user called $user just sent us the following message: <br>";
+echo "$message";
 
 ?>
 

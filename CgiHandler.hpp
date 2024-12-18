@@ -51,6 +51,8 @@ class CgiHandler
 	char 	*m_envArrExecve[16] = {};
 
 	int		m_pipeFromCgi[2];
+	int		m_pipeToCgi[2];
+
 
 
 	std::chrono::time_point<std::chrono::high_resolution_clock> m_startTime;

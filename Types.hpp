@@ -18,29 +18,42 @@
 // # define PURPLE	"\033[35m"
 // # define CYAN   "\033[36m"
 
+
+/*
+	ENUMS	
+*/
+
+
+enum requestTypes
+{
+	GET,
+	POST,
+	DELETE,
+	INVALID
+};
+
+enum CgiTypes
+{
+	NONE,
+	PHP,
+	PYTHON
+};
+
+/*enum contentTypes
+{
+	HTML,
+	CSS,
+	JAVASCRIPT,
+	PNG,
+	JSON
+}*/
+
 /*
 	STRUCTS
 */
 
-// Not final version
-struct clientInfo
-{
-	int		fd;
-	bool 	requestReady;
-//	bool	responseReady; --> is this needed...?
-	std::string	requestString;
-	std::string responseString;
-	int		bytesSent;
+#include <map> // is this needed here...?
 
-//	serverInfo &relatedServer; --> PANU FIX THIS
-
-	clientInfo(int clientFd) : 
-	fd(clientFd), requestReady(false), requestString(""), responseString(""), bytesSent(0)
-	{
-	}
-};
-
-// Not final version
 struct serverInfo
 {
 	int			fd;
@@ -56,20 +69,64 @@ struct serverInfo
 	{
 	}
 };
+// removing the below to resolve merge conflicts
+// struct serverInfo
+// {
+// 	int				fd;
+// 	unsigned int	port;
+// 	std::string		name;
 
-enum requestTypes
+// 	// need to update this later
+// 	serverInfo(int serverFd, unsigned int serverPort, std::string serverName) : 
+// 	fd(serverFd), port(serverPort), name(serverName)
+// 	{
+// 	}
+// };
+
+struct requestParseInfo
 {
-	GET,
-	POST,
-	DELETE,
-	INVALID
+	bool 		isCgi = false;
+	CgiTypes	cgiType = NONE;
+
+	std::string		startLine; // Whole starting line
+	std::map<std::string, std::string>	headerMap; // All headers as key value pairs
+	std::string		rawContent; // The body of request, if there is any
+
+	std::string	method; // GET POST etc
+	std::string filePath; // Relative requested path
+	std::string	extension; // has the first . included (for example '.php')
+	std::string queryString; // Everything from the URI after '?' character
 };
 
-/*enum contentTypes
+struct clientInfo
 {
-	HTML,
-	CSS,
-	JAVASCRIPT,
-	PNG,
-	JSON
-}*/
+	const serverInfo	*relatedServer;
+	requestParseInfo	parsedRequest;
+
+	int		fd;
+	int		bytesSent = 0;
+	bool 	requestReady = false;
+//	bool	responseReady; --> is this needed...?
+	std::string	clientIP; // we should probably get this in the constructor
+	std::string	requestString;
+	std::string responseHeaders; // might not be needed
+	std::string responseBody; // might not be needed
+	std::string responseString;
+	
+	clientInfo(int clientFd, const serverInfo *server) : relatedServer(server), fd(clientFd)
+	{
+	}
+};
+
+
+
+/*
+	SIGNAL HANDLING
+*/
+
+#include <signal.h> // for signal handling
+
+extern bool	isSigInt;
+
+void	sigIntHandler(int signal);
+int		sigIntMessage();

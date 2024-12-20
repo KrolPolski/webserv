@@ -30,11 +30,12 @@ class CgiHandler
 	std::string m_pathInfo;
 	std::string m_requestMethod;
 	std::string m_serverProtocol;
+	std::string	m_scriptFileName;
 	std::string	m_scriptName;
 	std::string m_redirectStatus;
-	//std::string m_remote_addr
-	//std::string	m_serverName;
-	//std::string	m_serverPort;
+	std::string m_remote_addr;
+	std::string	m_serverName;
+	std::string	m_serverPort;
 
 	bool		m_scriptReady; // meaning the child process has finished
 	bool		m_responseReady; // When read() returns < buffersize

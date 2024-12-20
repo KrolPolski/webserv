@@ -54,10 +54,14 @@ void	CgiHandler::setExecveEnvArr()
 	m_queryStr = "QUERY_STRING=" + m_client.parsedRequest.queryString;
 	m_pathInfo = "PATH_INFO=" + m_pathToScript; // check this later (full path or not)
 	m_requestMethod = "REQUEST_METHOD=" + m_client.parsedRequest.method;
-	m_scriptName = "SCRIPT_FILENAME=" + m_pathToScript;
+	m_scriptFileName = "SCRIPT_FILENAME=" + m_pathToScript;//+ m_pathToScript.substr(m_pathToScript.find_last_of('/') + 1);
+	m_scriptName = "SCRIPT_NAME=/home/cgi/postUser.php"; // CHANGE THIS!
 	m_redirectStatus = "REDIRECT_STATUS="; // check this at school
 	m_serverProtocol = "SERVER_PROTOCOL=HTTP/1.1";
 	m_gatewayInterface = "GATEWAY_INTERFACE=CGI/1.1";
+	m_remote_addr = "REMOTE_ADDR=127.0.0.1"; // change later
+	m_serverName = "SERVER_NAME=test"; // change later
+	m_serverPort = "SERVER_PORT=8080"; // change later
 
 	// Make strings compatible with execve
 	m_envArrExecve[0] = (char *) m_contenLen.c_str(); // check the casting later
@@ -67,11 +71,16 @@ void	CgiHandler::setExecveEnvArr()
 	m_envArrExecve[4] = (char *) m_gatewayInterface.c_str();
 	m_envArrExecve[5] = (char *) m_pathInfo.c_str();
 	m_envArrExecve[6] = (char *) m_requestMethod.c_str();
-	m_envArrExecve[7] = (char *) m_scriptName.c_str();
+	m_envArrExecve[7] = (char *) m_scriptFileName.c_str();
 	m_envArrExecve[8] = (char *) m_redirectStatus.c_str();
+	m_envArrExecve[9] = (char *) m_scriptName.c_str();
+	m_envArrExecve[10] = (char *) m_remote_addr.c_str();
+	m_envArrExecve[11] = (char *) m_serverName.c_str();
+	m_envArrExecve[12] = (char *) m_serverPort.c_str();
+	m_envArrExecve[13] = NULL;
 
-	for (int i = 0; i < 9; ++i)
-		std::cout << "ENV VAR " << i << " IS:\n" << m_envArrExecve[i] << "\n\n";
+//	for (int i = 0; i < 9; ++i)
+//		std::cout << "ENV VAR " << i << " IS:\n" << m_envArrExecve[i] << "\n\n";
 
 }
 
@@ -122,11 +131,13 @@ int	CgiHandler::executeCgi()
 			const char *buf = m_client.parsedRequest.rawContent.c_str();
 			size_t len = m_client.parsedRequest.rawContent.length();
 
-			std::cout << RED << "BUF IN PARENT:\n" << RESET << buf  << "\nLen:\n" << m_client.parsedRequest.rawContent.length() << "\n";
+			std::cout << GREEN << "BUF IN PARENT:\n" << RESET << buf << "\nLen:\n" << m_client.parsedRequest.rawContent.length() << "\n\n";
 
 			write(m_pipeToCgi[1], buf, len); // error handling...?
 			close(m_pipeToCgi[1]); // error handling...?
 		}
+		else
+			close(m_pipeToCgi[1]);
 		
 		if (waitForChildProcess(cgiPid) == -1)
 			return (-1);
@@ -138,9 +149,13 @@ int	CgiHandler::executeCgi()
 			It needs to happen like the response building: read one chunk per round, and check if all has been read.
 			Also: Do I need to do poll() check before entering this...?
 		*/
-		char 	buffer[1024];
+
+		std::cout << GREEN << "BEFORE READ\n\n" << RESET;
+
+
+		char 	buffer[10024];
 		int		bytesRead;
-		bytesRead = read(m_pipeFromCgi[0], buffer, 1023); // This needs to go thorugh poll()...?
+		bytesRead = read(m_pipeFromCgi[0], buffer, 10023); // This needs to go thorugh poll()...?
 		if (bytesRead == -1)
 		{
 			std::cerr << RED << "\nRead() failed:\n" << RESET << std::strerror(errno) << "\n\n";
@@ -153,6 +168,8 @@ int	CgiHandler::executeCgi()
 
 		std::string bufStr = buffer;
 		m_responseBody += bufStr;
+
+		std::cout << GREEN << "RESPONSE BODY IN PARENT:\n" << RESET << m_responseBody << "\n\n";
 
 		/*
 			NOTE:
@@ -182,6 +199,9 @@ int		CgiHandler::cgiChildProcess()
 	int			len = m_pathToScript.length() - (m_pathToScript.length() - index);
 	std::string scriptDirectoryPath = m_pathToScript.substr(0, len);
 
+	close (m_pipeFromCgi[0]); // do we need to check for errors with close()...?
+	close (m_pipeToCgi[1]); // error handling...?
+
 	if (chdir(scriptDirectoryPath.c_str()) == -1)
 	{
 		std::cerr << RED << "\nChdir() failed:\n" << RESET << std::strerror(errno) << "\n\n";
@@ -189,26 +209,41 @@ int		CgiHandler::cgiChildProcess()
 		return (1);
 	}
 
-	close (m_pipeFromCgi[0]); // do we need to check for errors with close()...?
-	close (m_pipeToCgi[1]); // error handling...?
-
 	if (dup2(m_pipeFromCgi[1], STDOUT_FILENO) == -1)
 	{
 		std::cerr << RED << "\nDup2() failed:\n" << RESET << std::strerror(errno) << "\n\n";
 		// Other error handling?
-		return (1);	
+		return (1);
 	}
 
-	
 	if (m_client.parsedRequest.method == "POST" && dup2(m_pipeToCgi[0], STDIN_FILENO) == -1)
 	{
 		std::cerr << RED << "\nDup2() failed:\n" << RESET << std::strerror(errno) << "\n\n";
 		// Other error handling?
-		return (1);	
+		return (1);
 	}
 
+	close (m_pipeFromCgi[1]); // do we need to check for errors with close()...?
+	close (m_pipeToCgi[0]); // error handling...?
 
-	if (execve(m_pathToInterpreter.c_str(), m_argsForExecve, m_envArrExecve) == -1)
+//	std::cerr << RED << "CHILD m_pathToInterpreter: \n" << RESET << m_pathToInterpreter.c_str() << "\n\n";
+
+	std::cerr << RED << "CHILD m_argsForExecve 0: \n" << RESET << m_argsForExecve[0] << "\n";
+	std::cerr << RED << "CHILD m_argsForExecve 1: \n" << RESET << m_argsForExecve[1] << "\n\n";
+
+	std::cerr << RED << "CHILD m_envArrExecve 0: \n" << RESET << m_envArrExecve[0] << "\n";
+	std::cerr << RED << "CHILD m_envArrExecve 1: \n" << RESET << m_envArrExecve[1] << "\n";
+	std::cerr << RED << "CHILD m_envArrExecve 2: \n" << RESET << m_envArrExecve[2] << "\n";
+	std::cerr << RED << "CHILD m_envArrExecve 3: \n" << RESET << m_envArrExecve[3] << "\n";
+	std::cerr << RED << "CHILD m_envArrExecve 4: \n" << RESET << m_envArrExecve[4] << "\n";
+	std::cerr << RED << "CHILD m_envArrExecve 5: \n" << RESET << m_envArrExecve[5] << "\n";
+	std::cerr << RED << "CHILD m_envArrExecve 6: \n" << RESET << m_envArrExecve[6] << "\n";
+	std::cerr << RED << "CHILD m_envArrExecve 7: \n" << RESET << m_envArrExecve[7] << "\n";
+	std::cerr << RED << "CHILD m_envArrExecve 8: \n" << RESET << m_envArrExecve[8] << "\n";
+	std::cerr << RED << "CHILD m_envArrExecve 9: \n" << RESET << m_envArrExecve[9] << "\n\n";
+
+
+	if (execve(m_pathToInterpreter.c_str(), m_argsForExecve, NULL) == -1)
 	{
 		close(m_pipeFromCgi[1]);
 		std::cerr << RED << "\nExecve() failed:\n" << RESET << std::strerror(errno) << "\n\n";

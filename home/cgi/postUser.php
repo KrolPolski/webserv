@@ -9,6 +9,22 @@
 	
 <?php
 
+//echo file_get_contents('php://input');
+//echo "<br>";
+//var_dump($_POST);
+//echo "<br>";
+//echo ini_get('enable_post_data_reading');
+
+//echo "<br>";
+//echo "<br>";
+
+phpinfo();
+
+//echo "<br>";
+//echo "<br>";
+
+
+
 $user = $_POST['username'];
 $message = $_POST['message'];
 

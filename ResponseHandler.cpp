@@ -120,16 +120,44 @@ void ResponseHandler::listDirectoryContents(std::string filePath)
 	Name (as link) Size and Date Modified information.
 	*/
 }
+
+void ResponseHandler::buildRedirectResponse(std::string webFilePath, clientInfo *clientPTR)
+{
+// Example response:
+//	HTTP/1.1 301 Moved Permanently
+// Location: http://example.com/folder/
+// Content-Type: text/html; charset=UTF-8
+// Content-Length: 0
+// Connection: close
+	setResponseCode(301);
+	std::string headers;
+	headers = "HTTP/1.1 301 Moved Permanently\r\n";
+	headers += "Location: "	+ webFilePath + "\r\n";
+	headers += "Content-Type: text/html;" "\r\n";
+	headers += "Content-Length: 0\r\n";
+	headers += "Connection: close";
+	headers += "\r\n\r\n";
+	clientPTR->responseString = headers;
+//	std::cout << "responseString: " << clientPTR->responseString << std::endl;
+}
 int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 {
 //    std::cout << "We should now check if the file exists" << std::endl;
+	// we need to have separate variables for the local path vs the web path so redirects work the way they should.
 	std::string defaultFilePath;
+	std::string webFilePath;
 	// this has to be fixed once we have a configuration parsing appropriately
 
 	filePath = clientPTR->parsedRequest.filePath;
-
+	webFilePath = filePath;
+	std::string port = clientPTR->relatedServer->serverConfig->getPort();
+	std::cout << "Port returned: " << port << std::endl;
 	if (filePath == "/")
-		filePath = "home/index.html";
+	{
+		//filePath = clientPTR->relatedServer->serverConfig->getRoot(port);
+		//std::cout << "Updated file path is: " << filePath << std::endl;
+		filePath = "home/";
+	}
 	else
 		filePath = "home" + filePath;
 
@@ -139,7 +167,11 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 		if (filePath.back() == '/')
 			defaultFilePath = filePath + "index.html";
 		else
-			defaultFilePath = filePath + "/index.html";
+		{
+			webFilePath += "/";
+			buildRedirectResponse(webFilePath, clientPTR);
+			return 0;
+		}
 		if (std::filesystem::exists(defaultFilePath))
 			filePath = defaultFilePath;
 		else

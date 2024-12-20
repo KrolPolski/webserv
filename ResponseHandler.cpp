@@ -146,21 +146,14 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 	// we need to have separate variables for the local path vs the web path so redirects work the way they should.
 	std::string defaultFilePath;
 	std::string webFilePath;
-	// this has to be fixed once we have a configuration parsing appropriately
 
 	filePath = clientPTR->parsedRequest.filePath;
 	webFilePath = filePath;
 	std::string port = clientPTR->relatedServer->serverConfig->getPort();
 	std::cout << "Port returned: " << port << std::endl;
-	if (filePath == "/")
-	{
-		filePath = clientPTR->relatedServer->serverConfig->getRoot("/");
-		//std::cout << "Updated file path is: " << filePath << std::endl;
-		//filePath = "home/";
-	}
-	else
-		filePath = clientPTR->relatedServer->serverConfig->getRoot("/") + filePath;
-
+	filePath = clientPTR->relatedServer->serverConfig->getRoot("/") + filePath;
+	std::cout << "Updated file path is: " << filePath << std::endl;
+	
 	std::string content;
 	if (std::filesystem::is_directory(filePath))
 	{

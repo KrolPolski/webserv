@@ -154,12 +154,12 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 	std::cout << "Port returned: " << port << std::endl;
 	if (filePath == "/")
 	{
-		//filePath = clientPTR->relatedServer->serverConfig->getRoot(port);
+		filePath = clientPTR->relatedServer->serverConfig->getRoot("/");
 		//std::cout << "Updated file path is: " << filePath << std::endl;
-		filePath = "home/";
+		//filePath = "home/";
 	}
 	else
-		filePath = "home" + filePath;
+		filePath = clientPTR->relatedServer->serverConfig->getRoot("/") + filePath;
 
 	std::string content;
 	if (std::filesystem::is_directory(filePath))

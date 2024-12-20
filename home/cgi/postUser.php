@@ -18,7 +18,7 @@
 //echo "<br>";
 //echo "<br>";
 
-phpinfo();
+//phpinfo();
 
 //echo "<br>";
 //echo "<br>";

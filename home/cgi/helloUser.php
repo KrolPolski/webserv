@@ -9,7 +9,7 @@
 	
 <?php
 
-phpinfo();
+//phpinfo();
 
 $user = $_GET['username'];
 $hobby = $_GET['hobby'];

@@ -13,7 +13,7 @@ CgiHandler::CgiHandler(clientInfo &client) : m_client(client)
 	CgiTypes 	type = m_client.parsedRequest.cgiType;
 
 	if (type == PHP)
-		m_pathToInterpreter = "/usr/local/bin/php-cgi";
+		m_pathToInterpreter = "/usr/bin/php-cgi";
 	else if (type == PYTHON)
 		m_pathToInterpreter = "/usr/bin/python3"; // check this later
 
@@ -55,7 +55,7 @@ void	CgiHandler::setExecveEnvArr()
 	m_pathInfo = "PATH_INFO=" + m_pathToScript; // check this later (full path or not)
 	m_requestMethod = "REQUEST_METHOD=" + m_client.parsedRequest.method;
 	m_scriptFileName = "SCRIPT_FILENAME=" + m_pathToScript;//+ m_pathToScript.substr(m_pathToScript.find_last_of('/') + 1);
-	m_scriptName = "SCRIPT_NAME=/home/cgi/postUser.php"; // CHANGE THIS!
+	m_scriptName = "SCRIPT_NAME=" + m_pathToScript; // CHANGE THIS!
 	m_redirectStatus = "REDIRECT_STATUS="; // check this at school
 	m_serverProtocol = "SERVER_PROTOCOL=HTTP/1.1";
 	m_gatewayInterface = "GATEWAY_INTERFACE=CGI/1.1";
@@ -245,7 +245,7 @@ int		CgiHandler::cgiChildProcess()
 
 	if (execve(m_pathToInterpreter.c_str(), m_argsForExecve, NULL) == -1)
 	{
-		close(m_pipeFromCgi[1]);
+		//close(m_pipeFromCgi[1]);
 		std::cerr << RED << "\nExecve() failed:\n" << RESET << std::strerror(errno) << "\n\n";
 		// Other error handling?
 		return (1); // or some other exit code...?

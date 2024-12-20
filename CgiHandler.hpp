@@ -8,6 +8,9 @@
 #include <unistd.h> // fork()
 #include <sys/wait.h> // waitpid()
 
+// TEST
+#include <fcntl.h>
+
 class CgiHandler
 {
 	public:
@@ -22,6 +25,9 @@ class CgiHandler
 	private:
 
 	clientInfo	&m_client;
+
+	// TEST
+	std::string m_filename = "postUser.php";
 
 	std::string m_contenLen;
 	std::string m_contenType;

@@ -58,6 +58,8 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : 
 						loc.m_root = iter->substr(5, iter->size() - 6);
 					if (iter->find("methods") != std::string::npos)
 						loc.m_methods = iter->substr(8, iter->size() - 9);
+					if (iter->find("upload_dir") != std::string::npos)
+						loc.m_uploadDir = iter->substr(11, iter->size() - 12);
 					if (iter->find("dir_listing") != std::string::npos)
 					{
 						std::string temp = iter->substr(12, iter->size() - 13);
@@ -145,6 +147,14 @@ std::string	ConfigurationHandler::getMethods(std::string key) const
 	return map_key->second.m_methods;
 }
 
+std::string	ConfigurationHandler::getUploadDir(std::string key) const
+{
+	auto map_key = m_routes.find(key);
+	if (map_key == m_routes.end())
+		std::cout << "Error: could not find route" << std::endl;
+	return map_key->second.m_uploadDir;
+}
+
 bool	ConfigurationHandler::getDirListing(std::string key) const
 {
 	auto map_key = m_routes.find(key);
@@ -172,7 +182,7 @@ std::string	fileNameCheck(char *argv)
 	std::cout << "Checking\n\n";
 	std::string	file = argv;
 
-	if (std::regex_match(file, std::regex("^web.conf$")) == false)
+	if (std::regex_match(file, std::regex(".*\\.conf$")) == false)
 		throw std::runtime_error("Wrong configuration file");
 	return file;
 }

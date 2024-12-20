@@ -143,7 +143,11 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 		if (std::filesystem::exists(defaultFilePath))
 			filePath = defaultFilePath;
 		else
+		{
 			std::cout <<"Call Patrik's function for directory listing" << std::endl;
+			buildDirListingResponse(filePath, clientPTR);
+			return 0;
+		}
 	}
 	// If we get here then we have concluded that it isn't a directory.
 	

@@ -55,13 +55,13 @@ void	CgiHandler::setExecveEnvArr()
 	m_pathInfo = "PATH_INFO=" + m_pathToScript; // check this later (full path or not)
 	m_requestMethod = "REQUEST_METHOD=" + m_client.parsedRequest.method;
 	m_scriptFileName = "SCRIPT_FILENAME=" + m_pathToScript;//+ m_pathToScript.substr(m_pathToScript.find_last_of('/') + 1);
-	m_scriptName = "SCRIPT_NAME=" + m_pathToScript; // CHANGE THIS!
+//	m_scriptName = "SCRIPT_NAME=" + m_pathToScript; // CHANGE THIS!
 	m_redirectStatus = "REDIRECT_STATUS="; // check this at school
 	m_serverProtocol = "SERVER_PROTOCOL=HTTP/1.1";
 	m_gatewayInterface = "GATEWAY_INTERFACE=CGI/1.1";
-	m_remote_addr = "REMOTE_ADDR=127.0.0.1"; // change later
-	m_serverName = "SERVER_NAME=test"; // change later
-	m_serverPort = "SERVER_PORT=8080"; // change later
+//	m_remote_addr = "REMOTE_ADDR=127.0.0.1"; // change later
+//	m_serverName = "SERVER_NAME=test"; // change later
+//	m_serverPort = "SERVER_PORT=8080"; // change later
 
 	// Make strings compatible with execve
 	m_envArrExecve[0] = (char *) m_contenLen.c_str(); // check the casting later
@@ -73,11 +73,11 @@ void	CgiHandler::setExecveEnvArr()
 	m_envArrExecve[6] = (char *) m_requestMethod.c_str();
 	m_envArrExecve[7] = (char *) m_scriptFileName.c_str();
 	m_envArrExecve[8] = (char *) m_redirectStatus.c_str();
-	m_envArrExecve[9] = (char *) m_scriptName.c_str();
-	m_envArrExecve[10] = (char *) m_remote_addr.c_str();
-	m_envArrExecve[11] = (char *) m_serverName.c_str();
-	m_envArrExecve[12] = (char *) m_serverPort.c_str();
-	m_envArrExecve[13] = NULL;
+//	m_envArrExecve[9] = (char *) m_scriptName.c_str();
+//	m_envArrExecve[10] = (char *) m_remote_addr.c_str();
+//	m_envArrExecve[11] = (char *) m_serverName.c_str();
+//	m_envArrExecve[12] = (char *) m_serverPort.c_str();
+//	m_envArrExecve[13] = NULL;
 
 //	for (int i = 0; i < 9; ++i)
 //		std::cout << "ENV VAR " << i << " IS:\n" << m_envArrExecve[i] << "\n\n";
@@ -123,8 +123,10 @@ int	CgiHandler::executeCgi()
 	{
 		// In parent/main process
 
-		close(m_pipeFromCgi[1]); // error handling...?
-		close(m_pipeToCgi[0]); // error handling...?
+		if (close(m_pipeFromCgi[1]) == -1)
+			std::cerr << RED << "CLOSE FAIL" << RESET << "\n\n"; // do we need to check for errors with close()...?
+		if (close(m_pipeToCgi[0]) == -1)
+			std::cerr << RED << "CLOSE FAIL" << RESET << "\n\n"; // do we need to check for errors with close()...?
 
 		if (m_client.parsedRequest.method == "POST")
 		{
@@ -133,12 +135,16 @@ int	CgiHandler::executeCgi()
 
 			std::cout << GREEN << "BUF IN PARENT:\n" << RESET << buf << "\nLen:\n" << m_client.parsedRequest.rawContent.length() << "\n\n";
 
-			write(m_pipeToCgi[1], buf, len); // error handling...?
-			close(m_pipeToCgi[1]); // error handling...?
+			write(m_pipeToCgi[1], buf, len + 1); // error handling...?
+			if (close(m_pipeToCgi[1]) == -1)
+				std::cerr << RED << "CLOSE FAIL" << RESET << "\n\n"; // do we need to check for errors with close()...?
 		}
 		else
-			close(m_pipeToCgi[1]);
-		
+		{
+			if (close(m_pipeToCgi[1]) == -1)
+				std::cerr << RED << "CLOSE FAIL" << RESET << "\n\n"; // do we need to check for errors with close()...?
+		}
+
 		if (waitForChildProcess(cgiPid) == -1)
 			return (-1);
 
@@ -153,9 +159,9 @@ int	CgiHandler::executeCgi()
 		std::cout << GREEN << "BEFORE READ\n\n" << RESET;
 
 
-		char 	buffer[10024];
+		char 	buffer[1024];
 		int		bytesRead;
-		bytesRead = read(m_pipeFromCgi[0], buffer, 10023); // This needs to go thorugh poll()...?
+		bytesRead = read(m_pipeFromCgi[0], buffer, 1023); // This needs to go thorugh poll()...?
 		if (bytesRead == -1)
 		{
 			std::cerr << RED << "\nRead() failed:\n" << RESET << std::strerror(errno) << "\n\n";
@@ -199,8 +205,10 @@ int		CgiHandler::cgiChildProcess()
 	int			len = m_pathToScript.length() - (m_pathToScript.length() - index);
 	std::string scriptDirectoryPath = m_pathToScript.substr(0, len);
 
-	close (m_pipeFromCgi[0]); // do we need to check for errors with close()...?
-	close (m_pipeToCgi[1]); // error handling...?
+	if (close (m_pipeFromCgi[0]) == -1)
+		std::cerr << RED << "CLOSE FAIL" << RESET << "\n\n"; // do we need to check for errors with close()...?
+	if (close (m_pipeToCgi[1]) == -1)
+		std::cerr << RED << "CLOSE FAIL" << RESET << "\n\n"; // do we need to check for errors with close()...?
 
 	if (chdir(scriptDirectoryPath.c_str()) == -1)
 	{
@@ -223,10 +231,12 @@ int		CgiHandler::cgiChildProcess()
 		return (1);
 	}
 
-	close (m_pipeFromCgi[1]); // do we need to check for errors with close()...?
-	close (m_pipeToCgi[0]); // error handling...?
+	if (close (m_pipeFromCgi[1]) == -1)
+		std::cerr << RED << "CLOSE FAIL" << RESET << "\n\n"; // do we need to check for errors with close()...?
+	if (close (m_pipeToCgi[0]) == -1)
+		std::cerr << RED << "CLOSE FAIL" << RESET << "\n\n"; // do we need to check for errors with close()...?
 
-//	std::cerr << RED << "CHILD m_pathToInterpreter: \n" << RESET << m_pathToInterpreter.c_str() << "\n\n";
+	std::cerr << RED << "CHILD m_pathToInterpreter: \n" << RESET << m_pathToInterpreter.c_str() << "\n\n";
 
 	std::cerr << RED << "CHILD m_argsForExecve 0: \n" << RESET << m_argsForExecve[0] << "\n";
 	std::cerr << RED << "CHILD m_argsForExecve 1: \n" << RESET << m_argsForExecve[1] << "\n\n";
@@ -240,12 +250,12 @@ int		CgiHandler::cgiChildProcess()
 	std::cerr << RED << "CHILD m_envArrExecve 6: \n" << RESET << m_envArrExecve[6] << "\n";
 	std::cerr << RED << "CHILD m_envArrExecve 7: \n" << RESET << m_envArrExecve[7] << "\n";
 	std::cerr << RED << "CHILD m_envArrExecve 8: \n" << RESET << m_envArrExecve[8] << "\n";
-	std::cerr << RED << "CHILD m_envArrExecve 9: \n" << RESET << m_envArrExecve[9] << "\n\n";
+//	std::cerr << RED << "CHILD m_envArrExecve 9: \n" << RESET << m_envArrExecve[9] << "\n\n";
 
 
-	if (execve(m_pathToInterpreter.c_str(), m_argsForExecve, NULL) == -1)
+	if (execve(m_pathToInterpreter.c_str(), m_argsForExecve, m_envArrExecve) == -1)
 	{
-		//close(m_pipeFromCgi[1]);
+		close(m_pipeFromCgi[1]);
 		std::cerr << RED << "\nExecve() failed:\n" << RESET << std::strerror(errno) << "\n\n";
 		// Other error handling?
 		return (1); // or some other exit code...?

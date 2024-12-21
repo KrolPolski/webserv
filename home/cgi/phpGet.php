@@ -9,8 +9,6 @@
 	
 <?php
 
-//phpinfo();
-
 $user = $_GET['username'];
 $hobby = $_GET['hobby'];
 

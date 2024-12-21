@@ -26,9 +26,6 @@ class CgiHandler
 
 	clientInfo	&m_client;
 
-	// TEST
-	std::string m_filename = "postUser.php";
-
 	std::string m_contenLen;
 	std::string m_contenType;
 	std::string m_queryStr;
@@ -60,8 +57,6 @@ class CgiHandler
 	int		m_pipeFromCgi[2];
 	int		m_pipeToCgi[2];
 
-
-
 	std::chrono::time_point<std::chrono::high_resolution_clock> m_startTime;
 
 	void	setExecveArgs();
@@ -70,6 +65,10 @@ class CgiHandler
 	int		cgiChildProcess();
 	int		waitForChildProcess(pid_t &cgiPid);
 	void	buildCgiResponse();
+
+	int		errorExit(std::string errStr);
+	void	closeAndInitFd(int fd);
+	void	closeAllFd();
 
 
 };

@@ -112,16 +112,71 @@ void ResponseHandler::checkExtension(std::string filePath)
 		//there's probably a response code for this
 	}
 }
+void ResponseHandler::listDirectoryContents(std::string filePath)
+{
+	std::cout << "We decided we should list directory contents instead of returning a 404 error" << std::endl;
+	/* We need here:
+	return HTML file that includes:
+	Name (as link) Size and Date Modified information.
+	*/
+}
 
+void ResponseHandler::buildRedirectResponse(std::string webFilePath, clientInfo *clientPTR)
+{
+// Example response:
+//	HTTP/1.1 301 Moved Permanently
+// Location: http://example.com/folder/
+// Content-Type: text/html; charset=UTF-8
+// Content-Length: 0
+// Connection: close
+	setResponseCode(301);
+	std::string headers;
+	headers = "HTTP/1.1 301 Moved Permanently\r\n";
+	headers += "Location: "	+ webFilePath + "\r\n";
+	headers += "Content-Type: text/html;" "\r\n";
+	headers += "Content-Length: 0\r\n";
+	headers += "Connection: close";
+	headers += "\r\n\r\n";
+	clientPTR->responseString = headers;
+//	std::cout << "responseString: " << clientPTR->responseString << std::endl;
+}
 int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 {
-	// Should we build the root folder path already in request parsing...?
-	std::string currentDir = std::filesystem::current_path();
-	std::string	rootPath = currentDir + clientPTR->relatedServer->serverConfig->getRoot("/");
+  
+//    std::cout << "We should now check if the file exists" << std::endl;
+	// we need to have separate variables for the local path vs the web path so redirects work the way they should.
+	std::string defaultFilePath;
+	std::string webFilePath;
 
-	filePath = rootPath += clientPTR->parsedRequest.filePath;
-
+	filePath = clientPTR->parsedRequest.filePath;
+	webFilePath = filePath;
+	std::string port = clientPTR->relatedServer->serverConfig->getPort();
+	std::cout << "Port returned: " << port << std::endl;
+	filePath = clientPTR->relatedServer->serverConfig->getRoot("/") + filePath;
+	std::cout << "Updated file path is: " << filePath << std::endl;
+	
 	std::string content;
+	if (std::filesystem::is_directory(filePath))
+	{
+		if (filePath.back() == '/')
+			defaultFilePath = filePath + "index.html";
+		else
+		{
+			webFilePath += "/";
+			buildRedirectResponse(webFilePath, clientPTR);
+			return 0;
+		}
+		if (std::filesystem::exists(defaultFilePath))
+			filePath = defaultFilePath;
+		else
+		{
+			std::cout <<"Call Patrik's function for directory listing" << std::endl;
+			buildDirListingResponse(filePath, clientPTR);
+			return 0;
+		}
+	}
+	// If we get here then we have concluded that it isn't a directory.
+	
 	std::ifstream ourFile(filePath);
 	/*We need to detect which type of error we got with the file, so we 
 	can send the appropriate response code*/
@@ -129,7 +184,9 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 	{
 		std::cerr << "Error: " << strerror(errno) << errno << std::endl;
 		if (errno == 2) //file missing
+		{
 			setResponseCode(404);
+		}
 		else if (errno == 13) //bad permissions
 			setResponseCode(403);
 		else
@@ -227,7 +284,7 @@ const enum requestTypes& ResponseHandler::getRequestType() const
 
 unsigned int ResponseHandler::getResponseCode() const
 {
-	return (const unsigned int)responseCode;
+	return responseCode;
 }
 
 void ResponseHandler::setRequestType(enum requestTypes reqType)
@@ -269,4 +326,31 @@ void ResponseHandler::buildErrorResponse(clientInfo *clientPTR)
 	clientPTR->responseString = headers + content;
 	std::cout << "responseString: " << clientPTR->responseString << std::endl;
 	ourFile.close();
+}
+
+void	ResponseHandler::buildDirListingResponse(const std::string& pathForDirToList, clientInfo *clientPTR)
+{
+	std::string	content;
+	content += "<html>\n<body>\n";
+	content += " <h1>In directory with path: " + pathForDirToList + "</h1>\n";
+	content += "<ul>\n";
+
+	for(const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(pathForDirToList))
+	{
+		std::string href = entry.path().filename().string();
+		std::string name = entry.path().filename().string();
+
+		content += "  <li><a href=\"" + href + "\">" + name + "</a></li>\n";
+	}
+	content += "</ul>\n</body>\n</html>\n";
+
+	std::string headers;
+	contentType = "text/html";
+
+	headers = "HTTP/1.1 200 OK\r\n";
+	headers += "Content-Type: " + contentType + "\r\n";
+	headers += "Content-Length: ";
+	headers += std::to_string(content.length());
+	headers += "\r\n\r\n";
+	clientPTR->responseString = headers + content;
 }

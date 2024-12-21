@@ -63,6 +63,19 @@ struct serverInfo
 	{
 	}
 };
+// removing the below to resolve merge conflicts
+// struct serverInfo
+// {
+// 	int				fd;
+// 	unsigned int	port;
+// 	std::string		name;
+
+// 	// need to update this later
+// 	serverInfo(int serverFd, unsigned int serverPort, std::string serverName) : 
+// 	fd(serverFd), port(serverPort), name(serverName)
+// 	{
+// 	}
+// };
 
 struct requestParseInfo
 {

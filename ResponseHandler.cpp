@@ -305,7 +305,8 @@ void ResponseHandler::buildErrorResponse(clientInfo *clientPTR)
 	std::string content;
 	std::cout << "We got to buildErrorResponse" << std::endl;
 	//need to update this based on config file path to error pages
-	std::string errorFileName = "default-error-pages/" + std::to_string(getResponseCode()) + ".html";
+	//tested with this and it works. now just fetch this from the configuration data. --- Patrik
+	std::string errorFileName = "home/error/" + std::to_string(getResponseCode()) + ".html";
 	std::ifstream ourFile(errorFileName);
 	std::string line;
 	while (std::getline(ourFile, line))

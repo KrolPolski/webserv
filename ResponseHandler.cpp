@@ -112,14 +112,6 @@ void ResponseHandler::checkExtension(std::string filePath)
 		//there's probably a response code for this
 	}
 }
-void ResponseHandler::listDirectoryContents(std::string filePath)
-{
-	std::cout << "We decided we should list directory contents instead of returning a 404 error" << std::endl;
-	/* We need here:
-	return HTML file that includes:
-	Name (as link) Size and Date Modified information.
-	*/
-}
 
 void ResponseHandler::buildRedirectResponse(std::string webFilePath, clientInfo *clientPTR)
 {

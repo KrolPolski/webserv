@@ -37,7 +37,5 @@ class ResponseHandler
 		unsigned int getResponseCode() const;
 
 		void buildRedirectResponse(std::string filePath, clientInfo *clientPTR);
-		void listDirectoryContents(std::string filePath);
-		
 };
 

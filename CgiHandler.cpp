@@ -23,7 +23,7 @@ CgiHandler::CgiHandler(clientInfo &client) : m_client(client)
 
 	std::string currentDir = std::filesystem::current_path();
 	std::string root = m_client.relatedServer->serverConfig->getRoot("/");
-	m_pathToScript = currentDir + root + m_client.parsedRequest.filePath;
+	m_pathToScript = currentDir + "/" + root + m_client.parsedRequest.filePath;
 
 	setExecveArgs();
 	setExecveEnvArr();
@@ -182,6 +182,7 @@ int		CgiHandler::cgiChildProcess()
 	if (close (m_pipeFromCgi[0]) == -1 || close (m_pipeToCgi[1]) == -1)
 		return (errorExit("Close() failed")); // is this needed...?
 
+	std::cout << "String used for chdir: " << scriptDirectoryPath.c_str() << std::endl;
 	if (chdir(scriptDirectoryPath.c_str()) == -1)
 		return (errorExit("Chdir() failed"));
 

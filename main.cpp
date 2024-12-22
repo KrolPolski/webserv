@@ -16,8 +16,6 @@ int main(int argc, char *argv[])
 	signal(SIGINT, sigIntHandler); // is this needed...?
 
 	ConnectionHandler	handler;
-	//ResponseHandler		responseHandler;
-
 
 	if (handler.initServers(argv[1]) == -1)
 		return (1);

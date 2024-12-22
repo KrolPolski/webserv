@@ -17,6 +17,7 @@ CgiHandler::CgiHandler(clientInfo &client) : m_client(client)
 	CgiTypes 	type = m_client.parsedRequest.cgiType;
 
 	if (type == PHP)
+		//m_pathToInterpreter = "/opt/homebrew/bin/php-cgi"; homebrew path is different
 		m_pathToInterpreter = "/usr/local/bin/php-cgi"; // do I need to search for this in computer...?
 	else if (type == PYTHON)
 		m_pathToInterpreter = "/usr/bin/python3"; // check this later

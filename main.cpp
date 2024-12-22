@@ -7,7 +7,7 @@
 
 int main(int argc, char *argv[])
 {
-	if (argc != 2 || argv == NULL)
+	if (argc > 2)
 	{
 		std::cerr << RED << "\nInvalid arguments! Please provide only one configuration file.\n\n" << RESET;
 		return (1);
@@ -16,9 +16,15 @@ int main(int argc, char *argv[])
 	signal(SIGINT, sigIntHandler); // is this needed...?
 
 	ConnectionHandler	handler;
+	char	configFileName[] = "web.conf"; // our default config file name here
+	char	*configPTR = configFileName;
 
-	if (handler.initServers(argv[1]) == -1)
+	if (argc == 2)
+		configPTR = argv[1];
+	
+	if (handler.initServers(configPTR) == -1)
 		return (1);
+
 
 	if (handler.startServers() == -1)
 		return (1);

@@ -60,6 +60,8 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : 
 						loc.m_methods = iter->substr(8, iter->size() - 9);
 					if (iter->find("upload_dir") != std::string::npos)
 						loc.m_uploadDir = iter->substr(11, iter->size() - 12);
+					if (iter->find("cgi_path") != std::string::npos)
+						loc.m_cgiPath = iter->substr(9, iter->size() - 10);
 					if (iter->find("dir_listing") != std::string::npos)
 					{
 						std::string temp = iter->substr(12, iter->size() - 13);
@@ -92,7 +94,7 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : 
 	// std::cout << m_names << std::endl;
 	// std::cout << "\n--------- Routes ---------------------------------\n\n";
 	// for (auto &x : m_routes)
-	// 	std::cout << "\n" << x.first << "\n  " << x.second.m_root << "\n  " << x.second.m_methods << "\n  " << x.second.m_dirListing << std::endl;
+	// 	std::cout << "\n" << x.first << "\n  " << x.second.m_root << "\n  " << x.second.m_methods << "\n  " << x.second.m_cgiPath << "\n  " << x.second.m_dirListing << std::endl;
 	// std::cout << "\n--------- Redirects ------------------------------\n\n";
 	// for (auto &x : m_redirect)
 	// 	std::cout << x.first << " : " << x.second << std::endl;
@@ -161,6 +163,14 @@ bool	ConfigurationHandler::getDirListing(std::string key) const
 	if (map_key == m_routes.end())
 		std::cout << "Error: could not find route" << std::endl;
 	return map_key->second.m_dirListing;
+}
+
+std::string	ConfigurationHandler::getCgiPath(std::string key) const
+{
+	auto map_key = m_routes.find(key);
+	if (map_key == m_routes.end())
+		std::cout << "Error: could not find route" << std::endl;
+	return map_key->second.m_cgiPath;
 }
 
 std::string	ConfigurationHandler::getErrorPages(uint key) const

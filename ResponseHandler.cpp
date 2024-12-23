@@ -162,7 +162,7 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 			filePath = defaultFilePath;
 		else
 		{
-			std::cout <<"Call Patrik's function for directory listing" << std::endl;
+			std::cout <<"Call Patrik's function for directory listing" << std::endl; // DirListing needs to be checked for if ON/OFF ---- Patrik
 			buildDirListingResponse(filePath, clientPTR);
 			return 0;
 		}

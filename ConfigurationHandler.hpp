@@ -25,8 +25,8 @@ struct locationBlock
 {
 	std::string					m_root;
 	std::string					m_methods; 		// GET POST DELETE (HEAD)?
-	std::string					m_uploadDir;
-	std::string					m_cgiPath;
+	std::string					m_uploadDir;	// upload destination;
+	std::string					m_cgiPath;		// path to cgi interpreter
 	bool						m_dirListing; 	// directory listing ON or OFF
 	//std::string					index; 			// if we are choose to override?
 

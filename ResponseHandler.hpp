@@ -35,8 +35,7 @@ class ResponseHandler
 		void checkExtension(std::string filePath);
 		const enum requestTypes& getRequestType() const;
 		unsigned int getResponseCode() const;
+
 		void buildRedirectResponse(std::string filePath, clientInfo *clientPTR);
-		void listDirectoryContents(std::string filePath);
-		
 };
 

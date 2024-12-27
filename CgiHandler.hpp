@@ -8,6 +8,9 @@
 #include <unistd.h> // fork()
 #include <sys/wait.h> // waitpid()
 
+// TEST
+#include <fcntl.h>
+
 class CgiHandler
 {
 	public:
@@ -30,11 +33,12 @@ class CgiHandler
 	std::string m_pathInfo;
 	std::string m_requestMethod;
 	std::string m_serverProtocol;
+	std::string	m_scriptFileName;
 	std::string	m_scriptName;
 	std::string m_redirectStatus;
-	//std::string m_remote_addr
-	//std::string	m_serverName;
-	//std::string	m_serverPort;
+	std::string m_remote_addr;
+	std::string	m_serverName;
+	std::string	m_serverPort;
 
 	bool		m_scriptReady; // meaning the child process has finished
 	bool		m_responseReady; // When read() returns < buffersize
@@ -51,7 +55,7 @@ class CgiHandler
 	char 	*m_envArrExecve[16] = {};
 
 	int		m_pipeFromCgi[2];
-
+	int		m_pipeToCgi[2];
 
 	std::chrono::time_point<std::chrono::high_resolution_clock> m_startTime;
 
@@ -61,6 +65,10 @@ class CgiHandler
 	int		cgiChildProcess();
 	int		waitForChildProcess(pid_t &cgiPid);
 	void	buildCgiResponse();
+
+	int		errorExit(std::string errStr);
+	void	closeAndInitFd(int fd);
+	void	closeAllFd();
 
 
 };

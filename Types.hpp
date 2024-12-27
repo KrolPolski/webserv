@@ -57,15 +57,9 @@ enum CgiTypes
 struct serverInfo
 {
 	int			fd;
-	std::string	name;
-
 	ConfigurationHandler *serverConfig;
-	// something to store valid methods
-	// error page information
-	// root folder info
 
-	// need to update this later
-	serverInfo(int serverFd, ConfigurationHandler *config) : fd(serverFd), name("test_server_" + std::to_string(serverFd)), serverConfig(config)
+	serverInfo(int serverFd, ConfigurationHandler *config) : fd(serverFd), serverConfig(config)
 	{
 	}
 };

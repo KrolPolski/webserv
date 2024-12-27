@@ -57,9 +57,9 @@ const std::map<const unsigned int, std::string> ResponseHandler::errorCodes =
 
 void ResponseHandler::checkRequestType(clientInfo *ClientPTR, std::string requestString)
 {    
-  std::cout << "We managed to get to checkRequestType" << std::endl;
-  std::cout << requestString << std::endl;
-	std::cout << "We should have printed the http request by now" << std::endl;
+//  std::cout << "We managed to get to checkRequestType" << std::endl;
+//  std::cout << requestString << std::endl;
+//	std::cout << "We should have printed the http request by now" << std::endl;
 	if (!requestString.compare(0, 4, "GET "))
 	{
 		std::cout << "GET request detected woo" << std::endl;
@@ -112,14 +112,6 @@ void ResponseHandler::checkExtension(std::string filePath)
 		//there's probably a response code for this
 	}
 }
-void ResponseHandler::listDirectoryContents(std::string filePath)
-{
-	std::cout << "We decided we should list directory contents instead of returning a 404 error" << std::endl;
-	/* We need here:
-	return HTML file that includes:
-	Name (as link) Size and Date Modified information.
-	*/
-}
 
 void ResponseHandler::buildRedirectResponse(std::string webFilePath, clientInfo *clientPTR)
 {
@@ -142,6 +134,7 @@ void ResponseHandler::buildRedirectResponse(std::string webFilePath, clientInfo 
 }
 int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 {
+  
 //    std::cout << "We should now check if the file exists" << std::endl;
 	// we need to have separate variables for the local path vs the web path so redirects work the way they should.
 	std::string defaultFilePath;
@@ -169,7 +162,7 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 			filePath = defaultFilePath;
 		else
 		{
-			std::cout <<"Call Patrik's function for directory listing" << std::endl;
+			std::cout <<"Call Patrik's function for directory listing" << std::endl; // DirListing needs to be checked for if ON/OFF ---- Patrik
 			buildDirListingResponse(filePath, clientPTR);
 			return 0;
 		}
@@ -208,7 +201,7 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 		if (cgiHandler.executeCgi() == -1)
 			return (-1);
 		
-  	setResponseCode(200);
+  		setResponseCode(200);
 		return (0);
 	}
 
@@ -269,6 +262,7 @@ void ResponseHandler::parseRequest(clientInfo *clientPTR, std::string requestStr
 		case POST:
 		{
 			checkFile(clientPTR, ""); // JUST A TEST
+			break ;
 		}
 		default:
 			std::cout << "unhandled parseRequest" << std::endl;
@@ -297,7 +291,9 @@ void ResponseHandler::setResponseCode(unsigned int code)
 
 void ResponseHandler::ServeErrorPages(clientInfo *ClientPTR, std::string requestString)
 {
-
+	// This is just to satisfy compiler
+	if (ClientPTR == NULL || requestString == "")
+		return ;
 }
 
 void ResponseHandler::buildErrorResponse(clientInfo *clientPTR)
@@ -305,7 +301,8 @@ void ResponseHandler::buildErrorResponse(clientInfo *clientPTR)
 	std::string content;
 	std::cout << "We got to buildErrorResponse" << std::endl;
 	//need to update this based on config file path to error pages
-	std::string errorFileName = "default-error-pages/" + std::to_string(getResponseCode()) + ".html";
+	//tested with this and it works. now just fetch this from the configuration data. --- Patrik
+	std::string errorFileName = "home/error/" + std::to_string(getResponseCode()) + ".html";
 	std::ifstream ourFile(errorFileName);
 	std::string line;
 	while (std::getline(ourFile, line))

@@ -56,6 +56,8 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : 
 			std::regex	rootRegex(R"(^\s*root\s+/?([^/][^;]*[^/])?/?\s*;\s*$)");
 			std::regex	methodsRegex(R"(^\s*methods\s+([^\s;]+(?:\s+[^\s;]+)*)\s*;\s*$)");
 			std::regex	dirListingRegex(R"(^\s*dir_listing\s+(on|off)\s*;\s*$)");
+			std::regex	uploadDirRegex(R"(^\s*upload_dir\s+/?([^/][^;]*[^/])?/?\s*;\s*$)");
+			std::regex	cgiPathRegex(R"(^\s*cgi_path\s+/?([^/][^;]*[^/])?/?\s*;\s*$)");
 			int openBraces = 0;
 			locationBlock loc;
 			std::string key = match[1];
@@ -73,6 +75,10 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : 
 						loc.m_root = subMatch[1];
 					if (regex_search(*iter, subMatch, methodsRegex) == true)
 						loc.m_methods = subMatch[1];
+					if (regex_search(*iter, subMatch, uploadDirRegex) == true)
+						loc.m_uploadDir = subMatch[1];
+					if (regex_search(*iter, subMatch, cgiPathRegex) == true)
+						loc.m_cgiPath = subMatch[1];
 					if (regex_search(*iter, subMatch, dirListingRegex) == true)
 					{
 						std::string temp = iter->substr(12, iter->size() - 13);
@@ -92,26 +98,39 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : 
 			}
 		}
 	}
-	std::cout << std::boolalpha;
-	std::cout << "\n--------- Port -----------------------------------\n\n";
-	std::cout << m_port << std::endl;
-	std::cout << "\n--------- Host -----------------------------------\n\n";
-	std::cout << m_host << std::endl;
-	std::cout << "\n--------- Index ----------------------------------\n\n";
-	std::cout << m_index << std::endl;
-	std::cout << "\n--------- Max client body size -------------------\n\n";
-	std::cout << m_maxClientBodySize << std::endl;
-	std::cout << "\n--------- Server names ---------------------------\n\n";
-	std::cout << m_names << std::endl;
-	std::cout << "\n--------- Routes ---------------------------------\n";
-	for (auto &x : m_routes)
-		std::cout << "\n" << x.first << "\n  " << x.second.m_root << "\n  " << x.second.m_methods << "\n  " << x.second.m_dirListing << std::endl;
-	std::cout << "\n--------- Redirects ------------------------------\n\n";
-	for (auto &x : m_redirect)
-		std::cout << x.first << " : " << x.second << std::endl;
-	std::cout << "\n--------- Error pages ----------------------------\n\n";
-	for (auto &x : m_errorPages)
-		std::cout << x.first << " : " << x.second << std::endl;
+	// std::cout << std::boolalpha;
+	// std::cout << "\n--------- Port -----------------------------------\n\n";
+	// std::cout << m_port << std::endl;
+	// std::cout << "\n--------- Host -----------------------------------\n\n";
+	// std::cout << m_host << std::endl;
+	// std::cout << "\n--------- Index ----------------------------------\n\n";
+	// std::cout << m_index << std::endl;
+	// std::cout << "\n--------- Max client body size -------------------\n\n";
+	// std::cout << m_maxClientBodySize << std::endl;
+	// std::cout << "\n--------- Server names ---------------------------\n\n";
+	// std::cout << m_names << std::endl;
+	// std::cout << "\n--------- Routes ---------------------------------\n";
+	// for (auto &x : m_routes)
+	// {
+	// 	std::cout 
+	// 	<< "\n" << x.first;
+	// 	if (x.second.m_root != "")
+	// 		std::cout << "\n  " << x.second.m_root;
+	// 	if (x.second.m_methods != "")
+	// 		std::cout << "\n  " << x.second.m_methods;
+	// 	if (x.second.m_uploadDir != "")
+	// 		std::cout << "\n  " << x.second.m_uploadDir;
+	// 	if (x.second.m_cgiPath != "")
+	// 		std::cout << "\n  " << x.second.m_cgiPath;
+	// 	std::cout << "\n  " << x.second.m_dirListing;
+	// 	std::cout << std::endl;
+	// }
+	// std::cout << "\n--------- Redirects ------------------------------\n\n";
+	// for (auto &x : m_redirect)
+	// 	std::cout << x.first << " : " << x.second << std::endl;
+	// std::cout << "\n--------- Error pages ----------------------------\n\n";
+	// for (auto &x : m_errorPages)
+	// 	std::cout << x.first << " : " << x.second << std::endl;
 }
 
 
@@ -160,12 +179,28 @@ std::string	ConfigurationHandler::getMethods(std::string key) const
 	return map_key->second.m_methods;
 }
 
+std::string	ConfigurationHandler::getUploadDir(std::string key) const
+{
+	auto map_key = m_routes.find(key);
+	if (map_key == m_routes.end())
+		std::cout << "Error: could not find route" << std::endl;
+	return map_key->second.m_uploadDir;
+}
+
 bool	ConfigurationHandler::getDirListing(std::string key) const
 {
 	auto map_key = m_routes.find(key);
 	if (map_key == m_routes.end())
 		std::cout << "Error: could not find route" << std::endl;
 	return map_key->second.m_dirListing;
+}
+
+std::string	ConfigurationHandler::getCgiPath(std::string key) const
+{
+	auto map_key = m_routes.find(key);
+	if (map_key == m_routes.end())
+		std::cout << "Error: could not find route" << std::endl;
+	return map_key->second.m_cgiPath;
 }
 
 std::string	ConfigurationHandler::getErrorPages(uint key) const
@@ -187,7 +222,7 @@ std::string	fileNameCheck(char *argv)
 	std::cout << "Checking\n\n";
 	std::string	file = argv;
 
-	if (std::regex_match(file, std::regex("^web.conf$")) == false)
+	if (std::regex_match(file, std::regex(".*\\.conf$")) == false)
 		throw std::runtime_error("Wrong configuration file");
 	return file;
 }

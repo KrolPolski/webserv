@@ -24,45 +24,62 @@ CONSTRUCTOR
 ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : m_rawBlock(servBlck)
 {
 	std::cout << "\n\n\nBuilding object\n";
+
+	std::regex	listenRegex(R"(^listen\s+(\d+)\s*;\s*$)");
+	std::regex	hostRegex(R"(^\s*host\s+([^\s]+)\s*;\s*$)");
+	std::regex	serverNameRegex(R"(^\s*server_name\s+([^\s;]+(?:\s+[^\s;]+)*)\s*;\s*$)");
+	std::regex	returnRegex(R"(^\s*return\s+(\d+)\s+([^\s]+)\s*;\s*$)");
+	std::regex	maxClientBodyRegex(R"(^\s*max_client_body_size\s+(\d+)[Mm]\s*;\s*$)");
+	std::regex	errorPageRegex(R"(^\s*error_page\s+(\d+)\s+([^\s]+)\s*;\s*$)");
+	std::regex	indexRegex(R"(^\s*index\s+([^\s]+)\s*;\s*$)");
+	std::regex	locationRegex(R"(^\s*location\s+([^\s]+)\s*\s*$)");
+
 	for (std::vector<std::string>::iterator iter = m_rawBlock.begin(); iter != m_rawBlock.end(); iter++)
 	{
-		if (iter->find("listen") != std::string::npos)
-			m_port = iter->substr(7, iter->size() - 8);
-		if (iter->find("host") != std::string::npos && iter->size() < 20)
-			m_host = iter->substr(5, iter->size() - 6);
-		if (iter->find("server_name") != std::string::npos)
-			m_names = iter->substr(12, iter->size() - 13);
-		if (iter->find("return") != std::string::npos)
-			m_redirect.emplace(std::stoi(iter->substr(7, 3)), iter->substr(11, iter->size() - 12));
-		if (iter->find("max_client_body_size") != std::string::npos)
-			m_maxClientBodySize = std::stoi(iter->substr(21, iter->size() - 23));
-		if (iter->find("error_page") != std::string::npos)
-			m_errorPages.emplace(std::stoi(iter->substr(11, 3)), iter->substr(15, iter->size() - 16));
-		if (iter->find("index") != std::string::npos)
-			m_index = iter->substr(6, iter->size() - 7);
-		if (iter->find("location") != std::string::npos)
+		std::smatch	match;
+		if (std::regex_search(*iter, match, listenRegex) == true)
+			m_port = match[1];
+		if (std::regex_search(*iter, match, hostRegex) == true)
+			m_host = match[1];
+		if (std::regex_search(*iter, match, serverNameRegex) == true)
+			m_names = match[1];
+		if (std::regex_search(*iter, match, returnRegex) == true)
+			m_redirect.emplace(std::stoi(match[1]), match[2]);
+		if (std::regex_search(*iter, match, maxClientBodyRegex) == true)
+			m_maxClientBodySize = std::stoi(match[1]);
+		if (std::regex_search(*iter, match, errorPageRegex) == true)
+			m_errorPages.emplace(std::stoi(match[1]), match[2]);
+		if (std::regex_search(*iter, match, indexRegex) == true)
+			m_index = match[1];
+		if (std::regex_search(*iter, match, locationRegex) == true)
 		{
+			std::regex	rootRegex(R"(^\s*root\s+/?([^/][^;]*[^/])?/?\s*;\s*$)");
+			std::regex	methodsRegex(R"(^\s*methods\s+([^\s;]+(?:\s+[^\s;]+)*)\s*;\s*$)");
+			std::regex	dirListingRegex(R"(^\s*dir_listing\s+(on|off)\s*;\s*$)");
+			std::regex	uploadDirRegex(R"(^\s*upload_dir\s+/?([^/][^;]*[^/])?/?\s*;\s*$)");
+			std::regex	cgiPathRegex(R"(^\s*cgi_path\s+/?([^/][^;]*[^/])?/?\s*;\s*$)");
 			int openBraces = 0;
 			locationBlock loc;
-			std::string key = iter->substr(9, iter->size() - 9);
+			std::string key = match[1];
 			iter++;
 			if (iter->find('{') != std::string::npos)
 			{
 				openBraces++;
-				while (openBraces == 1)
+				while (openBraces == 1 && iter != m_rawBlock.end())
 				{
+					std::smatch subMatch;
 					iter++;
 					if (iter->find('}') != std::string::npos)
 						openBraces--;
-					if (iter->find("root") != std::string::npos)
-						loc.m_root = iter->substr(5, iter->size() - 6);
-					if (iter->find("methods") != std::string::npos)
-						loc.m_methods = iter->substr(8, iter->size() - 9);
-					if (iter->find("upload_dir") != std::string::npos)
-						loc.m_uploadDir = iter->substr(11, iter->size() - 12);
-					if (iter->find("cgi_path") != std::string::npos)
-						loc.m_cgiPath = iter->substr(9, iter->size() - 10);
-					if (iter->find("dir_listing") != std::string::npos)
+					if (regex_search(*iter, subMatch, rootRegex) == true)
+						loc.m_root = subMatch[1];
+					if (regex_search(*iter, subMatch, methodsRegex) == true)
+						loc.m_methods = subMatch[1];
+					if (regex_search(*iter, subMatch, uploadDirRegex) == true)
+						loc.m_uploadDir = subMatch[1];
+					if (regex_search(*iter, subMatch, cgiPathRegex) == true)
+						loc.m_cgiPath = subMatch[1];
+					if (regex_search(*iter, subMatch, dirListingRegex) == true)
 					{
 						std::string temp = iter->substr(12, iter->size() - 13);
 						if (temp == "off")
@@ -82,19 +99,32 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : 
 		}
 	}
 	// std::cout << std::boolalpha;
-	// std::cout << "\n--------- Host -----------------------------------\n\n";
-	// std::cout << m_host << std::endl;
 	// std::cout << "\n--------- Port -----------------------------------\n\n";
 	// std::cout << m_port << std::endl;
+	// std::cout << "\n--------- Host -----------------------------------\n\n";
+	// std::cout << m_host << std::endl;
 	// std::cout << "\n--------- Index ----------------------------------\n\n";
 	// std::cout << m_index << std::endl;
 	// std::cout << "\n--------- Max client body size -------------------\n\n";
 	// std::cout << m_maxClientBodySize << std::endl;
 	// std::cout << "\n--------- Server names ---------------------------\n\n";
 	// std::cout << m_names << std::endl;
-	// std::cout << "\n--------- Routes ---------------------------------\n\n";
+	// std::cout << "\n--------- Routes ---------------------------------\n";
 	// for (auto &x : m_routes)
-	// 	std::cout << "\n" << x.first << "\n  " << x.second.m_root << "\n  " << x.second.m_methods << "\n  " << x.second.m_cgiPath << "\n  " << x.second.m_dirListing << std::endl;
+	// {
+	// 	std::cout 
+	// 	<< "\n" << x.first;
+	// 	if (x.second.m_root != "")
+	// 		std::cout << "\n  " << x.second.m_root;
+	// 	if (x.second.m_methods != "")
+	// 		std::cout << "\n  " << x.second.m_methods;
+	// 	if (x.second.m_uploadDir != "")
+	// 		std::cout << "\n  " << x.second.m_uploadDir;
+	// 	if (x.second.m_cgiPath != "")
+	// 		std::cout << "\n  " << x.second.m_cgiPath;
+	// 	std::cout << "\n  " << x.second.m_dirListing;
+	// 	std::cout << std::endl;
+	// }
 	// std::cout << "\n--------- Redirects ------------------------------\n\n";
 	// for (auto &x : m_redirect)
 	// 	std::cout << x.first << " : " << x.second << std::endl;
@@ -245,13 +275,14 @@ void	extractServerBlocks(std::map<std::string, ConfigurationHandler> &servers, s
 		std::vector<std::string>	temp;
 		for (std::vector<std::string>::iterator iter = rawFile.begin(); iter != rawFile.end(); iter++)
 		{
-			if (std::regex_match(*iter, std::regex("^server$")))
+			std::smatch	match;
+			if (std::regex_search(*iter, match, std::regex("^server$")) == true)
 			{
 				temp.push_back(*iter);
 				iter++;
 			}
-			if (iter->find("listen") != std::string::npos)
-				port = iter->substr(7, iter->size() - 8);
+			if (std::regex_search(*iter, match, std::regex(R"(^listen\s+(\d+)\s*;\s*$)")) == true)
+				port = match[1];
 			if (iter->find('{') != std::string::npos)
 				openBraces++;
 			if (iter->find('}') != std::string::npos)

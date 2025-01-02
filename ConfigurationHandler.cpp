@@ -243,7 +243,7 @@ std::string	ConfigurationHandler::getMethods(std::string key) const
 	if (map_key == m_routes.end())
 	{
 		std::cout << "Error: could not find route, checking defaults" << std::endl;
-		getDefaultMethods(key);
+		return getDefaultMethods(key);
 	}
 	return map_key->second.m_methods;
 }

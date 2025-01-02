@@ -51,6 +51,7 @@ const std::map<const unsigned int, std::string> ResponseHandler::errorCodes =
 {
 	{404, "Not Found"},
 	{403, "Forbidden"},
+	{405, "Method Not Allowed"},
 	{400, "Bad Request"},
 	{500, "Internal Server Error"}
 };
@@ -60,6 +61,7 @@ void ResponseHandler::checkRequestType(clientInfo *ClientPTR, std::string reques
 //  std::cout << "We managed to get to checkRequestType" << std::endl;
 //  std::cout << requestString << std::endl;
 //	std::cout << "We should have printed the http request by now" << std::endl;
+
 	if (!requestString.compare(0, 4, "GET "))
 	{
 		std::cout << "GET request detected woo" << std::endl;
@@ -86,6 +88,7 @@ void ResponseHandler::checkRequestType(clientInfo *ClientPTR, std::string reques
 
 void ResponseHandler::checkExtension(std::string filePath)
 {
+	std::cout << "Inside checkExtension" << std::endl;
 	std::string extension;
 	size_t index;
 	index = filePath.find_last_of('.');
@@ -100,17 +103,19 @@ void ResponseHandler::checkExtension(std::string filePath)
 		contentType = "Unknown";
 		return ;
 	}
-//	std::cout << "filePath: " << filePath << " Extension: " << extension << " Type: " << extensionTypes.at(extension) << std::endl;
+
+	std::cout << "filePath: " << filePath << " Extension: " << extension << " Type: " << extensionTypes.at(extension) << std::endl;
 	try
 	{
 		contentType = extensionTypes.at(extension);
-//		std::cout << "contentType: " << contentType << std::endl;
+		std::cout << "contentType: " << contentType << std::endl;
 	} 
 	catch (std::exception& e)
 	{
 		std::cerr << e.what() << std::endl;
 		//there's probably a response code for this
 	}
+	std::cout << "exiting checkExtension" << std::endl;
 }
 
 void ResponseHandler::buildRedirectResponse(std::string webFilePath, clientInfo *clientPTR)
@@ -208,12 +213,12 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 	/*
 		Addition end
 	*/
-	
+	std::cout << "We are about to checkExtension" << std::endl;
 	std::string line;
 	while (std::getline(ourFile, line))
 		content += line + "\n";
 	checkExtension(filePath);
-	
+	std::cout << "We are done checking Extension" << std::endl;
 	std::string	headers;
 	setResponseCode(200);
 	headers = "HTTP/1.1 200 OK\r\n";
@@ -229,12 +234,31 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 	return (0);
 }
 
+bool ResponseHandler::checkRequestAllowed(clientInfo *clientPTR, std::string filePath)
+{
+	(void)filePath;
+	std::string permittedMethods = clientPTR->relatedServer->serverConfig->getMethods(filePath);
+	std::cout << "We decided permitted Methods are: " << permittedMethods << std::endl;
+	std::cout << "Our request type is " << requestTypeAsString << std::endl;
+	if (permittedMethods.find(requestTypeAsString) != std::string::npos)
+	{
+		std::cout << "Method must have been permitted" << std::endl;
+		return true;
+	}
+	else
+	{
+		std::cout << "Method not permitted, should show 405 page" << std::endl;
+		responseCode = 405;
+		return false;
+	}
+}
 void ResponseHandler::parseRequest(clientInfo *clientPTR, std::string requestString)
 {
 	switch (requestType)
 	{
 		case GET:
 		{
+			requestTypeAsString = "GET";
 			std::istringstream stream(requestString);
 			std::vector<std::string> reqVec;
 			std::string line;
@@ -256,7 +280,13 @@ void ResponseHandler::parseRequest(clientInfo *clientPTR, std::string requestStr
 //				std::cout << phrase << std::endl;
 			}
 			if (lineOne.size() >= 2)
-				checkFile(clientPTR, lineOne.at(1)); // we need to check return value here in case something goes wrong
+				{
+					if (checkRequestAllowed(clientPTR, lineOne.at(1)))
+						checkFile(clientPTR, lineOne.at(1)); // we need to check return value here in case something goes wrong
+					else
+						{setResponseCode(405);
+						buildErrorResponse(clientPTR);}
+				}
 			break;
 		}	
 		case POST:
@@ -282,6 +312,7 @@ unsigned int ResponseHandler::getResponseCode() const
 void ResponseHandler::setRequestType(enum requestTypes reqType)
 {
 	requestType = reqType;
+
 }
 
 void ResponseHandler::setResponseCode(unsigned int code)

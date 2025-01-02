@@ -18,11 +18,64 @@
 #include <fstream>
 
 /*
+DEFAULT SETTINGS
+*/
+
+void	ConfigurationHandler::defaultSettings(std::string port)
+{
+	locationBlock loc;
+	m_port = port;
+	m_host = "127.0.0.1";
+	m_index = "index.html";
+	loc.m_root = "home";
+	loc.m_methods = "GET POST DELETE";
+	m_routes.emplace("/", loc);
+
+	std::cout << std::boolalpha;
+	std::cout << "\n--------- Port -----------------------------------\n\n";
+	std::cout << m_port << std::endl;
+	std::cout << "\n--------- Host -----------------------------------\n\n";
+	std::cout << m_host << std::endl;
+	std::cout << "\n--------- Index ----------------------------------\n\n";
+	std::cout << m_index << std::endl;
+	std::cout << "\n--------- Max client body size -------------------\n\n";
+	std::cout << m_maxClientBodySize << std::endl;
+	std::cout << "\n--------- Server names ---------------------------\n\n";
+	std::cout << m_names << std::endl;
+	std::cout << "\n--------- Routes ---------------------------------\n";
+	for (auto &x : m_routes)
+	{
+		std::cout 
+		<< "\n" << x.first;
+		if (x.second.m_root != "")
+			std::cout << "\n  " << x.second.m_root;
+		if (x.second.m_methods != "")
+			std::cout << "\n  " << x.second.m_methods;
+		if (x.second.m_uploadDir != "")
+			std::cout << "\n  " << x.second.m_uploadDir;
+		if (x.second.m_cgiPath != "")
+			std::cout << "\n  " << x.second.m_cgiPath;
+		std::cout << "\n  " << x.second.m_dirListing;
+		std::cout << std::endl;
+	}
+	std::cout << "\n--------- Redirects ------------------------------\n\n";
+	for (auto &x : m_redirect)
+		std::cout << x.first << " : " << x.second << std::endl;
+	std::cout << "\n--------- Error pages ----------------------------\n\n";
+	for (auto &x : m_errorPages)
+		std::cout << x.first << " : " << x.second << std::endl;
+}
+
+/*
 CONSTRUCTOR
 */
 
-ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : m_rawBlock(servBlck)
+ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck, std::string port) : m_rawBlock(servBlck)
 {
+	std::cout << "\n\n\nSetting defaults\n";
+
+	defaultSettings(port);
+
 	std::cout << "\n\n\nBuilding object\n";
 
 	std::regex	listenRegex(R"(^listen\s+(\d+)\s*;\s*$)");
@@ -89,48 +142,50 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : 
 					}
 					if (openBraces == 0)
 					{
+						if (m_routes.count(key) == 1)
+							m_routes.erase(key);
 						auto dup = m_routes.emplace(key, loc);
 						if (dup.second == false)
-							throw std::runtime_error("Error: Duplicate location block found");
+							throw std::runtime_error("Error: Duplicate location block found"); // is this extra now when .count check is right before this?
 						loc = locationBlock();
 					}
 				}
 			}
 		}
 	}
-	// std::cout << std::boolalpha;
-	// std::cout << "\n--------- Port -----------------------------------\n\n";
-	// std::cout << m_port << std::endl;
-	// std::cout << "\n--------- Host -----------------------------------\n\n";
-	// std::cout << m_host << std::endl;
-	// std::cout << "\n--------- Index ----------------------------------\n\n";
-	// std::cout << m_index << std::endl;
-	// std::cout << "\n--------- Max client body size -------------------\n\n";
-	// std::cout << m_maxClientBodySize << std::endl;
-	// std::cout << "\n--------- Server names ---------------------------\n\n";
-	// std::cout << m_names << std::endl;
-	// std::cout << "\n--------- Routes ---------------------------------\n";
-	// for (auto &x : m_routes)
-	// {
-	// 	std::cout 
-	// 	<< "\n" << x.first;
-	// 	if (x.second.m_root != "")
-	// 		std::cout << "\n  " << x.second.m_root;
-	// 	if (x.second.m_methods != "")
-	// 		std::cout << "\n  " << x.second.m_methods;
-	// 	if (x.second.m_uploadDir != "")
-	// 		std::cout << "\n  " << x.second.m_uploadDir;
-	// 	if (x.second.m_cgiPath != "")
-	// 		std::cout << "\n  " << x.second.m_cgiPath;
-	// 	std::cout << "\n  " << x.second.m_dirListing;
-	// 	std::cout << std::endl;
-	// }
-	// std::cout << "\n--------- Redirects ------------------------------\n\n";
-	// for (auto &x : m_redirect)
-	// 	std::cout << x.first << " : " << x.second << std::endl;
-	// std::cout << "\n--------- Error pages ----------------------------\n\n";
-	// for (auto &x : m_errorPages)
-	// 	std::cout << x.first << " : " << x.second << std::endl;
+	std::cout << std::boolalpha;
+	std::cout << "\n--------- Port -----------------------------------\n\n";
+	std::cout << m_port << std::endl;
+	std::cout << "\n--------- Host -----------------------------------\n\n";
+	std::cout << m_host << std::endl;
+	std::cout << "\n--------- Index ----------------------------------\n\n";
+	std::cout << m_index << std::endl;
+	std::cout << "\n--------- Max client body size -------------------\n\n";
+	std::cout << m_maxClientBodySize << std::endl;
+	std::cout << "\n--------- Server names ---------------------------\n\n";
+	std::cout << m_names << std::endl;
+	std::cout << "\n--------- Routes ---------------------------------\n";
+	for (auto &x : m_routes)
+	{
+		std::cout 
+		<< "\n" << x.first;
+		if (x.second.m_root != "")
+			std::cout << "\n  " << x.second.m_root;
+		if (x.second.m_methods != "")
+			std::cout << "\n  " << x.second.m_methods;
+		if (x.second.m_uploadDir != "")
+			std::cout << "\n  " << x.second.m_uploadDir;
+		if (x.second.m_cgiPath != "")
+			std::cout << "\n  " << x.second.m_cgiPath;
+		std::cout << "\n  " << x.second.m_dirListing;
+		std::cout << std::endl;
+	}
+	std::cout << "\n--------- Redirects ------------------------------\n\n";
+	for (auto &x : m_redirect)
+		std::cout << x.first << " : " << x.second << std::endl;
+	std::cout << "\n--------- Error pages ----------------------------\n\n";
+	for (auto &x : m_errorPages)
+		std::cout << x.first << " : " << x.second << std::endl;
 }
 
 
@@ -163,6 +218,17 @@ std::string	ConfigurationHandler::getNames() const
 	return m_names;
 }
 
+std::string	ConfigurationHandler::getDefaultMethods(std::string key) const
+{
+	for (auto &route: m_routes)
+	{
+		std::string keyFromOurMap = route.first;
+		if (key.rfind(keyFromOurMap, 0) == 0)
+			return route.second.m_methods;
+	}
+	return "GET POST DELETE";
+}
+
 std::string	ConfigurationHandler::getRoot(std::string key) const
 {
 	auto map_key = m_routes.find(key);
@@ -175,7 +241,10 @@ std::string	ConfigurationHandler::getMethods(std::string key) const
 {
 	auto map_key = m_routes.find(key);
 	if (map_key == m_routes.end())
-		std::cout << "Error: could not find route" << std::endl;
+	{
+		std::cout << "Error: could not find route, checking defaults" << std::endl;
+		getDefaultMethods(key);
+	}
 	return map_key->second.m_methods;
 }
 
@@ -290,7 +359,7 @@ void	extractServerBlocks(std::map<std::string, ConfigurationHandler> &servers, s
 			if (openBraces == 0)
 			{
 				temp.push_back(*iter);
-				auto dup = servers.emplace(port, ConfigurationHandler(temp));
+				auto dup = servers.emplace(port, ConfigurationHandler(temp, port));
 				if (dup.second == false)
 					throw std::runtime_error("Error: Duplicate port found");
 				std::cout << servers.size() << " -------------------------- Checking size\n";

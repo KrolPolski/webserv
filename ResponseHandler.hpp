@@ -14,6 +14,7 @@ class ResponseHandler
 {
     private:
         enum requestTypes requestType;
+		std::string requestTypeAsString;
         unsigned int responseCode;
 		std::string contentType;
 		static const std::map<std::string, std::string> extensionTypes;
@@ -35,7 +36,7 @@ class ResponseHandler
 		void checkExtension(std::string filePath);
 		const enum requestTypes& getRequestType() const;
 		unsigned int getResponseCode() const;
-
+		bool checkRequestAllowed(clientInfo *clientPTR, std::string filePath);
 		void buildRedirectResponse(std::string filePath, clientInfo *clientPTR);
 };
 

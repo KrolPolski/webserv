@@ -284,8 +284,10 @@ void ResponseHandler::parseRequest(clientInfo *clientPTR, std::string requestStr
 					if (checkRequestAllowed(clientPTR, lineOne.at(1)))
 						checkFile(clientPTR, lineOne.at(1)); // we need to check return value here in case something goes wrong
 					else
-						{setResponseCode(405);
-						buildErrorResponse(clientPTR);}
+					{
+						setResponseCode(405);
+						buildErrorResponse(clientPTR);
+					}
 				}
 			break;
 		}	

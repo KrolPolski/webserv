@@ -35,12 +35,23 @@ int		ConnectionHandler::initServers(char *configFile)
 	catch(const std::exception& e)
 	{
 		std::cerr << e.what() << '\n';
-		throw;
+		return -1;
 	}
 
 	for (auto iter = m_configMap.begin(); iter != m_configMap.end(); iter++)
 	{
-		int socketfd = initServerSocket(std::stoi(iter->first));
+		int	portNum;
+		try
+		{
+			portNum = std::stoi(iter->first);
+		}
+		catch(const std::exception& e)
+		{
+			std::cerr << "Error: Port is invalid" << '\n';
+			return -1;
+		}
+		
+		int socketfd = initServerSocket(portNum);
 		if (socketfd == -1)
 			return (-1);
 		

@@ -65,6 +65,14 @@ void	ConfigurationHandler::defaultSettings(std::string port)
 	for (auto &x : m_errorPages)
 		std::cout << x.first << " : " << x.second << std::endl;
 }
+bool	ConfigurationHandler::checkLocationBlock(locationBlock block)
+{
+	if (block.m_root == "")
+		return false;
+	if (block.m_methods == "")
+		return false;
+	return true;
+}
 
 /*
 CONSTRUCTOR
@@ -110,7 +118,7 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck, st
 			std::regex	methodsRegex(R"(^\s*methods\s+([^\s;]+(?:\s+[^\s;]+)*)\s*;\s*$)");
 			std::regex	dirListingRegex(R"(^\s*dir_listing\s+(on|off)\s*;\s*$)");
 			std::regex	uploadDirRegex(R"(^\s*upload_dir\s+/?([^/][^;]*[^/])?/?\s*;\s*$)");
-			std::regex	cgiPathRegex(R"(^\s*cgi_path\s+/?([^/][^;]*[^/])?/?\s*;\s*$)");
+			std::regex	cgiPathRegex(R"(^\s*cgi_path\s+(\/[^/][^;]*[^/])?/?\s*;\s*$)");
 			int openBraces = 0;
 			locationBlock loc;
 			std::string key = match[1];
@@ -142,9 +150,11 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck, st
 					}
 					if (openBraces == 0)
 					{
+						if (checkLocationBlock(loc) == false)
+							throw std::runtime_error("Error: Location block not complete"); // this needs more checks in my opinion, depending on the evaluators, what will they test
 						if (m_routes.count(key) == 1)
-							m_routes.erase(key);
-						auto dup = m_routes.emplace(key, loc);
+							m_routes.erase(key); // Here i need to check if we had something in the block and then emplace. ---- Patrik
+						auto dup = m_routes.emplace(key, loc); // this might be an issue if we erase -- Patrik
 						if (dup.second == false)
 							throw std::runtime_error("Error: Duplicate location block found"); // is this extra now when .count check is right before this?
 						loc = locationBlock();
@@ -305,6 +315,7 @@ void	readFile(const std::string &fileName, std::vector<std::string> &rawFile)
 	std::cout << "Reading\n\n";
 	std::string		line;
 	std::ifstream	file(fileName);
+	int				curlyBrace = 0;
 
 	if (!file.is_open())
 		throw std::runtime_error("Error: Failed to open the configuration file");
@@ -312,6 +323,10 @@ void	readFile(const std::string &fileName, std::vector<std::string> &rawFile)
 	{
 		while (getline(file, line))
 		{
+			if (line.find('{') != line.npos)
+				curlyBrace++;
+			if (line.find('}') != line.npos)
+				curlyBrace--;
 			line = std::regex_replace(line, std::regex("^\\s+|\\s+$"), "");
 			size_t comment = line.find('#');
 			if (comment != std::string::npos)
@@ -328,6 +343,8 @@ void	readFile(const std::string &fileName, std::vector<std::string> &rawFile)
 		throw;
 	}
 	file.close();
+	if (curlyBrace != 0)
+		throw std::runtime_error("Open curly braces in the configuration file");
 }
 
 /*

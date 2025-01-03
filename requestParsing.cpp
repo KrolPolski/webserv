@@ -122,7 +122,7 @@ int		ConnectionHandler::parseRequest(clientInfo *clientPTR)
 		startIndex += 2; // 2 because we first move to the nl and then over it
 		parseInfo.rawContent = reqStr.substr(startIndex, contenLen);
 
-//		std::cout << RED << "RAW CONTENT:\n" << RESET << parseInfo.rawContent << "\n";
+		std::cout << RED << "RAW CONTENT:\n" << RESET << parseInfo.rawContent << "\n";
 
 	}
 

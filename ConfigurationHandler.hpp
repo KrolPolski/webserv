@@ -68,6 +68,7 @@ class ConfigurationHandler
 		std::string	getCgiPath(std::string key) const;
 		std::string	getErrorPages(uint) const;
 
+		bool		checkLocationBlock(locationBlock);
 };
 
 std::string	fileNameCheck(char *);

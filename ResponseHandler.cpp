@@ -144,6 +144,7 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 	// we need to have separate variables for the local path vs the web path so redirects work the way they should.
 	std::string defaultFilePath;
 	std::string webFilePath;
+	bool dirListing {false};
 
 	filePath = clientPTR->parsedRequest.filePath;
 	webFilePath = filePath;
@@ -168,7 +169,11 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 		else
 		{
 			std::cout <<"Call Patrik's function for directory listing" << std::endl; // DirListing needs to be checked for if ON/OFF ---- Patrik
-			buildDirListingResponse(filePath, clientPTR);
+			// Please call for dir perms using the web path, not the actual path
+			dirListing = clientPTR->relatedServer->serverConfig->getDirListing(webFilePath);
+			std::cout << "For path: " << webFilePath << " = " << dirListing << std::endl;
+			if (dirListing)
+				buildDirListingResponse(filePath, clientPTR);
 			return 0;
 		}
 	}

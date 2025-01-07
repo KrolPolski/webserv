@@ -248,7 +248,7 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 			{
 				return ;
 			}
-			std::cout << "Before respHdlr->parseRequest, request type is currently set to: " << respHdlr->getRequestType() << std::endl;
+			//std::cout << "Before respHdlr->parseRequest, request type is currently set to: " << respHdlr->getRequestType() << std::endl;
 			//if it is invalid we should stop here, and just return the error page
 			respHdlr->parseRequest(clientPTR, clientPTR->requestString);
 			//might have an error here now too.

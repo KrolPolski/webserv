@@ -60,7 +60,8 @@ class ConfigurationHandler
 		std::string	getIndex() const;
 		uint		getMCBSize() const;
 		std::string	getNames() const;
-		std::string	getDefaultMethods(std::string) const;
+		std::string	getInheritedMethods(std::string) const;
+		bool		getInheritedDirListing(std::string key) const;
 		std::string	getRoot(std::string) const;
 		std::string	getMethods(std::string) const;
 		std::string	getUploadDir(std::string key) const;

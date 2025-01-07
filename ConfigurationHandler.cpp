@@ -228,7 +228,7 @@ std::string	ConfigurationHandler::getNames() const
 	return m_names;
 }
 
-std::string	ConfigurationHandler::getDefaultMethods(std::string key) const
+std::string	ConfigurationHandler::getInheritedMethods(std::string key) const
 {
 	for (auto &route: m_routes)
 	{
@@ -237,6 +237,17 @@ std::string	ConfigurationHandler::getDefaultMethods(std::string key) const
 			return route.second.m_methods;
 	}
 	return "GET POST DELETE";
+}
+
+bool	ConfigurationHandler::getInheritedDirListing(std::string key) const
+{
+	for (auto &route: m_routes)
+	{
+		std::string keyFromOurMap = route.first;
+		if (key.rfind(keyFromOurMap, 0) == 0)
+			return route.second.m_dirListing;
+	}
+	return false;
 }
 
 std::string	ConfigurationHandler::getRoot(std::string key) const
@@ -253,7 +264,7 @@ std::string	ConfigurationHandler::getMethods(std::string key) const
 	if (map_key == m_routes.end())
 	{
 		std::cout << "Error: could not find route, checking defaults" << std::endl;
-		return getDefaultMethods(key);
+		return getInheritedMethods(key);
 	}
 	return map_key->second.m_methods;
 }
@@ -270,7 +281,10 @@ bool	ConfigurationHandler::getDirListing(std::string key) const
 {
 	auto map_key = m_routes.find(key);
 	if (map_key == m_routes.end())
+	{
 		std::cout << "Error: could not find route" << std::endl;
+		return getInheritedDirListing(key);
+	}
 	return map_key->second.m_dirListing;
 }
 

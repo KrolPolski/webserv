@@ -28,7 +28,7 @@ void	ConfigurationHandler::defaultSettings(std::string port)
 	m_host = "127.0.0.1";
 	m_index = "index.html";
 	loc.m_root = "home";
-	loc.m_methods = "GET POST DELETE";
+	loc.m_methods = "GET";
 	m_routes.emplace("/", loc);
 
 	std::cout << std::boolalpha;
@@ -233,9 +233,14 @@ std::string	ConfigurationHandler::getInheritedMethods(std::string key) const
 	for (auto &route: m_routes)
 	{
 		std::string keyFromOurMap = route.first;
-		std::cout << keyFromOurMap << std::endl;
-		if (key.rfind(keyFromOurMap, 0) == 0)
+		if (keyFromOurMap == "/")
+			continue ;
+		std::cout << "the key inside getInheritedMethods: " << key << " --- " << keyFromOurMap << std::endl;
+		if (key.starts_with(keyFromOurMap))
+		{
+			std::cout << "match found in " << key << " and " << keyFromOurMap << std::endl;
 			return route.second.m_methods;
+		}
 	}
 	return getMethods("/"); // if we dont find, we return what the root "/" (home) directory has wich we set to defalt
 }
@@ -245,9 +250,14 @@ bool	ConfigurationHandler::getInheritedDirListing(std::string key) const
 	for (auto &route: m_routes)
 	{
 		std::string keyFromOurMap = route.first;
-		std::cout << keyFromOurMap << std::endl;
-		if (key.rfind(keyFromOurMap, 0) == 0)
+		if (keyFromOurMap == "/")
+			continue ;
+		std::cout << "the key inside getDirListing: " << key << " --- " << keyFromOurMap << std::endl;
+		if (key.starts_with(keyFromOurMap))
+		{
+			std::cout << "match found in " << key << " and " << keyFromOurMap << std::endl;
 			return route.second.m_dirListing;
+		}
 	}
 	return getDirListing("/"); // if we dont find, we return what the root "/" (home) directory has wich we set to defalt
 }

@@ -233,10 +233,11 @@ std::string	ConfigurationHandler::getInheritedMethods(std::string key) const
 	for (auto &route: m_routes)
 	{
 		std::string keyFromOurMap = route.first;
+		std::cout << keyFromOurMap << std::endl;
 		if (key.rfind(keyFromOurMap, 0) == 0)
 			return route.second.m_methods;
 	}
-	return "GET POST DELETE";
+	return getMethods("/"); // if we dont find, we return what the root "/" (home) directory has wich we set to defalt
 }
 
 bool	ConfigurationHandler::getInheritedDirListing(std::string key) const
@@ -244,17 +245,18 @@ bool	ConfigurationHandler::getInheritedDirListing(std::string key) const
 	for (auto &route: m_routes)
 	{
 		std::string keyFromOurMap = route.first;
+		std::cout << keyFromOurMap << std::endl;
 		if (key.rfind(keyFromOurMap, 0) == 0)
 			return route.second.m_dirListing;
 	}
-	return false;
+	return getDirListing("/"); // if we dont find, we return what the root "/" (home) directory has wich we set to defalt
 }
 
 std::string	ConfigurationHandler::getRoot(std::string key) const
 {
 	auto map_key = m_routes.find(key);
 	if (map_key == m_routes.end())
-		std::cout << "Error: could not find route" << std::endl;
+		std::cout << "Error: could not find route for root" << std::endl;
 	return map_key->second.m_root;
 }
 
@@ -263,7 +265,7 @@ std::string	ConfigurationHandler::getMethods(std::string key) const
 	auto map_key = m_routes.find(key);
 	if (map_key == m_routes.end())
 	{
-		std::cout << "Error: could not find route, checking defaults" << std::endl;
+		std::cout << "Error: could not find route for methods" << std::endl;
 		return getInheritedMethods(key);
 	}
 	return map_key->second.m_methods;
@@ -273,7 +275,7 @@ std::string	ConfigurationHandler::getUploadDir(std::string key) const
 {
 	auto map_key = m_routes.find(key);
 	if (map_key == m_routes.end())
-		std::cout << "Error: could not find route" << std::endl;
+		std::cout << "Error: could not find route for upload directory" << std::endl;
 	return map_key->second.m_uploadDir;
 }
 
@@ -282,7 +284,7 @@ bool	ConfigurationHandler::getDirListing(std::string key) const
 	auto map_key = m_routes.find(key);
 	if (map_key == m_routes.end())
 	{
-		std::cout << "Error: could not find route" << std::endl;
+		std::cout << "Error: could not find route for directory listing" << std::endl;
 		return getInheritedDirListing(key);
 	}
 	return map_key->second.m_dirListing;
@@ -292,7 +294,7 @@ std::string	ConfigurationHandler::getCgiPath(std::string key) const
 {
 	auto map_key = m_routes.find(key);
 	if (map_key == m_routes.end())
-		std::cout << "Error: could not find route" << std::endl;
+		std::cout << "Error: could not find route cgi interprete rpath" << std::endl;
 	return map_key->second.m_cgiPath;
 }
 

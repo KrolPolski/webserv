@@ -2,7 +2,7 @@ NAME = webserv
 
 COMP = c++
 
-CFLAGS = -Wall -Wextra -Werror -std=c++17 -g
+CFLAGS = -Wall -Wextra -Werror -std=c++20 -g
 
 SRC = main.cpp ConnectionHandler.cpp ResponseHandler.cpp ConfigurationHandler.cpp CgiHandler.cpp \
 signalHandling.cpp requestParsing.cpp

@@ -28,7 +28,7 @@ void	ConfigurationHandler::defaultSettings(std::string port)
 	m_host = "127.0.0.1";
 	m_index = "index.html";
 	loc.m_root = "home";
-	loc.m_methods = "GET POST DELETE";
+	loc.m_methods = "GET";
 	m_routes.emplace("/", loc);
 
 	std::cout << std::boolalpha;
@@ -64,6 +64,14 @@ void	ConfigurationHandler::defaultSettings(std::string port)
 	std::cout << "\n--------- Error pages ----------------------------\n\n";
 	for (auto &x : m_errorPages)
 		std::cout << x.first << " : " << x.second << std::endl;
+}
+bool	ConfigurationHandler::checkLocationBlock(locationBlock block)
+{
+	if (block.m_root == "")
+		return false;
+	if (block.m_methods == "")
+		return false;
+	return true;
 }
 
 /*
@@ -110,7 +118,7 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck, st
 			std::regex	methodsRegex(R"(^\s*methods\s+([^\s;]+(?:\s+[^\s;]+)*)\s*;\s*$)");
 			std::regex	dirListingRegex(R"(^\s*dir_listing\s+(on|off)\s*;\s*$)");
 			std::regex	uploadDirRegex(R"(^\s*upload_dir\s+/?([^/][^;]*[^/])?/?\s*;\s*$)");
-			std::regex	cgiPathRegex(R"(^\s*cgi_path\s+/?([^/][^;]*[^/])?/?\s*;\s*$)");
+			std::regex	cgiPathRegex(R"(^\s*cgi_path\s+(\/[^/][^;]*[^/])?/?\s*;\s*$)");
 			int openBraces = 0;
 			locationBlock loc;
 			std::string key = match[1];
@@ -142,9 +150,11 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck, st
 					}
 					if (openBraces == 0)
 					{
+						if (checkLocationBlock(loc) == false)
+							throw std::runtime_error("Error: Location block not complete"); // this needs more checks in my opinion, depending on the evaluators, what will they test
 						if (m_routes.count(key) == 1)
-							m_routes.erase(key);
-						auto dup = m_routes.emplace(key, loc);
+							m_routes.erase(key); // Here i need to check if we had something in the block and then emplace. ---- Patrik
+						auto dup = m_routes.emplace(key, loc); // this might be an issue if we erase -- Patrik
 						if (dup.second == false)
 							throw std::runtime_error("Error: Duplicate location block found"); // is this extra now when .count check is right before this?
 						loc = locationBlock();
@@ -218,22 +228,45 @@ std::string	ConfigurationHandler::getNames() const
 	return m_names;
 }
 
-std::string	ConfigurationHandler::getDefaultMethods(std::string key) const
+std::string	ConfigurationHandler::getInheritedMethods(std::string key) const
 {
 	for (auto &route: m_routes)
 	{
 		std::string keyFromOurMap = route.first;
-		if (key.rfind(keyFromOurMap, 0) == 0)
+		if (keyFromOurMap == "/")
+			continue ;
+		std::cout << "the key inside getInheritedMethods: " << key << " --- " << keyFromOurMap << std::endl;
+		if (key.starts_with(keyFromOurMap))
+		{
+			std::cout << "match found in " << key << " and " << keyFromOurMap << std::endl;
 			return route.second.m_methods;
+		}
 	}
-	return "GET POST DELETE";
+	return getMethods("/"); // if we dont find, we return what the root "/" (home) directory has wich we set to defalt
+}
+
+bool	ConfigurationHandler::getInheritedDirListing(std::string key) const
+{
+	for (auto &route: m_routes)
+	{
+		std::string keyFromOurMap = route.first;
+		if (keyFromOurMap == "/")
+			continue ;
+		std::cout << "the key inside getDirListing: " << key << " --- " << keyFromOurMap << std::endl;
+		if (key.starts_with(keyFromOurMap))
+		{
+			std::cout << "match found in " << key << " and " << keyFromOurMap << std::endl;
+			return route.second.m_dirListing;
+		}
+	}
+	return getDirListing("/"); // if we dont find, we return what the root "/" (home) directory has wich we set to defalt
 }
 
 std::string	ConfigurationHandler::getRoot(std::string key) const
 {
 	auto map_key = m_routes.find(key);
 	if (map_key == m_routes.end())
-		std::cout << "Error: could not find route" << std::endl;
+		std::cout << "Error: could not find route for root" << std::endl;
 	return map_key->second.m_root;
 }
 
@@ -242,8 +275,8 @@ std::string	ConfigurationHandler::getMethods(std::string key) const
 	auto map_key = m_routes.find(key);
 	if (map_key == m_routes.end())
 	{
-		std::cout << "Error: could not find route, checking defaults" << std::endl;
-		return getDefaultMethods(key);
+		std::cout << "Error: could not find route for methods" << std::endl;
+		return getInheritedMethods(key);
 	}
 	return map_key->second.m_methods;
 }
@@ -252,7 +285,7 @@ std::string	ConfigurationHandler::getUploadDir(std::string key) const
 {
 	auto map_key = m_routes.find(key);
 	if (map_key == m_routes.end())
-		std::cout << "Error: could not find route" << std::endl;
+		std::cout << "Error: could not find route for upload directory" << std::endl;
 	return map_key->second.m_uploadDir;
 }
 
@@ -260,7 +293,10 @@ bool	ConfigurationHandler::getDirListing(std::string key) const
 {
 	auto map_key = m_routes.find(key);
 	if (map_key == m_routes.end())
-		std::cout << "Error: could not find route" << std::endl;
+	{
+		std::cout << "Error: could not find route for directory listing" << std::endl;
+		return getInheritedDirListing(key);
+	}
 	return map_key->second.m_dirListing;
 }
 
@@ -268,7 +304,7 @@ std::string	ConfigurationHandler::getCgiPath(std::string key) const
 {
 	auto map_key = m_routes.find(key);
 	if (map_key == m_routes.end())
-		std::cout << "Error: could not find route" << std::endl;
+		std::cout << "Error: could not find route cgi interprete rpath" << std::endl;
 	return map_key->second.m_cgiPath;
 }
 
@@ -305,6 +341,7 @@ void	readFile(const std::string &fileName, std::vector<std::string> &rawFile)
 	std::cout << "Reading\n\n";
 	std::string		line;
 	std::ifstream	file(fileName);
+	int				curlyBrace = 0;
 
 	if (!file.is_open())
 		throw std::runtime_error("Error: Failed to open the configuration file");
@@ -312,6 +349,10 @@ void	readFile(const std::string &fileName, std::vector<std::string> &rawFile)
 	{
 		while (getline(file, line))
 		{
+			if (line.find('{') != line.npos)
+				curlyBrace++;
+			if (line.find('}') != line.npos)
+				curlyBrace--;
 			line = std::regex_replace(line, std::regex("^\\s+|\\s+$"), "");
 			size_t comment = line.find('#');
 			if (comment != std::string::npos)
@@ -328,6 +369,8 @@ void	readFile(const std::string &fileName, std::vector<std::string> &rawFile)
 		throw;
 	}
 	file.close();
+	if (curlyBrace != 0)
+		throw std::runtime_error("Open curly braces in the configuration file");
 }
 
 /*

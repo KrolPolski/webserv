@@ -64,22 +64,22 @@ void ResponseHandler::checkRequestType(clientInfo *ClientPTR, std::string reques
 
 	if (!requestString.compare(0, 4, "GET "))
 	{
-		std::cout << "GET request detected woo" << std::endl;
+		//std::cout << "GET request detected woo" << std::endl;
 		setRequestType(GET);
 	}
 	else if (!requestString.compare(0, 5, "POST "))
 	{
-		std::cout << "POST request detected woo" << std::endl;
+		//std::cout << "POST request detected woo" << std::endl;
 		setRequestType(POST);
 	}
 	else if (!requestString.compare(0, 7, "DELETE "))
 	{
-		std::cout << "DELETE request detected woo" << std::endl;
+		//std::cout << "DELETE request detected woo" << std::endl;
 		setRequestType(DELETE);
 	}
 	else
 	{
-		std::cout << "INVALID request detected woo" << std::endl;
+		//std::cout << "INVALID request detected woo" << std::endl;
 		setRequestType(INVALID);
 		setResponseCode(400);
 		buildErrorResponse(ClientPTR);
@@ -88,7 +88,7 @@ void ResponseHandler::checkRequestType(clientInfo *ClientPTR, std::string reques
 
 void ResponseHandler::checkExtension(std::string filePath)
 {
-	std::cout << "Inside checkExtension" << std::endl;
+	//std::cout << "Inside checkExtension" << std::endl;
 	std::string extension;
 	size_t index;
 	index = filePath.find_last_of('.');
@@ -104,18 +104,18 @@ void ResponseHandler::checkExtension(std::string filePath)
 		return ;
 	}
 
-	std::cout << "filePath: " << filePath << " Extension: " << extension << " Type: " << extensionTypes.at(extension) << std::endl;
+	//std::cout << "filePath: " << filePath << " Extension: " << extension << " Type: " << extensionTypes.at(extension) << std::endl;
 	try
 	{
 		contentType = extensionTypes.at(extension);
-		std::cout << "contentType: " << contentType << std::endl;
+	//	std::cout << "contentType: " << contentType << std::endl;
 	} 
 	catch (std::exception& e)
 	{
 		std::cerr << e.what() << std::endl;
 		//there's probably a response code for this
 	}
-	std::cout << "exiting checkExtension" << std::endl;
+	//std::cout << "exiting checkExtension" << std::endl;
 }
 
 void ResponseHandler::buildRedirectResponse(std::string webFilePath, clientInfo *clientPTR)
@@ -144,13 +144,14 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 	// we need to have separate variables for the local path vs the web path so redirects work the way they should.
 	std::string defaultFilePath;
 	std::string webFilePath;
+	bool dirListing {false};
 
 	filePath = clientPTR->parsedRequest.filePath;
 	webFilePath = filePath;
 	std::string port = clientPTR->relatedServer->serverConfig->getPort();
-	std::cout << "Port returned: " << port << std::endl;
+	//std::cout << "Port returned: " << port << std::endl;
 	filePath = clientPTR->relatedServer->serverConfig->getRoot("/") + filePath;
-	std::cout << "Updated file path is: " << filePath << std::endl;
+	//std::cout << "Updated file path is: " << filePath << std::endl;
 	
 	std::string content;
 	if (std::filesystem::is_directory(filePath))
@@ -167,8 +168,12 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 			filePath = defaultFilePath;
 		else
 		{
-			std::cout <<"Call Patrik's function for directory listing" << std::endl; // DirListing needs to be checked for if ON/OFF ---- Patrik
-			buildDirListingResponse(filePath, clientPTR);
+			//std::cout <<"Call Patrik's function for directory listing" << std::endl; // DirListing needs to be checked for if ON/OFF ---- Patrik
+			// Please call for dir perms using the web path, not the actual path
+			dirListing = clientPTR->relatedServer->serverConfig->getDirListing(webFilePath);
+			//std::cout << "For path: " << webFilePath << " = " << dirListing << std::endl;
+			if (dirListing)
+				buildDirListingResponse(filePath, clientPTR);
 			return 0;
 		}
 	}
@@ -213,12 +218,12 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 	/*
 		Addition end
 	*/
-	std::cout << "We are about to checkExtension" << std::endl;
+	//std::cout << "We are about to checkExtension" << std::endl;
 	std::string line;
 	while (std::getline(ourFile, line))
 		content += line + "\n";
 	checkExtension(filePath);
-	std::cout << "We are done checking Extension" << std::endl;
+	//std::cout << "We are done checking Extension" << std::endl;
 	std::string	headers;
 	setResponseCode(200);
 	headers = "HTTP/1.1 200 OK\r\n";
@@ -230,7 +235,7 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 //	std::cout << "responseString: " << clientPTR->responseString << std::endl;
 	ourFile.close();
   
-	std::cout << "Must have opened the file with no errors" << std::endl;
+	//std::cout << "Must have opened the file with no errors" << std::endl;
 	return (0);
 }
 
@@ -238,11 +243,11 @@ bool ResponseHandler::checkRequestAllowed(clientInfo *clientPTR, std::string fil
 {
 	(void)filePath;
 	std::string permittedMethods = clientPTR->relatedServer->serverConfig->getMethods(filePath);
-	std::cout << "We decided permitted Methods are: " << permittedMethods << std::endl;
-	std::cout << "Our request type is " << requestTypeAsString << std::endl;
+	//std::cout << "We decided permitted Methods are: " << permittedMethods << std::endl;
+	//std::cout << "Our request type is " << requestTypeAsString << std::endl;
 	if (permittedMethods.find(requestTypeAsString) != std::string::npos)
 	{
-		std::cout << "Method must have been permitted" << std::endl;
+		//std::cout << "Method must have been permitted" << std::endl;
 		return true;
 	}
 	else
@@ -284,8 +289,10 @@ void ResponseHandler::parseRequest(clientInfo *clientPTR, std::string requestStr
 					if (checkRequestAllowed(clientPTR, lineOne.at(1)))
 						checkFile(clientPTR, lineOne.at(1)); // we need to check return value here in case something goes wrong
 					else
-						{setResponseCode(405);
-						buildErrorResponse(clientPTR);}
+					{
+						setResponseCode(405);
+						buildErrorResponse(clientPTR);
+					}
 				}
 			break;
 		}	
@@ -330,7 +337,7 @@ void ResponseHandler::ServeErrorPages(clientInfo *ClientPTR, std::string request
 void ResponseHandler::buildErrorResponse(clientInfo *clientPTR)
 {
 	std::string content;
-	std::cout << "We got to buildErrorResponse" << std::endl;
+//	std::cout << "We got to buildErrorResponse" << std::endl;
 	//need to update this based on config file path to error pages
 	//tested with this and it works. now just fetch this from the configuration data. --- Patrik
 	std::string errorFileName = "home/error/" + std::to_string(getResponseCode()) + ".html";

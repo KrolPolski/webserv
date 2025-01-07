@@ -35,12 +35,23 @@ int		ConnectionHandler::initServers(char *configFile)
 	catch(const std::exception& e)
 	{
 		std::cerr << e.what() << '\n';
-		throw;
+		return -1;
 	}
 
 	for (auto iter = m_configMap.begin(); iter != m_configMap.end(); iter++)
 	{
-		int socketfd = initServerSocket(std::stoi(iter->first));
+		int	portNum;
+		try
+		{
+			portNum = std::stoi(iter->first);
+		}
+		catch(const std::exception& e)
+		{
+			std::cerr << "Error: Port is invalid" << '\n';
+			return -1;
+		}
+		
+		int socketfd = initServerSocket(portNum);
 		if (socketfd == -1)
 			return (-1);
 		
@@ -237,7 +248,7 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 			{
 				return ;
 			}
-			std::cout << "Before respHdlr->parseRequest, request type is currently set to: " << respHdlr->getRequestType() << std::endl;
+			//std::cout << "Before respHdlr->parseRequest, request type is currently set to: " << respHdlr->getRequestType() << std::endl;
 			//if it is invalid we should stop here, and just return the error page
 			respHdlr->parseRequest(clientPTR, clientPTR->requestString);
 			//might have an error here now too.

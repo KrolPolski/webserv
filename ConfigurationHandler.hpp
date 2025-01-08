@@ -25,7 +25,6 @@ struct locationBlock
 {
 	std::string					m_root;
 	std::string					m_methods; 		// GET POST DELETE (HEAD)?
-	std::string					m_uploadDir;	// upload destination;
 	std::string					m_cgiPath;		// path to cgi interpreter
 	bool						m_dirListing; 	// directory listing ON or OFF
 	//std::string					index; 			// if we are choose to override?
@@ -64,12 +63,14 @@ class ConfigurationHandler
 		bool		getInheritedDirListing(std::string key) const;
 		std::string	getRoot(std::string) const;
 		std::string	getMethods(std::string) const;
-		std::string	getUploadDir(std::string key) const;
 		bool		getDirListing(std::string) const;
 		std::string	getCgiPath(std::string key) const;
 		std::string	getErrorPages(uint) const;
 
-		bool		checkLocationBlock(locationBlock);
+		bool		checkLocationBlock(locationBlock &);
+		bool		requiredCgiHomeSettings();
+
+		void		printSettings(); // remove this before we eval -- Patrik
 };
 
 std::string	fileNameCheck(char *);

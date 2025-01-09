@@ -18,19 +18,11 @@
 #include <fstream>
 
 /*
-DEFAULT SETTINGS
+PRINT SETTINGS
 */
 
-void	ConfigurationHandler::defaultSettings(std::string port)
+void	ConfigurationHandler::printSettings()
 {
-	locationBlock loc;
-	m_port = port;
-	m_host = "127.0.0.1";
-	m_index = "index.html";
-	loc.m_root = "home";
-	loc.m_methods = "GET";
-	m_routes.emplace("/", loc);
-
 	std::cout << std::boolalpha;
 	std::cout << "\n--------- Port -----------------------------------\n\n";
 	std::cout << m_port << std::endl;
@@ -51,8 +43,6 @@ void	ConfigurationHandler::defaultSettings(std::string port)
 			std::cout << "\n  " << x.second.m_root;
 		if (x.second.m_methods != "")
 			std::cout << "\n  " << x.second.m_methods;
-		if (x.second.m_uploadDir != "")
-			std::cout << "\n  " << x.second.m_uploadDir;
 		if (x.second.m_cgiPath != "")
 			std::cout << "\n  " << x.second.m_cgiPath;
 		std::cout << "\n  " << x.second.m_dirListing;
@@ -65,13 +55,47 @@ void	ConfigurationHandler::defaultSettings(std::string port)
 	for (auto &x : m_errorPages)
 		std::cout << x.first << " : " << x.second << std::endl;
 }
-bool	ConfigurationHandler::checkLocationBlock(locationBlock block)
+
+/*
+DEFAULT SETTINGS
+*/
+
+void	ConfigurationHandler::defaultSettings(std::string port)
+{
+	locationBlock loc;
+	m_port = port;
+	m_host = "127.0.0.1";
+	m_index = "index.html";
+	m_errorPages.emplace(400, "/default-error-pages/400.html");
+	m_errorPages.emplace(403, "/default-error-pages/403.html");
+	m_errorPages.emplace(404, "/default-error-pages/404.html");
+	m_errorPages.emplace(405, "/default-error-pages/405.html");
+	m_errorPages.emplace(500, "/default-error-pages/500.html");
+	loc.m_root = "home";
+	loc.m_methods = "GET";
+	m_routes.emplace("/", loc);
+	printSettings(); //remove before end -- Patrik
+}
+
+bool	ConfigurationHandler::checkLocationBlock(locationBlock &block)
 {
 	if (block.m_root == "")
 		return false;
-	if (block.m_methods == "")
+	// if (block.m_methods == "")
+	// 	return false;
+	if (m_names == "")
 		return false;
 	return true;
+}
+
+bool	ConfigurationHandler::requiredCgiHomeSettings()
+{
+	if (m_routes.contains("/cgi/")
+		&& m_routes.contains("/")
+		&& m_routes.find("/cgi/")->second.m_cgiPath != ""
+		&& m_routes.find("/cgi/")->second.m_root != "")
+		return true;
+	return false;
 }
 
 /*
@@ -94,6 +118,10 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck, st
 	std::regex	errorPageRegex(R"(^\s*error_page\s+(\d+)\s+([^\s]+)\s*;\s*$)");
 	std::regex	indexRegex(R"(^\s*index\s+([^\s]+)\s*;\s*$)");
 	std::regex	locationRegex(R"(^\s*location\s+([^\s]+)\s*\s*$)");
+	std::regex	rootRegex(R"(^\s*root\s+/?([^/][^;]*[^/])?/?\s*;\s*$)");
+	std::regex	methodsRegex(R"(^\s*methods\s+([^\s;]+(?:\s+[^\s;]+)*)\s*;\s*$)");
+	std::regex	dirListingRegex(R"(^\s*dir_listing\s+(on|off)\s*;\s*$)");
+	std::regex	cgiPathRegex(R"(^\s*cgi_path\s+(\/[^/][^;]*[^/])?/?\s*;\s*$)");
 
 	for (std::vector<std::string>::iterator iter = m_rawBlock.begin(); iter != m_rawBlock.end(); iter++)
 	{
@@ -109,16 +137,15 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck, st
 		if (std::regex_search(*iter, match, maxClientBodyRegex) == true)
 			m_maxClientBodySize = std::stoi(match[1]);
 		if (std::regex_search(*iter, match, errorPageRegex) == true)
+		{
+			if (m_errorPages.contains(std::stoi(match[1])))
+				m_errorPages.erase(std::stoi(match[1]));
 			m_errorPages.emplace(std::stoi(match[1]), match[2]);
+		}
 		if (std::regex_search(*iter, match, indexRegex) == true)
 			m_index = match[1];
 		if (std::regex_search(*iter, match, locationRegex) == true)
 		{
-			std::regex	rootRegex(R"(^\s*root\s+/?([^/][^;]*[^/])?/?\s*;\s*$)");
-			std::regex	methodsRegex(R"(^\s*methods\s+([^\s;]+(?:\s+[^\s;]+)*)\s*;\s*$)");
-			std::regex	dirListingRegex(R"(^\s*dir_listing\s+(on|off)\s*;\s*$)");
-			std::regex	uploadDirRegex(R"(^\s*upload_dir\s+/?([^/][^;]*[^/])?/?\s*;\s*$)");
-			std::regex	cgiPathRegex(R"(^\s*cgi_path\s+(\/[^/][^;]*[^/])?/?\s*;\s*$)");
 			int openBraces = 0;
 			locationBlock loc;
 			std::string key = match[1];
@@ -136,68 +163,34 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck, st
 						loc.m_root = subMatch[1];
 					if (regex_search(*iter, subMatch, methodsRegex) == true)
 						loc.m_methods = subMatch[1];
-					if (regex_search(*iter, subMatch, uploadDirRegex) == true)
-						loc.m_uploadDir = subMatch[1];
 					if (regex_search(*iter, subMatch, cgiPathRegex) == true)
 						loc.m_cgiPath = subMatch[1];
 					if (regex_search(*iter, subMatch, dirListingRegex) == true)
 					{
-						std::string temp = iter->substr(12, iter->size() - 13);
-						if (temp == "off")
-							loc.m_dirListing = false;
-						else if (temp == "on")
-							loc.m_dirListing = true;
+						if (subMatch[1] == "off")
+							loc.m_dirListing = FALSE;
+						else if (subMatch[1] == "on")
+							loc.m_dirListing = TRUE; // if dir listing is not set, we are going to get by default false on it and it will not inhetite from the root "/"
 					}
 					if (openBraces == 0)
 					{
 						if (checkLocationBlock(loc) == false)
 							throw std::runtime_error("Error: Location block not complete"); // this needs more checks in my opinion, depending on the evaluators, what will they test
-						if (m_routes.count(key) == 1)
-							m_routes.erase(key); // Here i need to check if we had something in the block and then emplace. ---- Patrik
-						auto dup = m_routes.emplace(key, loc); // this might be an issue if we erase -- Patrik
+						if (m_routes.contains(key))
+							m_routes.erase(key);
+						auto dup = m_routes.emplace(key, loc);
 						if (dup.second == false)
-							throw std::runtime_error("Error: Duplicate location block found"); // is this extra now when .count check is right before this?
+							throw std::runtime_error("Error: Duplicate location block found"); // is this extra now when .contains check is right before this?
 						loc = locationBlock();
 					}
 				}
 			}
 		}
 	}
-	std::cout << std::boolalpha;
-	std::cout << "\n--------- Port -----------------------------------\n\n";
-	std::cout << m_port << std::endl;
-	std::cout << "\n--------- Host -----------------------------------\n\n";
-	std::cout << m_host << std::endl;
-	std::cout << "\n--------- Index ----------------------------------\n\n";
-	std::cout << m_index << std::endl;
-	std::cout << "\n--------- Max client body size -------------------\n\n";
-	std::cout << m_maxClientBodySize << std::endl;
-	std::cout << "\n--------- Server names ---------------------------\n\n";
-	std::cout << m_names << std::endl;
-	std::cout << "\n--------- Routes ---------------------------------\n";
-	for (auto &x : m_routes)
-	{
-		std::cout 
-		<< "\n" << x.first;
-		if (x.second.m_root != "")
-			std::cout << "\n  " << x.second.m_root;
-		if (x.second.m_methods != "")
-			std::cout << "\n  " << x.second.m_methods;
-		if (x.second.m_uploadDir != "")
-			std::cout << "\n  " << x.second.m_uploadDir;
-		if (x.second.m_cgiPath != "")
-			std::cout << "\n  " << x.second.m_cgiPath;
-		std::cout << "\n  " << x.second.m_dirListing;
-		std::cout << std::endl;
-	}
-	std::cout << "\n--------- Redirects ------------------------------\n\n";
-	for (auto &x : m_redirect)
-		std::cout << x.first << " : " << x.second << std::endl;
-	std::cout << "\n--------- Error pages ----------------------------\n\n";
-	for (auto &x : m_errorPages)
-		std::cout << x.first << " : " << x.second << std::endl;
+	printSettings(); //remove before the end of the project -- Patrik // std:::optional
+	if (requiredCgiHomeSettings() == false)
+		throw std::runtime_error("Error: Location block not complete, /cgi/ or /");
 }
-
 
 /*
 GETTERS
@@ -218,7 +211,7 @@ std::string	ConfigurationHandler::getIndex() const
 	return m_index;
 }
 
-uint		ConfigurationHandler::getMCBSize() const
+uint	ConfigurationHandler::getMCBSize() const
 {
 	return m_maxClientBodySize;
 }
@@ -239,13 +232,19 @@ std::string	ConfigurationHandler::getInheritedMethods(std::string key) const
 		if (key.starts_with(keyFromOurMap))
 		{
 			std::cout << "match found in " << key << " and " << keyFromOurMap << std::endl;
-			return route.second.m_methods;
+			if (route.second.m_methods != "")
+				return route.second.m_methods;
+			else
+			{
+				std::cout << "Methods not set, inheriting from root" << std::endl;
+				return getMethods("/");
+			}
 		}
 	}
-	return getMethods("/"); // if we dont find, we return what the root "/" (home) directory has wich we set to defalt
+	return getMethods("/"); // if we dont find, we return what the root "/" (home) directory has which we set to defalt if that aswell is missing from the config file
 }
 
-bool	ConfigurationHandler::getInheritedDirListing(std::string key) const
+enum dirListStates	ConfigurationHandler::getInheritedDirListing(std::string key) const
 {
 	for (auto &route: m_routes)
 	{
@@ -256,10 +255,13 @@ bool	ConfigurationHandler::getInheritedDirListing(std::string key) const
 		if (key.starts_with(keyFromOurMap))
 		{
 			std::cout << "match found in " << key << " and " << keyFromOurMap << std::endl;
+			if (route.second.m_dirListing == UNSET)
+				return getDirListing("/");
 			return route.second.m_dirListing;
 		}
 	}
-	return getDirListing("/"); // if we dont find, we return what the root "/" (home) directory has wich we set to defalt
+	std::cout << "Getting dir list from root\n";
+	return getDirListing("/"); // if we dont find, we return what the root "/" (home) directory has wich we set to defalt if that aswell is missing from the config file
 }
 
 std::string	ConfigurationHandler::getRoot(std::string key) const
@@ -281,22 +283,18 @@ std::string	ConfigurationHandler::getMethods(std::string key) const
 	return map_key->second.m_methods;
 }
 
-std::string	ConfigurationHandler::getUploadDir(std::string key) const
+enum dirListStates	ConfigurationHandler::getDirListing(std::string key) const
 {
-	auto map_key = m_routes.find(key);
-	if (map_key == m_routes.end())
-		std::cout << "Error: could not find route for upload directory" << std::endl;
-	return map_key->second.m_uploadDir;
-}
-
-bool	ConfigurationHandler::getDirListing(std::string key) const
-{
+	std::cout << "In get dirlist with key: " << key << "\n";
 	auto map_key = m_routes.find(key);
 	if (map_key == m_routes.end())
 	{
 		std::cout << "Error: could not find route for directory listing" << std::endl;
 		return getInheritedDirListing(key);
 	}
+	if (map_key->second.m_dirListing == UNSET)
+		return getInheritedDirListing(key);
+	std::cout << "Leaving get dirlist with " << map_key->second.m_dirListing << "\n";
 	return map_key->second.m_dirListing;
 }
 
@@ -304,7 +302,7 @@ std::string	ConfigurationHandler::getCgiPath(std::string key) const
 {
 	auto map_key = m_routes.find(key);
 	if (map_key == m_routes.end())
-		std::cout << "Error: could not find route cgi interprete rpath" << std::endl;
+		std::cout << "Error: could not find route cgi interpreter path" << std::endl;
 	return map_key->second.m_cgiPath;
 }
 
@@ -312,7 +310,7 @@ std::string	ConfigurationHandler::getErrorPages(uint key) const
 {
 	auto map_key = m_errorPages.find(key);
 	if (map_key == m_errorPages.end())
-		std::cout << "Error: could not find this error page directory" << std::endl;
+		std::cout << "Error: could not find this error pages" << std::endl;
 	return map_key->second;
 }
 

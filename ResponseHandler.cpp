@@ -197,7 +197,6 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 		buildErrorResponse(clientPTR);
 		return -1;
 	}
-
 	/*
 		Panu addition (CGI)
 	*/
@@ -259,33 +258,34 @@ bool ResponseHandler::checkRequestAllowed(clientInfo *clientPTR, std::string fil
 }
 void ResponseHandler::parseRequest(clientInfo *clientPTR, std::string requestString)
 {
+	std::istringstream stream(requestString);
+	std::vector<std::string> reqVec;
+	std::string line;
+//			std::cout <<"\nBeginning line splits" << std::endl;
+	while (std::getline(stream, line, '\n'))
+	{
+		reqVec.push_back(line);
+//				std::cout << line << std::endl;
+	}
+//			std::cout << "Line splits done" << std::endl;
+//			std::cout << "Line one is: " << reqVec.at(0) << std::endl;
+	std::istringstream streamL1(reqVec.at(0));
+	std::string phrase; 
+	std::vector<std::string> lineOne;
+//			std::cout << "\nBeginning phrase split" << std::endl;
+	while (std::getline(streamL1, phrase, ' '))
+	{
+		lineOne.push_back(phrase);
+//				std::cout << phrase << std::endl;
+	}
+	if (lineOne.size() >= 2)
+		{
 	switch (requestType)
 	{
 		case GET:
 		{
 			requestTypeAsString = "GET";
-			std::istringstream stream(requestString);
-			std::vector<std::string> reqVec;
-			std::string line;
-//			std::cout <<"\nBeginning line splits" << std::endl;
-			while (std::getline(stream, line, '\n'))
-			{
-				reqVec.push_back(line);
-//				std::cout << line << std::endl;
-			}
-//			std::cout << "Line splits done" << std::endl;
-//			std::cout << "Line one is: " << reqVec.at(0) << std::endl;
-			std::istringstream streamL1(reqVec.at(0));
-			std::string phrase; 
-			std::vector<std::string> lineOne;
-//			std::cout << "\nBeginning phrase split" << std::endl;
-			while (std::getline(streamL1, phrase, ' '))
-			{
-				lineOne.push_back(phrase);
-//				std::cout << phrase << std::endl;
-			}
-			if (lineOne.size() >= 2)
-				{
+			
 					if (checkRequestAllowed(clientPTR, lineOne.at(1)))
 						checkFile(clientPTR, lineOne.at(1)); // we need to check return value here in case something goes wrong
 					else
@@ -293,17 +293,24 @@ void ResponseHandler::parseRequest(clientInfo *clientPTR, std::string requestStr
 						setResponseCode(405);
 						buildErrorResponse(clientPTR);
 					}
-				}
+				
 			break;
 		}	
 		case POST:
 		{
-			checkFile(clientPTR, ""); // JUST A TEST
+			requestTypeAsString = "POST";
+			if (checkRequestAllowed(clientPTR, lineOne.at(1)))
+				checkFile(clientPTR, ""); // JUST A TEST
+			else
+			{
+				setResponseCode(405);
+					buildErrorResponse(clientPTR);
+			}
 			break ;
 		}
 		default:
 			std::cout << "unhandled parseRequest" << std::endl;
-	}
+	}}
 }
 
 const enum requestTypes& ResponseHandler::getRequestType() const

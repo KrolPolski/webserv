@@ -168,9 +168,9 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck, st
 					if (regex_search(*iter, subMatch, dirListingRegex) == true)
 					{
 						if (subMatch[1] == "off")
-							loc.m_dirListing = false;
+							loc.m_dirListing = FALSE;
 						else if (subMatch[1] == "on")
-							loc.m_dirListing = true; // if dir listing is not set, we are going to get by default false on it and it will not inhetite from the root "/"
+							loc.m_dirListing = TRUE; // if dir listing is not set, we are going to get by default false on it and it will not inhetite from the root "/"
 					}
 					if (openBraces == 0)
 					{
@@ -187,7 +187,7 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck, st
 			}
 		}
 	}
-	printSettings(); //remove before the end of the project -- Patrik
+	printSettings(); //remove before the end of the project -- Patrik // std:::optional
 	if (requiredCgiHomeSettings() == false)
 		throw std::runtime_error("Error: Location block not complete, /cgi/ or /");
 }
@@ -244,7 +244,7 @@ std::string	ConfigurationHandler::getInheritedMethods(std::string key) const
 	return getMethods("/"); // if we dont find, we return what the root "/" (home) directory has which we set to defalt if that aswell is missing from the config file
 }
 
-bool	ConfigurationHandler::getInheritedDirListing(std::string key) const
+enum dirListStates	ConfigurationHandler::getInheritedDirListing(std::string key) const
 {
 	for (auto &route: m_routes)
 	{
@@ -255,6 +255,8 @@ bool	ConfigurationHandler::getInheritedDirListing(std::string key) const
 		if (key.starts_with(keyFromOurMap))
 		{
 			std::cout << "match found in " << key << " and " << keyFromOurMap << std::endl;
+			if (route.second.m_dirListing == UNSET)
+				return getDirListing("/");
 			return route.second.m_dirListing;
 		}
 	}
@@ -281,7 +283,7 @@ std::string	ConfigurationHandler::getMethods(std::string key) const
 	return map_key->second.m_methods;
 }
 
-bool	ConfigurationHandler::getDirListing(std::string key) const
+enum dirListStates	ConfigurationHandler::getDirListing(std::string key) const
 {
 	std::cout << "In get dirlist with key: " << key << "\n";
 	auto map_key = m_routes.find(key);
@@ -290,6 +292,8 @@ bool	ConfigurationHandler::getDirListing(std::string key) const
 		std::cout << "Error: could not find route for directory listing" << std::endl;
 		return getInheritedDirListing(key);
 	}
+	if (map_key->second.m_dirListing == UNSET)
+		return getInheritedDirListing(key);
 	std::cout << "Leaving get dirlist with " << map_key->second.m_dirListing << "\n";
 	return map_key->second.m_dirListing;
 }

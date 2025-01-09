@@ -11,6 +11,8 @@
 // TEST
 #include <fcntl.h>
 
+struct clientInfo;
+
 class CgiHandler
 {
 	public:

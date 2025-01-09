@@ -1,5 +1,6 @@
 #include "ResponseHandler.hpp"
 #include "CgiHandler.hpp"
+#include "Structs.hpp"
 #include <iostream>
 
 const std::map<std::string, std::string> ResponseHandler::extensionTypes = 

@@ -90,13 +90,13 @@ int		ConnectionHandler::parseRequest(clientInfo *clientPTR)
 
 	while (reqStr[startIndex] != '\0')
 	{
-		endIndex = reqStr.find_first_of('\n', startIndex); // -1 because of '\r'
+		endIndex = reqStr.find_first_of('\n', startIndex);
 		if (endIndex == reqStr.npos) // check this later
 		{
 			std::cout << RED << "\nInvalid request: no new line found after header\n\n" << RESET;
 			return (-1);
 		}
-		headerLine = reqStr.substr(startIndex, endIndex - startIndex - 1);
+		headerLine = reqStr.substr(startIndex, endIndex - startIndex - 1); // -1 because of '\r'
 		headerIndex = headerLine.find_first_of(':');
 		if (headerIndex == headerLine.npos)
 		{
@@ -119,10 +119,10 @@ int		ConnectionHandler::parseRequest(clientInfo *clientPTR)
 	if (it != headerMap.end())
 	{
 		int	contenLen = std::stoi(it->second);
-		startIndex += 2; // 2 because we first move to the nl and then over it
+		startIndex += 2; // 2 because we first move to the '\n' and then over it
 		parseInfo.rawContent = reqStr.substr(startIndex, contenLen);
 
-		std::cout << RED << "RAW CONTENT:\n" << RESET << parseInfo.rawContent << "\n";
+//		std::cout << RED << "RAW CONTENT:\n" << RESET << parseInfo.rawContent << "\n";
 
 	}
 

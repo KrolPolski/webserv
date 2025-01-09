@@ -304,7 +304,7 @@ std::string	ConfigurationHandler::getCgiPath(std::string key) const
 {
 	auto map_key = m_routes.find(key);
 	if (map_key == m_routes.end())
-		std::cout << "Error: could not find route cgi interprete rpath" << std::endl;
+		std::cout << "Error: could not find route cgi interpreter path" << std::endl;
 	return map_key->second.m_cgiPath;
 }
 

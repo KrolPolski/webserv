@@ -11,7 +11,10 @@
 #include <netinet/in.h> // sockaddr_in --> for internet domain sockets
 #include <memory>
 #include "Types.hpp"
+#include "Structs.hpp"
 #include "ResponseHandler.hpp"
+#include "ConfigurationHandler.hpp"
+
 
 class ConnectionHandler
 {
@@ -47,9 +50,10 @@ class ConnectionHandler
 	void	removeFromPollfdVec(int fdToRemove);
 
 	// client data functions
-	void		acceptNewClient(const unsigned int serverFd);
-	void		recieveDataFromClient(const unsigned int clientFd);
-	void		sendDataToClient(const unsigned int clientFd);
+	void	handleClientAction(const pollfd &pollFdStuct);
+	void	acceptNewClient(const unsigned int serverFd);
+	void	recieveDataFromClient(const unsigned int clientFd);
+	void	sendDataToClient(const unsigned int clientFd);
 
 	// request parsing
 	int		parseRequest(clientInfo *clientPTR);

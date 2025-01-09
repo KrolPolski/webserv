@@ -1,4 +1,5 @@
 #include "CgiHandler.hpp"
+#include "Structs.hpp"
 
 /*
 	CONSTRUCTOR
@@ -88,9 +89,7 @@ void	CgiHandler::setExecveEnvArr()
 
 // Returns -1 on failure
 int	CgiHandler::executeCgi()
-{
-	std::cout << "Entering executeCgi" << std::endl;
-	
+{	
 	if (pipe(m_pipeFromCgi) == -1) // make these O_NONBLOCK
 		return (errorExit("Pipe() failed"));
 	if (pipe(m_pipeToCgi) == -1) // make these O_NONBLOCK
@@ -185,7 +184,6 @@ int		CgiHandler::cgiChildProcess()
 	if (close (m_pipeFromCgi[0]) == -1 || close (m_pipeToCgi[1]) == -1)
 		return (errorExit("Close() failed")); // is this needed...?
 
-	std::cout << "String used for chdir: " << scriptDirectoryPath.c_str() << std::endl;
 	if (chdir(scriptDirectoryPath.c_str()) == -1)
 		return (errorExit("Chdir() failed"));
 

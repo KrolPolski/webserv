@@ -55,7 +55,7 @@ int		ConnectionHandler::initServers(char *configFile)
 		if (socketfd == -1)
 			return (-1);
 		
-		m_serverVec.push_back({socketfd, &iter->second}); // here we need to add all relevant info to serverInfo struct
+		m_serverVec.push_back({socketfd, &iter->second});
 		addNewPollfd(socketfd);
 	}
 
@@ -111,7 +111,7 @@ int		ConnectionHandler::initServerSocket(const unsigned int portNum)
 	}
 
 	// make socket ready to accept connections with listen()
-	if (listen(socketFd, 2) == -1) // how long should the queue be...?
+	if (listen(socketFd, 2) == -1) // how long should the queue be AND do I need to poll() before listen()...?
 	{
 		std::cerr << RED << "\nlisten() failed:\n" << RESET << std::strerror(errno) << "\n\n";
 		// Error handling...?
@@ -154,13 +154,38 @@ int		ConnectionHandler::startServers()
 			bool isServerSocket = checkForServerSocket(m_pollfdVec[i].fd);
 			if (m_pollfdVec[i].revents & POLLIN && isServerSocket)
 				acceptNewClient(m_pollfdVec[i].fd);
-			else if (m_pollfdVec[i].revents & POLLIN && !isServerSocket)
-				recieveDataFromClient(m_pollfdVec[i].fd);
-			else if (m_pollfdVec[i].revents & POLLOUT && !isServerSocket) // do i need to check the response ready-flag...?
-				sendDataToClient(m_pollfdVec[i].fd);
+			else if (!isServerSocket)
+				handleClientAction(m_pollfdVec[i]);
 		}
 	}
 }
+
+void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
+{
+	clientInfo *clientPTR = getClientPTR(pollFdStuct.fd); // change this, so that it also checks for file fd:s etc
+	if (clientPTR == nullptr)
+	{
+		std::cout << RED << "Client data could not be recieved; client not found\n" << RESET;
+		return ;
+	}
+
+	switch (clientPTR->status)
+	{
+		case CONNECTED:
+			if (pollFdStuct.revents & POLLIN)
+				recieveDataFromClient(pollFdStuct.fd);
+				break ;
+	}
+
+}
+
+
+/*
+else if (m_pollfdVec[i].revents & POLLIN && !isServerSocket)
+				recieveDataFromClient(m_pollfdVec[i].fd);
+			else if (m_pollfdVec[i].revents & POLLOUT && !isServerSocket) // do i need to check the response ready-flag...?
+				sendDataToClient(m_pollfdVec[i].fd);
+*/
 
 /*
 	ACCEPT NEW CLIENT
@@ -178,7 +203,6 @@ void		ConnectionHandler::acceptNewClient(const unsigned int serverFd)
 	}
 	else
 	{
-
 		if (fcntl(newClientFd, F_SETFL, O_NONBLOCK) == -1)
 		{
 			std::cerr << RED << "\nfcntl() failed:\n" << RESET << std::strerror(errno) << "\n\n";
@@ -204,8 +228,6 @@ void		ConnectionHandler::acceptNewClient(const unsigned int serverFd)
 
 void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 {
-	// Should this start with a isSigInt -check...?
-
 	clientInfo *clientPTR = getClientPTR(clientFd);
 	if (clientPTR == nullptr)
 	{
@@ -235,22 +257,21 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 	// If we managed to recieve everything from client
 	if (recievedBytes < bufLen)
 	{
-		clientPTR->requestReady = true;
-		getClientPollfd(clientFd)->events = POLLOUT;
+		clientPTR->requestReady = true; // CHANGE THIS!
 		if (clientPTR)
 		{
-      
+			
 			parseRequest(clientPTR); // this code is in separate file ('requestParsing.cpp')
 
-			std::unique_ptr<ResponseHandler> respHdlr(new ResponseHandler); // we will need to pass the relevant config object, probably best to do in the constructor
-			respHdlr->checkRequestType(clientPTR, clientPTR->requestString);
-			if (respHdlr->getRequestType() == INVALID)
+			clientPTR->respHandler = new ResponseHandler; // get's deleted in the clintInfo destructor
+			clientPTR->respHandler->checkRequestType(clientPTR, clientPTR->requestString);
+			if (clientPTR->respHandler->getRequestType() == INVALID)
 			{
 				return ;
 			}
 			//std::cout << "Before respHdlr->parseRequest, request type is currently set to: " << respHdlr->getRequestType() << std::endl;
 			//if it is invalid we should stop here, and just return the error page
-			respHdlr->parseRequest(clientPTR, clientPTR->requestString);
+			clientPTR->respHandler->parseRequest(clientPTR, clientPTR->requestString);
 			//might have an error here now too.
 		}
 
@@ -303,7 +324,7 @@ void	ConnectionHandler::addNewPollfd(int newFd)
 {
 	pollfd	tempPollfd;
 	tempPollfd.fd = newFd;
-	tempPollfd.events = POLLIN; // should we also have POLLOUT here for every socket...?
+	tempPollfd.events = POLLIN | POLLOUT;
 	tempPollfd.revents = 0;
 
 	m_pollfdVec.push_back(tempPollfd);

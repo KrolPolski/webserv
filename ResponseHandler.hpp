@@ -10,6 +10,8 @@
 #include "Types.hpp"
 #include <filesystem>
 
+struct clientInfo;
+
 class ResponseHandler
 {
     private:

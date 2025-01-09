@@ -1,4 +1,5 @@
 #include "Types.hpp"
+#include <iostream>
 
 bool	isSigInt = false;
 

@@ -38,7 +38,8 @@ struct clientInfo
 
 	clientStatus	status = CONNECTED;
 
-	int		fd;
+	int		clientFd = -1;
+	int		errorFileFd = -1;
 	int		bytesSent = 0;
 
 	bool 	requestReady = false;
@@ -50,7 +51,7 @@ struct clientInfo
 	std::string responseBody; // might not be needed
 	std::string responseString;
 	
-	clientInfo(int clientFd, const serverInfo *server) : relatedServer(server), fd(clientFd)
+	clientInfo(int clientFd, const serverInfo *server) : relatedServer(server), clientFd(clientFd)
 	{
 	}
 
@@ -58,5 +59,9 @@ struct clientInfo
 	{
 		if (respHandler != nullptr)
 			delete respHandler;
+		if (errorFileFd != -1)
+			close(errorFileFd); // do we need error handling for close()...?
+		if (clientFd != -1)
+			close(clientFd); // do i need to check close() for fail...?
 	}
 };

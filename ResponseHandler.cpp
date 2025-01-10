@@ -83,6 +83,7 @@ void ResponseHandler::checkRequestType(clientInfo *ClientPTR, std::string reques
 		//std::cout << "INVALID request detected woo" << std::endl;
 		setRequestType(INVALID);
 		setResponseCode(400);
+		ClientPTR->status = BUILD_ERRORPAGE;
 		buildErrorResponse(ClientPTR);
 	}
 }
@@ -233,6 +234,8 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 	headers += std::to_string(content.length());
 	headers += "\r\n\r\n";
 	clientPTR->responseString = headers + content;
+	clientPTR->status = SEND_RESPONSE;
+
 //	std::cout << "responseString: " << clientPTR->responseString << std::endl;
 	ourFile.close();
   
@@ -337,27 +340,60 @@ void ResponseHandler::ServeErrorPages(clientInfo *ClientPTR, std::string request
 
 void ResponseHandler::buildErrorResponse(clientInfo *clientPTR)
 {
-	std::string content;
+	if (clientPTR->errorFileFd == -1)
+	{
+		std::string errorFileName = "home/error/" + std::to_string(getResponseCode()) + ".html"; // HARD CODED!!
+		checkExtension(errorFileName); // do we need this...?
+
+		clientPTR->errorFileFd = open(errorFileName.c_str(), O_RDONLY);
+		if (clientPTR->errorFileFd == -1)
+		{
+			std::cerr << RED << "\nopen() of error page file failed:\n" << RESET << std::strerror(errno) << "\n\n";
+			clientPTR->status = DISCONNECT;
+		}
+		else if (fcntl(clientPTR->errorFileFd, F_SETFL, O_NONBLOCK) == -1) // make file fd non-blocking
+		{
+			std::cerr << RED << "\nfcntl() failed:\n" << RESET << std::strerror(errno) << "\n\n";
+			// Error handling...?
+		}
+		return ;
+	}
+
 //	std::cout << "We got to buildErrorResponse" << std::endl;
 	//need to update this based on config file path to error pages
 	//tested with this and it works. now just fetch this from the configuration data. --- Patrik
-	std::string errorFileName = "home/error/" + std::to_string(getResponseCode()) + ".html";
-	std::ifstream ourFile(errorFileName);
-	std::string line;
-	while (std::getline(ourFile, line))
-		content += line + "\n";
-	checkExtension(errorFileName);
-	
-	std::string	headers;
 
-	headers = "HTTP/1.1 " + std::to_string(getResponseCode()) + " " + errorCodes.at(getResponseCode()) + "\r\n";
-	headers += "Content-Type: " + contentType + "\r\n";
-	headers += "Content-Length: ";
-	headers += std::to_string(content.length());
-	headers += "\r\n\r\n";
-	clientPTR->responseString = headers + content;
-	std::cout << "responseString: " << clientPTR->responseString << std::endl;
-	ourFile.close();
+
+	char 	buffer[1024];
+	int		bytesRead;
+	int		readPerCall = 1023;
+
+	bytesRead = read(clientPTR->errorFileFd, buffer, readPerCall); // This needs to go thorugh poll()...?
+	if (bytesRead == -1)
+	{
+		std::cerr << RED << "\nread() of error page file failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		clientPTR->status = DISCONNECT;
+		return ;
+	}
+
+	buffer[bytesRead] = '\0';
+	clientPTR->responseBody += buffer;
+
+	if (bytesRead < readPerCall)
+	{
+		std::string	headers;
+
+		headers = "HTTP/1.1 " + std::to_string(getResponseCode()) + " " + errorCodes.at(getResponseCode()) + "\r\n";
+		headers += "Content-Type: " + contentType + "\r\n";
+		headers += "Content-Length: ";
+		headers += std::to_string(clientPTR->responseBody.length());
+		headers += "\r\n\r\n";
+		clientPTR->responseString = headers + clientPTR->responseBody;
+		std::cout << "responseString: " << clientPTR->responseString << std::endl;
+
+		clientPTR->status = SEND_RESPONSE;
+	}
+
 }
 
 void	ResponseHandler::buildDirListingResponse(const std::string& pathForDirToList, clientInfo *clientPTR)
@@ -385,4 +421,5 @@ void	ResponseHandler::buildDirListingResponse(const std::string& pathForDirToLis
 	headers += std::to_string(content.length());
 	headers += "\r\n\r\n";
 	clientPTR->responseString = headers + content;
+	clientPTR->status = SEND_RESPONSE;
 }

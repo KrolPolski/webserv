@@ -173,8 +173,31 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 	{
 		case CONNECTED:
 			if (pollFdStuct.revents & POLLIN)
+				clientPTR->status = RECIEVE_REQUEST;
+			break ;
+		
+		case RECIEVE_REQUEST:
+			if (pollFdStuct.revents & POLLIN)
 				recieveDataFromClient(pollFdStuct.fd);
-				break ;
+			break ;
+
+		case PARSE_REQUEST:
+				parseClientRequest(pollFdStuct.fd);
+			break ;
+
+		case BUILD_ERRORPAGE:
+				clientPTR->respHandler->buildErrorResponse(clientPTR);
+			break ;
+
+		case DISCONNECT:
+				removeFromClientVec(clientPTR->clientFd);
+				removeFromPollfdVec(clientPTR->clientFd);
+			break ;	
+
+
+		default:
+			break ;
+
 	}
 
 }
@@ -228,7 +251,7 @@ void		ConnectionHandler::acceptNewClient(const unsigned int serverFd)
 
 void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 {
-	clientInfo *clientPTR = getClientPTR(clientFd);
+	clientInfo *clientPTR = getClientPTR(clientFd); // Theoretically not possible...
 	if (clientPTR == nullptr)
 	{
 		std::cout << RED << "Client data could not be recieved; client not found\n" << RESET;
@@ -256,27 +279,34 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 
 	// If we managed to recieve everything from client
 	if (recievedBytes < bufLen)
-	{
-		clientPTR->requestReady = true; // CHANGE THIS!
-		if (clientPTR)
-		{
-			
-			parseRequest(clientPTR); // this code is in separate file ('requestParsing.cpp')
-
-			clientPTR->respHandler = new ResponseHandler; // get's deleted in the clintInfo destructor
-			clientPTR->respHandler->checkRequestType(clientPTR, clientPTR->requestString);
-			if (clientPTR->respHandler->getRequestType() == INVALID)
-			{
-				return ;
-			}
-			//std::cout << "Before respHdlr->parseRequest, request type is currently set to: " << respHdlr->getRequestType() << std::endl;
-			//if it is invalid we should stop here, and just return the error page
-			clientPTR->respHandler->parseRequest(clientPTR, clientPTR->requestString);
-			//might have an error here now too.
-		}
-
-	}
+		clientPTR->status = PARSE_REQUEST;
 	
+}
+
+void	ConnectionHandler::parseClientRequest(const unsigned int clientFd)
+{
+	clientInfo *clientPTR = getClientPTR(clientFd);
+	if (clientPTR == nullptr) // Theoretically not possible...
+	{
+		std::cout << RED << "Client data could not be recieved; client not found\n" << RESET;
+		return ;
+	}
+
+	parseRequest(clientPTR); // this code is in separate file ('requestParsing.cpp')
+
+	clientPTR->respHandler = new ResponseHandler; // get's deleted in the clintInfo destructor
+	clientPTR->respHandler->checkRequestType(clientPTR, clientPTR->requestString);
+	if (clientPTR->respHandler->getRequestType() == INVALID)
+	{
+		return ;
+	}
+	//std::cout << "Before respHdlr->parseRequest, request type is currently set to: " << respHdlr->getRequestType() << std::endl;
+	//if it is invalid we should stop here, and just return the error page
+	if (clientPTR->status != BUILD_ERRORPAGE)
+	{
+		clientPTR->respHandler->parseRequest(clientPTR, clientPTR->requestString);
+	}
+	//might have an error here now too.
 }
 
 
@@ -297,7 +327,7 @@ void		ConnectionHandler::sendDataToClient(const unsigned int clientFd)
 	}
 	
 	// Send response to client
-	int sendBytes = send(clientPTR->fd, clientPTR->responseString.c_str(), clientPTR->responseString.length(), 0);
+	int sendBytes = send(clientPTR->clientFd, clientPTR->responseString.c_str(), clientPTR->responseString.length(), 0);
 
 	if (sendBytes < 0) // should 0 be included...?
 	{
@@ -310,7 +340,7 @@ void		ConnectionHandler::sendDataToClient(const unsigned int clientFd)
 	// What should we do if these don't match...? Most likely do another send starting from response[bytesSent]...?
 	if (clientPTR->bytesSent == (int)clientPTR->responseString.length()) // int casting... not good
 	{
-		int fdToRemove = clientPTR->fd;
+		int fdToRemove = clientPTR->clientFd;
 		removeFromClientVec(fdToRemove);
 		removeFromPollfdVec(fdToRemove);
 	}
@@ -336,7 +366,6 @@ void	ConnectionHandler::removeFromPollfdVec(int fdToRemove)
 	{
 		if (m_pollfdVec[i].fd == fdToRemove)
 		{
-			close(fdToRemove); // do i need to check close() for fail...?
 			m_pollfdVec.erase(m_pollfdVec.begin() + i); // can this be done smarter than with erase()...?
 			return ;
 		}
@@ -387,7 +416,7 @@ clientInfo	*ConnectionHandler::getClientPTR(const int clientFd)
 {
 	for (auto &obj : m_clientVec)
 	{
-		if (obj.fd == clientFd)
+		if (obj.clientFd == clientFd) // add other FDs here, for example response fd etc
 			return (&obj);
 	}
 
@@ -409,7 +438,7 @@ void		ConnectionHandler::removeFromClientVec(const int clientFd)
 {
 	for (int i = 0; i < (int)m_clientVec.size(); ++i)
 	{
-		if (m_clientVec[i].fd == clientFd)
+		if (m_clientVec[i].clientFd == clientFd)
 		{
 			m_clientVec.erase(m_clientVec.begin() + i); // can this be done smarter than erase()...?
 			return ;

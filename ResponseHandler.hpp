@@ -23,7 +23,6 @@ class ResponseHandler
 		static const std::map<const unsigned int, std::string> errorCodes;
 		void setRequestType(enum requestTypes reqType);
 		void setResponseCode(unsigned int code);
-		void buildErrorResponse(clientInfo *ClientPTR);
 		void buildDirListingResponse(const std::string& pathToDir, clientInfo *ClientPTR);
 	
     public:
@@ -40,5 +39,7 @@ class ResponseHandler
 		unsigned int getResponseCode() const;
 		bool checkRequestAllowed(clientInfo *clientPTR, std::string filePath);
 		void buildRedirectResponse(std::string filePath, clientInfo *clientPTR);
+		void buildErrorResponse(clientInfo *ClientPTR); // is this ok in public...? used to be in private! - Panu
+
 };
 

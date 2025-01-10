@@ -53,6 +53,7 @@ class ConnectionHandler
 	void	handleClientAction(const pollfd &pollFdStuct);
 	void	acceptNewClient(const unsigned int serverFd);
 	void	recieveDataFromClient(const unsigned int clientFd);
+	void	parseClientRequest(const unsigned int clientFd);
 	void	sendDataToClient(const unsigned int clientFd);
 
 	// request parsing

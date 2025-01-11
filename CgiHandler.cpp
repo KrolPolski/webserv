@@ -19,7 +19,7 @@ CgiHandler::CgiHandler(clientInfo &client) : m_client(client)
 
 	if (type == PHP)
 		//m_pathToInterpreter = "/opt/homebrew/bin/php-cgi"; homebrew path is different
-		m_pathToInterpreter = m_client.relatedServer->serverConfig->getCgiPath("/cgi/") + "/php-cgi"; // do I need to search for this in computer...?
+		m_pathToInterpreter = m_client.relatedServer->serverConfig->getCgiPath("/cgi/") + "/php-cgi";
 	else if (type == PYTHON)
 		m_pathToInterpreter = m_client.relatedServer->serverConfig->getCgiPath("/cgi/") + "/python3"; // check this later // with the regex changes in that merge i might change this. ----- Patrik
 

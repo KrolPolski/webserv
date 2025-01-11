@@ -87,7 +87,7 @@ int		ConnectionHandler::initServerSocket(const unsigned int portNum)
 		return (-1);
 	}
 
-	// make socket non-blocking
+	// make socket non-blocking, CHECK THAT THIS IS ACTUALLY WORKING!
 	if (fcntl(socketFd, F_SETFL, O_NONBLOCK) == -1)
 	{
 		std::cerr << RED << "\nfcntl() failed:\n" << RESET << std::strerror(errno) << "\n\n";
@@ -136,7 +136,7 @@ int		ConnectionHandler::startServers()
 		int	readySocketCount = poll(&m_pollfdVec[0], m_pollfdVec.size(), 0);
 		if (readySocketCount == -1)
 		{
-			if (isSigInt) // is it bad that this is here...?
+			if (isSigInt)
 				return (sigIntMessage());
 			else
 			{
@@ -162,7 +162,7 @@ int		ConnectionHandler::startServers()
 
 void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 {
-	clientInfo *clientPTR = getClientPTR(pollFdStuct.fd); // change this, so that it also checks for file fd:s etc
+	clientInfo *clientPTR = getClientPTR(pollFdStuct.fd);
 	if (clientPTR == nullptr)
 	{
 		std::cout << RED << "Client data could not be recieved; client not found\n" << RESET;
@@ -171,29 +171,100 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 
 	switch (clientPTR->status)
 	{
-		case CONNECTED:
-			if (pollFdStuct.revents & POLLIN)
+		case CONNECTED: // This might not be needed, we could basically go straight to RECIEVE_REQUEST
+		{
+			if (!clientPTR->stateFlags[CONNECTED])
+			{
+				clientPTR->stateFlags[CONNECTED] = true;
+				std::cout << GREEN << "\nCLIENT CONNECTED!\n" << RESET;
+			}
+
+			if (clientPTR->clientFd == pollFdStuct.fd)
 				clientPTR->status = RECIEVE_REQUEST;
 			break ;
+		}
 		
 		case RECIEVE_REQUEST:
-			if (pollFdStuct.revents & POLLIN)
-				recieveDataFromClient(pollFdStuct.fd);
-			break ;
+		{
+			if (!clientPTR->stateFlags[RECIEVE_REQUEST])
+			{
+				clientPTR->stateFlags[RECIEVE_REQUEST] = true;
+				std::cout << GREEN << "\nCLIENT RECIEVE_REQUEST!\n" << RESET;
+			}
 
-		case PARSE_REQUEST:
-				parseClientRequest(pollFdStuct.fd);
+			if (clientPTR->clientFd == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
+				recieveDataFromClient(pollFdStuct.fd, clientPTR);
 			break ;
+		}
 
 		case BUILD_ERRORPAGE:
+		{
+			if (!clientPTR->stateFlags[BUILD_ERRORPAGE])
+			{
+				clientPTR->stateFlags[BUILD_ERRORPAGE] = true;
+				std::cout << GREEN << "\nCLIENT BUILD_ERRORPAGE!\n" << RESET;
+			}
+
+			if (clientPTR->errorFileFd == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
 				clientPTR->respHandler->buildErrorResponse(clientPTR);
 			break ;
+		}
+
+		case BUILD_REPONSE:
+		{
+			if (!clientPTR->stateFlags[BUILD_REPONSE])
+			{
+				clientPTR->stateFlags[BUILD_REPONSE] = true;
+				std::cout << GREEN << "\nCLIENT BUILD_REPONSE!\n" << RESET;
+			}
+
+			if (clientPTR->responseFileFd == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
+				clientPTR->respHandler->buildResponse(clientPTR);
+			break ;
+		}
+
+		case SEND_RESPONSE:
+		{
+			if (!clientPTR->stateFlags[SEND_RESPONSE])
+			{
+				clientPTR->stateFlags[SEND_RESPONSE] = true;
+				std::cout << GREEN << "\nCLIENT SEND_RESPONSE!\n" << RESET;
+			}
+
+			if (clientPTR->clientFd == pollFdStuct.fd && pollFdStuct.revents & POLLOUT)
+				sendDataToClient(clientPTR);
+			break ;
+		}
 
 		case DISCONNECT:
-				removeFromClientVec(clientPTR->clientFd);
-				removeFromPollfdVec(clientPTR->clientFd);
-			break ;	
+		{
+			if (!clientPTR->stateFlags[DISCONNECT])
+			{
+				clientPTR->stateFlags[DISCONNECT] = true;
+				std::cout << GREEN << "\nCLIENT DISCONNECT!\n" << RESET;
+			}
 
+			if (clientPTR->clientFd != -1)
+				removeFromPollfdVec(clientPTR->clientFd);
+			if (clientPTR->errorFileFd != -1)
+				removeFromPollfdVec(clientPTR->errorFileFd);
+			if (clientPTR->responseFileFd != -1)
+				removeFromPollfdVec(clientPTR->responseFileFd);
+			clientCleanUp(clientPTR);
+			removeFromClientVec(clientPTR);
+
+			/*
+				NOTE!
+
+				There appears to be some random "ghost clients" from time to time...
+				don't really know why.
+				They connect but don't send a request.
+				This will automatically be solved once I implement the
+				timeout-system for clients, but still... weird!
+			*/
+
+			break ;
+		}
 
 		default:
 			break ;
@@ -202,22 +273,12 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 
 }
 
-
-/*
-else if (m_pollfdVec[i].revents & POLLIN && !isServerSocket)
-				recieveDataFromClient(m_pollfdVec[i].fd);
-			else if (m_pollfdVec[i].revents & POLLOUT && !isServerSocket) // do i need to check the response ready-flag...?
-				sendDataToClient(m_pollfdVec[i].fd);
-*/
-
 /*
 	ACCEPT NEW CLIENT
 */
 
 void		ConnectionHandler::acceptNewClient(const unsigned int serverFd)
 {
-	// Should this start with a isSigInt -check...?
-
 	int newClientFd = accept(serverFd, nullptr, nullptr); // why are these nullptr...?	
 	if (newClientFd == -1)
 	{
@@ -241,23 +302,22 @@ void		ConnectionHandler::acceptNewClient(const unsigned int serverFd)
 			return ;
 		}
 		addNewPollfd(newClientFd);
+		std::cout << GREEN << "Creating new client\n" << RESET;
 		m_clientVec.push_back({newClientFd, relatedServerPTR});
 	}
+
+//	std::cout << GREEN << "NEW CLIENT Accepted with FD: " << newClientFd << "\n" << RESET;
+//	std::cout << GREEN << "client vec size: " << m_clientVec.size() << "\n" << RESET;
+
+
 }
 
 /*
 	RECIEVE DATA FROM CLIENT
 */
 
-void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
+void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clientInfo *clientPTR)
 {
-	clientInfo *clientPTR = getClientPTR(clientFd); // Theoretically not possible...
-	if (clientPTR == nullptr)
-	{
-		std::cout << RED << "Client data could not be recieved; client not found\n" << RESET;
-		return ;
-	}
-
 	char	buf[1024] = {0};
 	int		bufLen = 1023; // what is the correct size for recv() buffer...?
 
@@ -269,8 +329,7 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 		else
 			std::cerr << RED << "\nrecv() failed\n" << RESET << std::strerror(errno) << "\n\n";
 
-		removeFromClientVec(clientFd);
-		removeFromPollfdVec(clientFd);
+		clientPTR->status = DISCONNECT; // not good, we need to build some sort of response too!
 		return ;
 	}
 
@@ -279,32 +338,36 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd)
 
 	// If we managed to recieve everything from client
 	if (recievedBytes < bufLen)
+	{
+		std::cout << RED << "Recieved request:\n\n" << RESET << clientPTR->requestString << "\n\n";
+
 		clientPTR->status = PARSE_REQUEST;
+		parseClientRequest(clientPTR);
+		if (clientPTR->status == BUILD_REPONSE)
+			addNewPollfd(clientPTR->responseFileFd);
+		
+		std::cout << RED << "Parse done" << RESET << "\n";
+		std::cout << RED << "Client status: " << clientPTR->status << RESET << "\n\n";
+
+
+	}
 	
 }
 
-void	ConnectionHandler::parseClientRequest(const unsigned int clientFd)
+void	ConnectionHandler::parseClientRequest(clientInfo *clientPTR)
 {
-	clientInfo *clientPTR = getClientPTR(clientFd);
-	if (clientPTR == nullptr) // Theoretically not possible...
-	{
-		std::cout << RED << "Client data could not be recieved; client not found\n" << RESET;
-		return ;
-	}
-
 	parseRequest(clientPTR); // this code is in separate file ('requestParsing.cpp')
 
 	clientPTR->respHandler = new ResponseHandler; // get's deleted in the clintInfo destructor
 	clientPTR->respHandler->checkRequestType(clientPTR, clientPTR->requestString);
-	if (clientPTR->respHandler->getRequestType() == INVALID)
-	{
-		return ;
-	}
-	//std::cout << "Before respHdlr->parseRequest, request type is currently set to: " << respHdlr->getRequestType() << std::endl;
-	//if it is invalid we should stop here, and just return the error page
-	if (clientPTR->status != BUILD_ERRORPAGE)
+
+	if (clientPTR->status == BUILD_ERRORPAGE)
+		addNewPollfd(clientPTR->errorFileFd);
+	else
 	{
 		clientPTR->respHandler->parseRequest(clientPTR, clientPTR->requestString);
+		if (clientPTR->status == BUILD_ERRORPAGE)
+			addNewPollfd(clientPTR->errorFileFd);
 	}
 	//might have an error here now too.
 }
@@ -314,18 +377,8 @@ void	ConnectionHandler::parseClientRequest(const unsigned int clientFd)
 	SEND DATA TO CLIENT
 */
 
-void		ConnectionHandler::sendDataToClient(const unsigned int clientFd)
+void		ConnectionHandler::sendDataToClient(clientInfo *clientPTR)
 {
-	// Should this start with a isSigInt -check...?
-
-
-	clientInfo *clientPTR = getClientPTR(clientFd);
-	if (clientPTR == nullptr)
-	{
-		std::cout << RED << "Client data could not be sent; client not found\n";
-		return ;
-	}
-	
 	// Send response to client
 	int sendBytes = send(clientPTR->clientFd, clientPTR->responseString.c_str(), clientPTR->responseString.length(), 0);
 
@@ -337,13 +390,11 @@ void		ConnectionHandler::sendDataToClient(const unsigned int clientFd)
 
 	clientPTR->bytesSent += sendBytes;
 
+	std::cout << RED << "Bytes sent:\n" << RESET << clientPTR->bytesSent << "\n";
+
 	// What should we do if these don't match...? Most likely do another send starting from response[bytesSent]...?
 	if (clientPTR->bytesSent == (int)clientPTR->responseString.length()) // int casting... not good
-	{
-		int fdToRemove = clientPTR->clientFd;
-		removeFromClientVec(fdToRemove);
-		removeFromPollfdVec(fdToRemove);
-	}
+		clientPTR->status = DISCONNECT;
 }
 
 /*
@@ -416,7 +467,9 @@ clientInfo	*ConnectionHandler::getClientPTR(const int clientFd)
 {
 	for (auto &obj : m_clientVec)
 	{
-		if (obj.clientFd == clientFd) // add other FDs here, for example response fd etc
+		if (obj.clientFd == clientFd
+		|| obj.errorFileFd == clientFd
+		|| obj.responseFileFd == clientFd)
 			return (&obj);
 	}
 
@@ -434,16 +487,29 @@ pollfd		*ConnectionHandler::getClientPollfd(const int clientFd)
 	return (nullptr);
 }
 
-void		ConnectionHandler::removeFromClientVec(const int clientFd)
+void		ConnectionHandler::removeFromClientVec(clientInfo *clientPTR)
 {
 	for (int i = 0; i < (int)m_clientVec.size(); ++i)
 	{
-		if (m_clientVec[i].clientFd == clientFd)
+		if (&m_clientVec[i] == clientPTR)
 		{
 			m_clientVec.erase(m_clientVec.begin() + i); // can this be done smarter than erase()...?
 			return ;
 		}
 	}
 }
+
+void	ConnectionHandler::clientCleanUp(clientInfo *clientPTR)
+{
+	if (clientPTR->respHandler != nullptr)
+		delete clientPTR->respHandler;
+	if (clientPTR->clientFd != -1)
+		close(clientPTR->clientFd); // do i need to check close() for fail...?
+	if (clientPTR->errorFileFd != -1)
+		close(clientPTR->errorFileFd); // do we need error handling for close()...?
+	if (clientPTR->responseFileFd != -1)
+		close(clientPTR->responseFileFd); // do i need to check close() for fail...?
+}
+
 
 

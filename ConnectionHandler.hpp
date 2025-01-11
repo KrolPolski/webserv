@@ -52,9 +52,10 @@ class ConnectionHandler
 	// client data functions
 	void	handleClientAction(const pollfd &pollFdStuct);
 	void	acceptNewClient(const unsigned int serverFd);
-	void	recieveDataFromClient(const unsigned int clientFd);
-	void	parseClientRequest(const unsigned int clientFd);
-	void	sendDataToClient(const unsigned int clientFd);
+	void	recieveDataFromClient(const unsigned int clientFd, clientInfo *clientPTR);
+	void	parseClientRequest(clientInfo *clientPTR);
+	void	sendDataToClient(clientInfo *clientPTR);
+	void	clientCleanUp(clientInfo *clientPTR);
 
 	// request parsing
 	int		parseRequest(clientInfo *clientPTR);
@@ -66,7 +67,7 @@ class ConnectionHandler
 	// client helper functions
 	clientInfo	*getClientPTR(const int clientFd);
 	pollfd		*getClientPollfd(const int clientFd);
-	void		removeFromClientVec(const int clientFd);
+	void		removeFromClientVec(clientInfo *clientPTR);
 
 
 /*	// These are just for testing

@@ -36,32 +36,23 @@ struct clientInfo
 
 	ResponseHandler		*respHandler = nullptr;
 
-	clientStatus	status = CONNECTED;
+	clientStatus	status = RECIEVE_REQUEST;
 
-	int		clientFd = -1;
+	int		clientFd;
 	int		errorFileFd = -1;
+	int		responseFileFd = -1;
 	int		bytesSent = 0;
 
-	bool 	requestReady = false;
-//	bool	responseReady; --> is this needed...?
+	bool	stateFlags[7] = {}; // JUST A TEST
 
 	std::string	clientIP; // we should probably get this in the constructor
 	std::string	requestString;
-	std::string responseHeaders; // might not be needed
-	std::string responseBody; // might not be needed
+	//std::string responseHeaders; // might not be needed
+	std::string responseBody;
 	std::string responseString;
 	
 	clientInfo(int clientFd, const serverInfo *server) : relatedServer(server), clientFd(clientFd)
 	{
 	}
 
-	~clientInfo()
-	{
-		if (respHandler != nullptr)
-			delete respHandler;
-		if (errorFileFd != -1)
-			close(errorFileFd); // do we need error handling for close()...?
-		if (clientFd != -1)
-			close(clientFd); // do i need to check close() for fail...?
-	}
 };

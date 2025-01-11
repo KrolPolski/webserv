@@ -83,8 +83,7 @@ void ResponseHandler::checkRequestType(clientInfo *ClientPTR, std::string reques
 		//std::cout << "INVALID request detected woo" << std::endl;
 		setRequestType(INVALID);
 		setResponseCode(400);
-		ClientPTR->status = BUILD_ERRORPAGE;
-		buildErrorResponse(ClientPTR);
+		openErrorResponseFile(ClientPTR);
 	}
 }
 
@@ -137,8 +136,40 @@ void ResponseHandler::buildRedirectResponse(std::string webFilePath, clientInfo 
 	headers += "Connection: close";
 	headers += "\r\n\r\n";
 	clientPTR->responseString = headers;
+
+	clientPTR->status = SEND_RESPONSE;
 //	std::cout << "responseString: " << clientPTR->responseString << std::endl;
 }
+
+int ResponseHandler::openResponseFile(clientInfo *clientPTR, std::string filePath)
+{
+	checkExtension(filePath); // is this a good place for this...?
+
+	clientPTR->responseFileFd = open(filePath.c_str(), O_RDONLY);
+	if (clientPTR->responseFileFd == -1)
+	{
+		std::cerr << RED << "\nopen() of response file failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		if (errno == 2) //file missing
+			setResponseCode(404);
+		else if (errno == 13) //bad permissions
+			setResponseCode(403);
+		else
+			setResponseCode(500);
+		std::cerr << "Response Code: " << getResponseCode() << std::endl;
+		openErrorResponseFile(clientPTR);
+	}
+	else if (fcntl(clientPTR->responseFileFd, F_SETFL, O_NONBLOCK) == -1) // make file fd non-blocking
+	{
+		std::cerr << RED << "\nfcntl() failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		setResponseCode(500); // is this ok...?
+		openErrorResponseFile(clientPTR);
+	}
+	else
+		clientPTR->status = BUILD_REPONSE;
+
+	return (0);
+}
+
 int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 {
   
@@ -180,67 +211,26 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 		}
 	}
 	// If we get here then we have concluded that it isn't a directory.
-	
-	std::ifstream ourFile(filePath);
-	/*We need to detect which type of error we got with the file, so we 
-	can send the appropriate response code*/
-	if (!ourFile)
-	{
-		std::cerr << "Error: " << strerror(errno) << errno << std::endl;
-		if (errno == 2) //file missing
-		{
-			setResponseCode(404);
-		}
-		else if (errno == 13) //bad permissions
-			setResponseCode(403);
-		else
-			setResponseCode(500);
-		std::cerr << "Response Code: " << getResponseCode() << std::endl;
-		buildErrorResponse(clientPTR);
-		return -1;
-	}
 
 	/*
-		Panu addition (CGI)
+		FIX CGI FD:s LATER!
+		They don't go through poll() yet
+		AND the pipe FD:s are blocking
 	*/
-
 	if (clientPTR->parsedRequest.isCgi)
 	{
-		// This needs to be saved in the connection handler somehow... So we can use it in the poll() loop
-
 		CgiHandler	cgiHandler(*clientPTR);
 
 		if (cgiHandler.executeCgi() == -1)
 			return (-1);
 		
   		setResponseCode(200);
+		clientPTR->status = SEND_RESPONSE;
 		return (0);
 	}
+	
+	return (openResponseFile(clientPTR, filePath));
 
-	/*
-		Addition end
-	*/
-	//std::cout << "We are about to checkExtension" << std::endl;
-	std::string line;
-	while (std::getline(ourFile, line))
-		content += line + "\n";
-	checkExtension(filePath);
-	//std::cout << "We are done checking Extension" << std::endl;
-	std::string	headers;
-	setResponseCode(200);
-	headers = "HTTP/1.1 200 OK\r\n";
-	headers += "Content-Type: " + contentType + "\r\n";
-	headers += "Content-Length: ";
-	headers += std::to_string(content.length());
-	headers += "\r\n\r\n";
-	clientPTR->responseString = headers + content;
-	clientPTR->status = SEND_RESPONSE;
-
-//	std::cout << "responseString: " << clientPTR->responseString << std::endl;
-	ourFile.close();
-  
-	//std::cout << "Must have opened the file with no errors" << std::endl;
-	return (0);
 }
 
 bool ResponseHandler::checkRequestAllowed(clientInfo *clientPTR, std::string filePath)
@@ -257,10 +247,13 @@ bool ResponseHandler::checkRequestAllowed(clientInfo *clientPTR, std::string fil
 	else
 	{
 		std::cout << "Method not permitted, should show 405 page" << std::endl;
-		responseCode = 405;
+		responseCode = 405; // This is being set the second time in the calling function
 		return false;
 	}
 }
+
+// This could be named something like "isResponseValid" etc, referring to the extra checks
+// And I'd just use the parsing I did in the other function, that is stored in clientPTR->parsedRequest
 void ResponseHandler::parseRequest(clientInfo *clientPTR, std::string requestString)
 {
 	switch (requestType)
@@ -295,7 +288,7 @@ void ResponseHandler::parseRequest(clientInfo *clientPTR, std::string requestStr
 					else
 					{
 						setResponseCode(405);
-						buildErrorResponse(clientPTR);
+						openErrorResponseFile(clientPTR);
 					}
 				}
 			break;
@@ -308,6 +301,47 @@ void ResponseHandler::parseRequest(clientInfo *clientPTR, std::string requestStr
 		default:
 			std::cout << "unhandled parseRequest" << std::endl;
 	}
+}
+
+int ResponseHandler::buildResponse(clientInfo *clientPTR)
+{
+	if (clientPTR->responseFileFd == -1)
+		std::cout << RED << "\nERROR! buildResponse called before response file was opened\n" << RESET;
+
+	char 	buffer[1024];
+	int		bytesRead;
+	int		readPerCall = 1023;
+
+	bytesRead = read(clientPTR->responseFileFd, buffer, readPerCall);
+	if (bytesRead == -1)
+	{
+		std::cerr << RED << "\nread() of error page file failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		clientPTR->status = DISCONNECT; // --> Not good, we need a standard error page here!
+		return (-1);
+	}
+
+	buffer[bytesRead] = '\0';
+	clientPTR->responseBody += buffer;
+
+	if (bytesRead < readPerCall)
+	{
+		std::string	headers;
+		setResponseCode(200);
+		headers = "HTTP/1.1 200 OK\r\n";
+		headers += "Content-Type: " + contentType + "\r\n";
+		headers += "Content-Length: ";
+		headers += std::to_string(clientPTR->responseBody.length());
+		headers += "\r\n\r\n";
+		clientPTR->responseString = headers + clientPTR->responseBody;
+		clientPTR->status = SEND_RESPONSE;
+
+		std::cout << RED << "Built response:\n\n" << RESET << clientPTR->responseString << "\n\n";
+
+	}
+
+//	std::cout << "responseString: " << clientPTR->responseString << std::endl;
+
+	return (0);
 }
 
 const enum requestTypes& ResponseHandler::getRequestType() const
@@ -338,26 +372,37 @@ void ResponseHandler::ServeErrorPages(clientInfo *ClientPTR, std::string request
 		return ;
 }
 
+void ResponseHandler::openErrorResponseFile(clientInfo *clientPTR)
+{
+	std::string errorFileName = "home/error/" + std::to_string(getResponseCode()) + ".html"; // HARD CODED!!
+	checkExtension(errorFileName); // Is this a good place for this...?
+
+	clientPTR->errorFileFd = open(errorFileName.c_str(), O_RDONLY);
+	if (clientPTR->errorFileFd == -1)
+	{
+		// Do we need to specify what went wrong with the opening...?
+		std::cerr << RED << "\nopen() of error page file failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		// Should we have a backup error page here...? That is built within our code?
+		// If for example someone were to mess with all the permissions of our error pages...
+
+		// Disconnect is not good. Here we need to build some kind of "general error page" within our code !!
+		clientPTR->status = DISCONNECT;
+	}
+	else if (fcntl(clientPTR->errorFileFd, F_SETFL, O_NONBLOCK) == -1) // make file fd non-blocking
+	{
+		std::cerr << RED << "\nfcntl() failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		// Disconnect is not good. Here we need to build some kind of "general error page" within our code !!
+		clientPTR->status = DISCONNECT;
+	}
+	else
+		clientPTR->status = BUILD_ERRORPAGE;
+}
+
+
 void ResponseHandler::buildErrorResponse(clientInfo *clientPTR)
 {
 	if (clientPTR->errorFileFd == -1)
-	{
-		std::string errorFileName = "home/error/" + std::to_string(getResponseCode()) + ".html"; // HARD CODED!!
-		checkExtension(errorFileName); // do we need this...?
-
-		clientPTR->errorFileFd = open(errorFileName.c_str(), O_RDONLY);
-		if (clientPTR->errorFileFd == -1)
-		{
-			std::cerr << RED << "\nopen() of error page file failed:\n" << RESET << std::strerror(errno) << "\n\n";
-			clientPTR->status = DISCONNECT;
-		}
-		else if (fcntl(clientPTR->errorFileFd, F_SETFL, O_NONBLOCK) == -1) // make file fd non-blocking
-		{
-			std::cerr << RED << "\nfcntl() failed:\n" << RESET << std::strerror(errno) << "\n\n";
-			// Error handling...?
-		}
-		return ;
-	}
+		std::cout << RED << "\nERROR! buildErrorResponse called before error file was opened\n" << RESET;
 
 //	std::cout << "We got to buildErrorResponse" << std::endl;
 	//need to update this based on config file path to error pages
@@ -368,11 +413,11 @@ void ResponseHandler::buildErrorResponse(clientInfo *clientPTR)
 	int		bytesRead;
 	int		readPerCall = 1023;
 
-	bytesRead = read(clientPTR->errorFileFd, buffer, readPerCall); // This needs to go thorugh poll()...?
+	bytesRead = read(clientPTR->errorFileFd, buffer, readPerCall);
 	if (bytesRead == -1)
 	{
 		std::cerr << RED << "\nread() of error page file failed:\n" << RESET << std::strerror(errno) << "\n\n";
-		clientPTR->status = DISCONNECT;
+		clientPTR->status = DISCONNECT; // --> Not good, we need a standard error page here!
 		return ;
 	}
 
@@ -403,6 +448,7 @@ void	ResponseHandler::buildDirListingResponse(const std::string& pathForDirToLis
 	content += " <h1>In directory with path: " + pathForDirToList + "</h1>\n";
 	content += "<ul>\n";
 
+	// is filesystem considered a "reading operation"...? Do we need to go through poll() before that?
 	for(const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(pathForDirToList))
 	{
 		std::string href = entry.path().filename().string();

@@ -24,6 +24,7 @@ class ResponseHandler
 		void setRequestType(enum requestTypes reqType);
 		void setResponseCode(unsigned int code);
 		void buildDirListingResponse(const std::string& pathToDir, clientInfo *ClientPTR);
+		int  openResponseFile(clientInfo *clientPTR, std::string filePath);
 	
     public:
         ResponseHandler() = default;
@@ -40,6 +41,10 @@ class ResponseHandler
 		bool checkRequestAllowed(clientInfo *clientPTR, std::string filePath);
 		void buildRedirectResponse(std::string filePath, clientInfo *clientPTR);
 		void buildErrorResponse(clientInfo *ClientPTR); // is this ok in public...? used to be in private! - Panu
+		void openErrorResponseFile(clientInfo *clientPTR);
+		int buildResponse(clientInfo *clientPTR);
+
+
 
 };
 

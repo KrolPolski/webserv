@@ -1,26 +1,15 @@
 #include "ConnectionHandler.hpp"
 
-/*
-	CONSTRUCTOR
-*/
 
 ConnectionHandler::ConnectionHandler()
 {
 }
 
 
-/*
-	DESTRUCTOR
-*/
-
 ConnectionHandler::~ConnectionHandler()
 {
 	closeAllSockets();
 }
-
-/*
-	INIT SERVERS
-*/
 
 
 int		ConnectionHandler::initServers(char *configFile)
@@ -131,7 +120,7 @@ int		ConnectionHandler::startServers()
 	while (1)
 	{
 		if (isSigInt)
-			return (sigIntMessage());
+			return (sigIntExit());
 		
 		checkClientTimeOut();
 
@@ -139,7 +128,7 @@ int		ConnectionHandler::startServers()
 		if (readySocketCount == -1)
 		{
 			if (isSigInt)
-				return (sigIntMessage());
+				return (sigIntExit());
 			else
 			{
 				std::cerr << RED << "\npoll() failed:\n" << RESET << std::strerror(errno) << "\n\n";
@@ -197,7 +186,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[CONNECTED])
 			{
 				clientPTR->stateFlags[CONNECTED] = true;
-				std::cout << GREEN << "\nCLIENT CONNECTED!\n" << RESET;
+		//		std::cout << GREEN << "\nCLIENT CONNECTED!\n" << RESET;
 			}
 
 			if (clientPTR->clientFd == pollFdStuct.fd)
@@ -210,7 +199,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[RECIEVE_REQUEST])
 			{
 				clientPTR->stateFlags[RECIEVE_REQUEST] = true;
-				std::cout << GREEN << "\nCLIENT RECIEVE_REQUEST!\n" << RESET;
+		//		std::cout << GREEN << "\nCLIENT RECIEVE_REQUEST!\n" << RESET;
 			}
 
 			if (clientPTR->clientFd == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
@@ -223,7 +212,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[BUILD_ERRORPAGE])
 			{
 				clientPTR->stateFlags[BUILD_ERRORPAGE] = true;
-				std::cout << GREEN << "\nCLIENT BUILD_ERRORPAGE!\n" << RESET;
+		//		std::cout << GREEN << "\nCLIENT BUILD_ERRORPAGE!\n" << RESET;
 			}
 
 			if (clientPTR->errorFileFd == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
@@ -236,7 +225,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[BUILD_REPONSE])
 			{
 				clientPTR->stateFlags[BUILD_REPONSE] = true;
-				std::cout << GREEN << "\nCLIENT BUILD_REPONSE!\n" << RESET;
+		//		std::cout << GREEN << "\nCLIENT BUILD_REPONSE!\n" << RESET;
 			}
 
 			if (clientPTR->responseFileFd == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
@@ -249,12 +238,12 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[EXECUTE_CGI])
 			{
 				clientPTR->stateFlags[EXECUTE_CGI] = true;
-				std::cout << GREEN << "\nCLIENT EXECUTE_CGI!\n" << RESET;
+		//		std::cout << GREEN << "\nCLIENT EXECUTE_CGI!\n" << RESET;
 			}
 
 			if (clientPTR->pipeToCgi[1] == pollFdStuct.fd && pollFdStuct.revents & POLLOUT)
 			{
-				std::cout << GREEN << "\nGoing to write in ToCgi Pipe!\n" << RESET;
+		//		std::cout << GREEN << "\nGoing to write in ToCgi Pipe!\n" << RESET;
 
 				if (clientPTR->respHandler->m_cgiHandler->writeToCgiPipe() == -1)
 					clientPTR->status = DISCONNECT; // This is wrong, we need an error page! But what type of page...?
@@ -270,13 +259,12 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 				clientPTR->status = DISCONNECT; // This is wrong, we need an error page! But what type of page...?
 			else if (executeStatus == 0)
 			{
-				std::cout << GREEN << "\nExecute status = 0, moving on to BUILD_CGI_RESPONSE!\n" << RESET;
+		//		std::cout << GREEN << "\nExecute status = 0, moving on to BUILD_CGI_RESPONSE!\n" << RESET;
 
-				clientPTR->status = BUILD_CGI_RESPONSE; // Should we clear the unnecessary pipe FD's from pollVec here...?
+				clientPTR->status = BUILD_CGI_RESPONSE;
 				removeFromPollfdVec(clientPTR->pipeToCgi[0]);
 				removeFromPollfdVec(clientPTR->pipeToCgi[1]);
 				removeFromPollfdVec(clientPTR->pipeFromCgi[1]);
-				addNewPollfd(clientPTR->pipeFromCgi[0]);
 			}
 
 			break ;
@@ -287,13 +275,13 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[BUILD_CGI_RESPONSE])
 			{
 				clientPTR->stateFlags[BUILD_CGI_RESPONSE] = true;
-				std::cout << GREEN << "\nCLIENT BUILD_CGI_RESPONSE!\n" << RESET;
+		//		std::cout << GREEN << "\nCLIENT BUILD_CGI_RESPONSE!\n" << RESET;
 			}
 
 			if (clientPTR->pipeFromCgi[0] == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
 			{
-				std::cout << GREEN << "\nGoing to buildCgiResponse() function!\n" << RESET;
-				std::cout << GREEN << "\nThe pipeFromCGI fd is: " << clientPTR->pipeFromCgi[0] << RESET;
+		//		std::cout << GREEN << "\nGoing to buildCgiResponse() function!\n" << RESET;
+		//		std::cout << GREEN << "\nThe pipeFromCGI fd is: " << clientPTR->pipeFromCgi[0] << RESET;
 
 				if (clientPTR->respHandler->m_cgiHandler->buildCgiResponse(clientPTR) == -1)
 					clientPTR->status = DISCONNECT; // This is wrong, we need an error page! But what type of page...?
@@ -306,7 +294,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[SEND_RESPONSE])
 			{
 				clientPTR->stateFlags[SEND_RESPONSE] = true;
-				std::cout << GREEN << "\nCLIENT SEND_RESPONSE!\n" << RESET;
+		//		std::cout << GREEN << "\nCLIENT SEND_RESPONSE!\n" << RESET;
 			}
 
 			if (clientPTR->clientFd == pollFdStuct.fd && pollFdStuct.revents & POLLOUT)
@@ -319,12 +307,16 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[DISCONNECT])
 			{
 				clientPTR->stateFlags[DISCONNECT] = true;
-				std::cout << GREEN << "\nCLIENT DISCONNECT!\n" << RESET;
+		//		std::cout << GREEN << "\nCLIENT DISCONNECT!\n" << RESET;
 			}
 
-			removeClientFdsFromPollVec(clientPTR);
 			clientCleanUp(clientPTR);
 			removeFromClientVec(clientPTR);
+
+		//	std::cout << RED << "SERVER STATUS:\n" << RESET
+		//	<< "Server vec size: " << m_serverVec.size() << "\n"
+		//	<< "Client vec size: " << m_clientVec.size() << "\n"
+		//	<< "Poll vec size: " << m_pollfdVec.size() << "\n";
 
 			/*
 				NOTE!
@@ -375,7 +367,7 @@ void		ConnectionHandler::acceptNewClient(const unsigned int serverFd)
 			return ;
 		}
 		addNewPollfd(newClientFd);
-		std::cout << GREEN << "Creating new client\n" << RESET;
+		// std::cout << GREEN << "Creating new client\n" << RESET;
 		m_clientVec.push_back({newClientFd, relatedServerPTR});
 	}
 
@@ -414,7 +406,7 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 	// If we managed to recieve everything from client
 	if (recievedBytes < bufLen)
 	{
-		std::cout << RED << "Recieved request:\n\n" << RESET << clientPTR->requestString << "\n\n";
+		// std::cout << RED << "Recieved request:\n\n" << RESET << clientPTR->requestString << "\n\n";
 
 		clientPTR->status = PARSE_REQUEST;
 		parseClientRequest(clientPTR);
@@ -424,11 +416,12 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 		{
 			addNewPollfd(clientPTR->pipeToCgi[0]);
 			addNewPollfd(clientPTR->pipeToCgi[1]);
+			addNewPollfd(clientPTR->pipeFromCgi[0]);
 			addNewPollfd(clientPTR->pipeFromCgi[1]);
 		}
 		
-		std::cout << RED << "Parse done" << RESET << "\n";
-		std::cout << RED << "Client status: " << clientPTR->status << RESET << "\n\n";
+		// std::cout << RED << "Parse done" << RESET << "\n";
+		// std::cout << RED << "Client status: " << clientPTR->status << RESET << "\n\n";
 
 
 	}
@@ -450,7 +443,6 @@ void	ConnectionHandler::parseClientRequest(clientInfo *clientPTR)
 		if (clientPTR->status == BUILD_ERRORPAGE)
 			addNewPollfd(clientPTR->errorFileFd);
 	}
-	//might have an error here now too.
 }
 
 
@@ -471,7 +463,7 @@ void		ConnectionHandler::sendDataToClient(clientInfo *clientPTR)
 
 	clientPTR->bytesSent += sendBytes;
 
-	std::cout << RED << "Bytes sent:\n" << RESET << clientPTR->bytesSent << "\n";
+	// std::cout << RED << "Bytes sent:\n" << RESET << clientPTR->bytesSent << "\n";
 
 	// What should we do if these don't match...? Most likely do another send starting from response[bytesSent]...?
 	if (clientPTR->bytesSent == (int)clientPTR->responseString.length()) // int casting... not good
@@ -492,12 +484,14 @@ void	ConnectionHandler::addNewPollfd(int newFd)
 	m_pollfdVec.push_back(tempPollfd);
 }
 
-void	ConnectionHandler::removeFromPollfdVec(int fdToRemove)
+void	ConnectionHandler::removeFromPollfdVec(int &fdToRemove)
 {
 	for (int i = 0; i < (int)m_pollfdVec.size(); ++i)
 	{
 		if (m_pollfdVec[i].fd == fdToRemove)
 		{
+			close(fdToRemove); // Do I have to check close return value...?
+			fdToRemove = -1;
 			m_pollfdVec.erase(m_pollfdVec.begin() + i); // can this be done smarter than with erase()...?
 			return ;
 		}
@@ -611,20 +605,19 @@ void	ConnectionHandler::clientCleanUp(clientInfo *clientPTR)
 			delete clientPTR->respHandler->m_cgiHandler;
 		delete clientPTR->respHandler;
 	}
-	if (clientPTR->clientFd != -1)
-		close(clientPTR->clientFd); // do i need to check close() for fail...?
-	if (clientPTR->errorFileFd != -1)
-		close(clientPTR->errorFileFd); // do we need error handling for close()...?
-	if (clientPTR->responseFileFd != -1)
-		close(clientPTR->responseFileFd); // do i need to check close() for fail...?
-	if (clientPTR->pipeToCgi[0] != -1)
-		close(clientPTR->pipeToCgi[0]);
-	if (clientPTR->pipeToCgi[1] != -1)
-		close(clientPTR->pipeToCgi[1]);
-	if (clientPTR->pipeFromCgi[0] != -1)
-		close(clientPTR->pipeFromCgi[0]);
-	if (clientPTR->pipeFromCgi[1] != -1)
-		close(clientPTR->pipeFromCgi[1]);
+	
+	removeClientFdsFromPollVec(clientPTR);
+}
+
+// Returns -1 for error handling purposes
+int		ConnectionHandler::sigIntExit()
+{
+	std::cout << GREEN << "\nRecieved SIGINT signal, exiting program\n" << RESET;
+
+	for (auto &obj : m_clientVec)
+		clientCleanUp(&obj);
+
+	return (-1);
 }
 
 

@@ -34,8 +34,6 @@ class ConnectionHandler
 	
 	std::map<std::string, ConfigurationHandler>	m_configMap;
 
-	// map: ConfigHandler	m_config;
-
 	std::vector<serverInfo>	m_serverVec;
 	std::vector<clientInfo>	m_clientVec;
 	std::vector<pollfd>		m_pollfdVec;
@@ -47,9 +45,8 @@ class ConnectionHandler
 
 	// poll() helper functions
 	void	addNewPollfd(int newFd);
-	void	removeFromPollfdVec(int fdToRemove);
+	void	removeFromPollfdVec(int &fdToRemove);
 	void	removeClientFdsFromPollVec(clientInfo *clientPTR);
-
 
 	// client data functions
 	void	checkClientTimeOut();
@@ -64,7 +61,6 @@ class ConnectionHandler
 	int		parseRequest(clientInfo *clientPTR);
 
 	// server helper functions
-
 	serverInfo *getServerByFd(const int fd);
 
 	// client helper functions
@@ -72,10 +68,7 @@ class ConnectionHandler
 	pollfd		*getClientPollfd(const int clientFd);
 	void		removeFromClientVec(clientInfo *clientPTR);
 
+	int	sigIntExit();
 
-/*	// These are just for testing
-	std::string createHomeResponse();
-	std::string createSecondPageResponse();
-*/
 
 };

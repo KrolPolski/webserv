@@ -50,11 +50,10 @@ struct clientInfo
 
 	int		clientTimeOutLimit = 3;
 
-	bool	stateFlags[9] = {}; // JUST A TEST
+	bool	stateFlags[9] = {}; // JUST FOR DEBUG
 
 	std::string	clientIP; // we should probably get this in the constructor
 	std::string	requestString;
-	//std::string responseHeaders; // might not be needed
 	std::string responseBody;
 	std::string responseString;
 	

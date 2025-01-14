@@ -19,7 +19,7 @@ class CgiHandler
 	CgiHandler(clientInfo &client);
 	~CgiHandler() {};
 
-	int	writeToCgiPipe(); // new structure test
+	int	writeToCgiPipe();
 	int	executeCgi();
 	int	checkWaitStatus();
 	int	buildCgiResponse(clientInfo *clientPTR);
@@ -55,7 +55,7 @@ class CgiHandler
 	bool		m_pipeFromCgiWriteReady;
 	bool		m_childProcRunning;
 	bool		m_scriptReady; // meaning the child process has finished
-	bool		m_responseReady; // When read() returns < buffersize
+	bool		m_responseReady; // When read() returns < buffersize --> might not be needed
 
 	std::string 	m_pathToInterpreter;
 	std::string 	m_pathToScript;
@@ -76,9 +76,8 @@ class CgiHandler
 
 	int		cgiChildProcess();
 
-	int		errorExit(std::string errStr);
+	int		errorExit(std::string errStr, bool isChildProc);
 	void	closeAndInitFd(int &fd);
-	void	closeAllFd();
-
+	void	closeAndDeleteClient();
 
 };

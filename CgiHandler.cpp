@@ -1,9 +1,6 @@
 #include "CgiHandler.hpp"
 #include "Structs.hpp"
 
-/*
-	CONSTRUCTOR
-*/
 
 CgiHandler::CgiHandler(clientInfo &client) : m_client(client)
 {
@@ -19,7 +16,6 @@ CgiHandler::CgiHandler(clientInfo &client) : m_client(client)
 	CgiTypes 	type = m_client.parsedRequest.cgiType;
 
 	if (type == PHP)
-		//m_pathToInterpreter = "/opt/homebrew/bin/php-cgi"; homebrew path is different
 		m_pathToInterpreter = m_client.relatedServer->serverConfig->getCgiPath("/cgi/") + "/php-cgi";
 	else if (type == PYTHON)
 		m_pathToInterpreter = m_client.relatedServer->serverConfig->getCgiPath("/cgi/") + "/python3"; // check this later // with the regex changes in that merge i might change this. ----- Patrik
@@ -32,10 +28,6 @@ CgiHandler::CgiHandler(clientInfo &client) : m_client(client)
 	setExecveEnvArr();
 
 }
-
-/*
-	SET EXECVE ARRAYS
-*/
 
 void	CgiHandler::setExecveArgs()
 {
@@ -94,33 +86,32 @@ int	CgiHandler::executeCgi()
 	if (!m_pipeToCgiWriteDone || !m_pipeToCgiReadReady || !m_pipeFromCgiWriteReady)
 		return (1);
 
-	std::cout << GREEN << "\nStarting execute CGI!\n" << RESET;
+//	std::cout << GREEN << "\nStarting execute CGI!\n" << RESET;
 
 
 	if (m_childProcRunning == false)
 	{
 		m_childProcRunning = true;
-		std::cout << GREEN << "\nStarting Child proc!\n" << RESET;
+	//	std::cout << GREEN << "\nStarting Child proc!\n" << RESET;
 
 		m_childProcPid = fork();
 		if (m_childProcPid == -1)
-			return (errorExit("Fork() failed"));
+			return (errorExit("Fork() failed", false));
 
 		if (m_childProcPid == 0)
 			return (cgiChildProcess());
 		else
 		{
 			// In parent/main process
-			std::cout << GREEN << "\nClosing stuff in parent!\n" << RESET;
+	//		std::cout << GREEN << "\nClosing stuff in parent!\n" << RESET;
 
 
 			close(m_client.pipeFromCgi[1]); // Do we need to check close() return value here...?
 			close(m_client.pipeToCgi[0]);
 			close(m_client.pipeToCgi[1]);
 
-			std::cout << GREEN << "\n Client's FDs in Parent proc after close:\n"
-			<< m_client.pipeFromCgi[1] << ", " << m_client.pipeToCgi[0] << ", " << m_client.pipeToCgi[1] << RESET;
-
+	//		std::cout << GREEN << "\n Client's FDs in Parent proc after close:\n"
+	//		<< m_client.pipeFromCgi[1] << ", " << m_client.pipeToCgi[0] << ", " << m_client.pipeToCgi[1] << RESET;
 
 			return (checkWaitStatus());
 		}
@@ -133,7 +124,7 @@ int	CgiHandler::executeCgi()
 
 int		CgiHandler::writeToCgiPipe()
 {
-	std::cout << GREEN << "\nStartig to write in ToCgi Pipe!\n" << RESET;
+//	std::cout << GREEN << "\nStartig to write in ToCgi Pipe!\n" << RESET;
 
 	if (m_pipeToCgiWriteDone)
 		return (0);
@@ -144,11 +135,13 @@ int		CgiHandler::writeToCgiPipe()
 		size_t len = m_client.parsedRequest.rawContent.length();
 
 		if (write(m_client.pipeToCgi[1], buf, len + 1) == -1)
-			return (errorExit("Write() failed"));
+			return (errorExit("Write() failed", false));
 
-		std::cout << GREEN << "\nWrite to ToCgi Pipe success!\n" << RESET;
+	//	std::cout << GREEN << "\nWrite to ToCgi Pipe success!\n" << RESET;
 
 	}
+	else if (m_client.parsedRequest.method == "GET")
+		m_client.respHandler->m_cgiHandler->setPipeToCgiReadReady();
 	m_pipeToCgiWriteDone = true;
 	return (0);
 }
@@ -164,19 +157,19 @@ int		CgiHandler::cgiChildProcess()
 	std::string scriptDirectoryPath = m_pathToScript.substr(0, len);
 
 	if (close(m_client.pipeFromCgi[0]) == -1 || close(m_client.pipeToCgi[1]) == -1)
-		return (errorExit("Close() failed")); // is this needed...?
+		return (errorExit("Close() failed", true)); // is this needed...?
 
 	if (chdir(scriptDirectoryPath.c_str()) == -1)
-		return (errorExit("Chdir() failed"));
+		return (errorExit("Chdir() failed", true));
 
 	if (dup2(m_client.pipeFromCgi[1], STDOUT_FILENO) == -1 || dup2(m_client.pipeToCgi[0], STDIN_FILENO) == -1)
-		return (errorExit("Dup2() failed"));
+		return (errorExit("Dup2() failed", true));
 
 	if (close(m_client.pipeFromCgi[1]) == -1 || close(m_client.pipeToCgi[0]) == -1)
-		return (errorExit("Close() failed")); // is this needed...?
+		return (errorExit("Close() failed", true)); // is this needed...?
 
 	if (execve(m_pathToInterpreter.c_str(), m_argsForExecve, m_envArrExecve) == -1)
-		return (errorExit("Execve() failed"));
+		return (errorExit("Execve() failed", true));
 
 	return (0);
 }
@@ -191,7 +184,7 @@ int	CgiHandler::checkWaitStatus()
 		return (1);
 
 	if (waitpidStatus == -1)
-		return (errorExit("Waitpid() failed"));
+		return (errorExit("Waitpid() failed", false));
 	if (WIFEXITED(statloc) == 1)
 	{
 		if (WEXITSTATUS(statloc) != 0)
@@ -215,13 +208,12 @@ int	CgiHandler::buildCgiResponse(clientInfo *clientPTR)
 	int		bytesRead;
 	int		readPerCall = 1023;
 
-	std::cout << GREEN << "\nStarting to read pipe\n" <<  RESET;
+//	std::cout << GREEN << "\nStarting to read pipe\n" <<  RESET;
 
 	bytesRead = read(clientPTR->pipeFromCgi[0], buffer, readPerCall);
 	if (bytesRead == -1)
-		return (errorExit("Read() failed"));
+		return (errorExit("Read() failed", false));
 
-	std::cout << GREEN << "\nAfter read\n" <<  RESET;
 
 
 	buffer[bytesRead] = '\0';
@@ -231,7 +223,7 @@ int	CgiHandler::buildCgiResponse(clientInfo *clientPTR)
 
 	if (bytesRead < readPerCall)
 	{
-			std::cout << GREEN << "\nBuilding final response\n" << RESET;
+	//		std::cout << GREEN << "\nBuilding final response\n" << RESET;
 
 		if (clientPTR->parsedRequest.cgiType == PHP)
 		{
@@ -260,19 +252,29 @@ int	CgiHandler::buildCgiResponse(clientInfo *clientPTR)
 }
 
 
-int		CgiHandler::errorExit(std::string errStr)
+int		CgiHandler::errorExit(std::string errStr, bool isChildProc)
 {
 	std::cerr << RED << "\n" << errStr << ":\n" << RESET << std::strerror(errno) << "\n\n";
-	closeAllFd();
+	if (isChildProc)
+		closeAndDeleteClient();
 	return (-1);
 }
 
-void	CgiHandler::closeAllFd()
+void	CgiHandler::closeAndDeleteClient()
 {
+	closeAndInitFd(m_client.clientFd);
+	closeAndInitFd(m_client.responseFileFd);
+	closeAndInitFd(m_client.errorFileFd);
 	closeAndInitFd(m_client.pipeFromCgi[0]);
 	closeAndInitFd(m_client.pipeFromCgi[1]);
 	closeAndInitFd(m_client.pipeToCgi[0]);
 	closeAndInitFd(m_client.pipeToCgi[1]);
+	if (m_client.respHandler != nullptr)
+	{
+		if (m_client.respHandler->m_cgiHandler != nullptr)
+			delete m_client.respHandler->m_cgiHandler;
+		delete m_client.respHandler;
+	}
 }
 
 void	CgiHandler::closeAndInitFd(int &fd)
@@ -298,9 +300,6 @@ pid_t &CgiHandler::getCgiChildPid()
 {
 	return (m_childProcPid);
 }
-
-
-
 
 
 

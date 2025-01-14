@@ -69,4 +69,3 @@ enum clientStatus
 extern bool	isSigInt;
 
 void	sigIntHandler(int signal);
-int		sigIntMessage();

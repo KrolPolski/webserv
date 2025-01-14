@@ -232,6 +232,11 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 			//std::cout << "For path: " << webFilePath << " = " << dirListing << std::endl;
 			if (dirListing)
 				buildDirListingResponse(filePath, clientPTR);
+			else
+			{
+				setResponseCode(403);
+				openErrorResponseFile(clientPTR);
+			}
 			return 0;
 		}
 	}
@@ -248,12 +253,6 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 		return (0);
 	}
 
-	/*
-		Put these in the end of CGI handling:
-
-		setResponseCode(200);
-		clientPTR->status = SEND_RESPONSE;
-	*/
 	
 	return (openResponseFile(clientPTR, filePath));
 

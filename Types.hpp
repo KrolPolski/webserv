@@ -39,7 +39,6 @@ enum CgiTypes
 
 enum clientStatus
 {
-	CONNECTED,
 	RECIEVE_REQUEST,
 	PARSE_REQUEST,
 	BUILD_ERRORPAGE,

@@ -105,7 +105,6 @@ int	CgiHandler::executeCgi()
 			// In parent/main process
 	//		std::cout << GREEN << "\nClosing stuff in parent!\n" << RESET;
 
-
 			close(m_client.pipeFromCgi[1]); // Do we need to check close() return value here...?
 			close(m_client.pipeToCgi[0]);
 			close(m_client.pipeToCgi[1]);
@@ -118,8 +117,6 @@ int	CgiHandler::executeCgi()
 	}
 	else
 		return (checkWaitStatus());
-
-	return (0);
 }
 
 int		CgiHandler::writeToCgiPipe()
@@ -181,7 +178,7 @@ int	CgiHandler::checkWaitStatus()
 
 	waitpidStatus = waitpid(m_childProcPid, &statloc, WNOHANG);
 	if (waitpidStatus == 0)
-		return (1);
+		return (2);
 
 	if (waitpidStatus == -1)
 		return (errorExit("Waitpid() failed", false));

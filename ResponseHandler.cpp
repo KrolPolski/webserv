@@ -360,7 +360,7 @@ int ResponseHandler::buildResponse(clientInfo *clientPTR)
 		clientPTR->responseString = headers + clientPTR->responseBody;
 		clientPTR->status = SEND_RESPONSE;
 
-		std::cout << RED << "Built response:\n\n" << RESET << clientPTR->responseString << "\n\n";
+	//	std::cout << RED << "Built response:\n\n" << RESET << clientPTR->responseString << "\n\n";
 
 	}
 

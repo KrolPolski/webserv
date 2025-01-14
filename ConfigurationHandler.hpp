@@ -21,22 +21,29 @@
 # include <map>
 # include <regex>
 
+enum dirListStates
+{
+	FALSE,
+	TRUE,
+	UNSET
+};
+
 struct locationBlock
 {
 	std::string					m_root;
 	std::string					m_methods; 		// GET POST DELETE (HEAD)?
-	std::string					m_uploadDir;	// upload destination;
 	std::string					m_cgiPath;		// path to cgi interpreter
-	bool						m_dirListing; 	// directory listing ON or OFF
+	enum dirListStates			m_dirListing; 	// directory listing ON or OFF
 	//std::string					index; 			// if we are choose to override?
 
-	locationBlock() : m_dirListing(false)
+	locationBlock() : m_dirListing(UNSET)
 	{};
 };
 
 class ConfigurationHandler
 {
 	private:
+		enum dirListStates						dirListState;
 		std::vector<std::string>				m_rawBlock;				// the whole server block as cleaned up text
 		std::string 							m_host;					// e.g. 127.0.0.1
 		std::string 							m_port;					// listen e.g. 8080
@@ -55,21 +62,23 @@ class ConfigurationHandler
 
 		void		defaultSettings(std::string);
 
-		std::string	getHost() const;
-		std::string	getPort() const;
-		std::string	getIndex() const;
-		uint		getMCBSize() const;
-		std::string	getNames() const;
-		std::string	getInheritedMethods(std::string) const;
-		bool		getInheritedDirListing(std::string key) const;
-		std::string	getRoot(std::string) const;
-		std::string	getMethods(std::string) const;
-		std::string	getUploadDir(std::string key) const;
-		bool		getDirListing(std::string) const;
-		std::string	getCgiPath(std::string key) const;
-		std::string	getErrorPages(uint) const;
+		std::string				getHost() const;
+		std::string				getPort() const;
+		std::string				getIndex() const;
+		uint					getMCBSize() const;
+		std::string				getNames() const;
+		std::string				getInheritedMethods(std::string) const;
+		enum dirListStates		getInheritedDirListing(std::string key) const;
+		std::string				getRoot(std::string) const;
+		std::string				getMethods(std::string) const;
+		enum dirListStates		getDirListing(std::string) const;
+		std::string				getCgiPath(std::string key) const;
+		std::string				getErrorPages(uint) const;
 
-		bool		checkLocationBlock(locationBlock);
+		bool					checkLocationBlock(locationBlock &);
+		bool					requiredCgiHomeSettings();
+
+		void					printSettings(); // remove this before we eval -- Patrik
 };
 
 std::string	fileNameCheck(char *);

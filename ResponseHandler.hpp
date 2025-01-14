@@ -22,6 +22,7 @@ class ResponseHandler
 		void setRequestType(enum requestTypes reqType);
 		void setResponseCode(unsigned int code);
 		void buildErrorResponse(clientInfo *ClientPTR);
+		void build500Response(clientInfo *clientPTR);
 		void buildDirListingResponse(const std::string& pathToDir, clientInfo *ClientPTR);
 	
     public:

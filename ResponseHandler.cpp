@@ -341,6 +341,27 @@ void ResponseHandler::ServeErrorPages(clientInfo *ClientPTR, std::string request
 		return ;
 }
 
+void ResponseHandler::build500Response(clientInfo *clientPTR)
+{
+	std::string	headers;
+	std::string content;
+
+	content = "<html lang='EN'>"
+	"<head><title>500 Internal Server Error</title></head>"
+		"<body>"
+			"<h1>500 Internal Server Error</h1>"
+			"<p>Something went wrong.</p>"
+		"</body>"
+	"</html>";
+	headers = "HTTP/1.1 " + std::to_string(500) + " Internal Server Error\r\n";
+	headers += "Content-Type: text/html;\r\n";
+	headers += "Content-Length: ";
+	headers += std::to_string(content.length());
+	headers += "\r\n\r\n";
+	clientPTR->responseString = headers + content;
+	std::cout << "responseString: " << clientPTR->responseString << std::endl;
+}
+
 void ResponseHandler::buildErrorResponse(clientInfo *clientPTR)
 {
 	std::string content;

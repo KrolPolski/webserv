@@ -170,6 +170,31 @@ int ResponseHandler::openResponseFile(clientInfo *clientPTR, std::string filePat
 	return (0);
 }
 
+int ResponseHandler::openCgiPipes(clientInfo *clientPTR)
+{
+	if (pipe(clientPTR->pipeToCgi) == -1 || pipe(clientPTR->pipeFromCgi) == -1)
+	{
+		std::cerr << RED << "\npipe() in CGI failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		setResponseCode(500); // is this ok...?
+		openErrorResponseFile(clientPTR);
+		return (-1); // Might not be needed
+	}
+	else if (fcntl(clientPTR->pipeToCgi[0], F_SETFL, O_NONBLOCK) == -1
+	|| fcntl(clientPTR->pipeToCgi[1], F_SETFL, O_NONBLOCK) == -1
+	|| fcntl(clientPTR->pipeFromCgi[0], F_SETFL, O_NONBLOCK) == -1
+	|| fcntl(clientPTR->pipeFromCgi[1], F_SETFL, O_NONBLOCK) == -1)
+	{
+		std::cerr << RED << "\nfcntl() in CGI failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		setResponseCode(500); // is this ok...?
+		openErrorResponseFile(clientPTR);
+		return (-1); // Might not be needed
+	}
+	else
+		clientPTR->status = EXECUTE_CGI;
+
+	return (0);
+}
+
 int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 {
   
@@ -212,22 +237,23 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 	}
 	// If we get here then we have concluded that it isn't a directory.
 
-	/*
-		FIX CGI FD:s LATER!
-		They don't go through poll() yet
-		AND the pipe FD:s are blocking
-	*/
+	
 	if (clientPTR->parsedRequest.isCgi)
 	{
-		CgiHandler	cgiHandler(*clientPTR);
+		m_cgiHandler = new CgiHandler(*clientPTR);
 
-		if (cgiHandler.executeCgi() == -1)
-			return (-1);
+		if (openCgiPipes(clientPTR) == -1)
+			return (-1); // this might be unnecessary, since the return value of checkFile() is not checked!<
 		
-  		setResponseCode(200);
-		clientPTR->status = SEND_RESPONSE;
 		return (0);
 	}
+
+	/*
+		Put these in the end of CGI handling:
+
+		setResponseCode(200);
+		clientPTR->status = SEND_RESPONSE;
+	*/
 	
 	return (openResponseFile(clientPTR, filePath));
 

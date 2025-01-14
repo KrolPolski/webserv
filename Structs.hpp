@@ -38,12 +38,19 @@ struct clientInfo
 
 	clientStatus	status = RECIEVE_REQUEST;
 
+	std::chrono::time_point<std::chrono::high_resolution_clock> startTime;
+	std::chrono::time_point<std::chrono::high_resolution_clock> curTime;
+
 	int		clientFd;
 	int		errorFileFd = -1;
 	int		responseFileFd = -1;
+	int		pipeToCgi[2] = {-1, -1};
+	int		pipeFromCgi[2] = {-1, -1};
 	int		bytesSent = 0;
 
-	bool	stateFlags[7] = {}; // JUST A TEST
+	int		clientTimeOutLimit = 3;
+
+	bool	stateFlags[9] = {}; // JUST A TEST
 
 	std::string	clientIP; // we should probably get this in the constructor
 	std::string	requestString;
@@ -53,6 +60,7 @@ struct clientInfo
 	
 	clientInfo(int clientFd, const serverInfo *server) : relatedServer(server), clientFd(clientFd)
 	{
+		startTime = std::chrono::high_resolution_clock::now();
 	}
 
 };

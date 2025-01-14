@@ -132,6 +132,8 @@ int		ConnectionHandler::startServers()
 	{
 		if (isSigInt)
 			return (sigIntMessage());
+		
+		checkClientTimeOut();
 
 		int	readySocketCount = poll(&m_pollfdVec[0], m_pollfdVec.size(), 0);
 		if (readySocketCount == -1)
@@ -156,6 +158,25 @@ int		ConnectionHandler::startServers()
 				acceptNewClient(m_pollfdVec[i].fd);
 			else if (!isServerSocket)
 				handleClientAction(m_pollfdVec[i]);
+		}
+	}
+}
+
+void	ConnectionHandler::checkClientTimeOut()
+{
+	for (auto &client : m_clientVec)
+	{
+		client.curTime = std::chrono::high_resolution_clock::now();
+		if (client.curTime - client.startTime >= std::chrono::seconds(client.clientTimeOutLimit))
+		{
+			std::cerr << RED << "\nClient disconnected due to time out\n" << RESET << "\n";
+			if (client.respHandler != nullptr && client.respHandler->m_cgiHandler != nullptr)
+			{
+				pid_t cgiChildPid = client.respHandler->m_cgiHandler->getCgiChildPid();
+				if (cgiChildPid != -1)
+					kill(cgiChildPid, SIGKILL); // Or sigint...? And errorhandling?
+			}	
+			client.status = DISCONNECT; // WE NEED SOME KIND OF ERROR PAGE!
 		}
 	}
 }
@@ -223,6 +244,63 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			break ;
 		}
 
+		case EXECUTE_CGI:
+		{
+			if (!clientPTR->stateFlags[EXECUTE_CGI])
+			{
+				clientPTR->stateFlags[EXECUTE_CGI] = true;
+				std::cout << GREEN << "\nCLIENT EXECUTE_CGI!\n" << RESET;
+			}
+
+			if (clientPTR->pipeToCgi[1] == pollFdStuct.fd && pollFdStuct.revents & POLLOUT)
+			{
+				std::cout << GREEN << "\nGoing to write in ToCgi Pipe!\n" << RESET;
+
+				if (clientPTR->respHandler->m_cgiHandler->writeToCgiPipe() == -1)
+					clientPTR->status = DISCONNECT; // This is wrong, we need an error page! But what type of page...?
+			}
+			else if (clientPTR->pipeToCgi[0] == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
+				clientPTR->respHandler->m_cgiHandler->setPipeToCgiReadReady();
+			else if (clientPTR->pipeFromCgi[1] == pollFdStuct.fd && pollFdStuct.revents & POLLOUT)
+				clientPTR->respHandler->m_cgiHandler->setPipeFromCgiWriteReady();
+
+			int executeStatus = clientPTR->respHandler->m_cgiHandler->executeCgi();
+
+			if (executeStatus == -1)
+				clientPTR->status = DISCONNECT; // This is wrong, we need an error page! But what type of page...?
+			else if (executeStatus == 0)
+			{
+				std::cout << GREEN << "\nExecute status = 0, moving on to BUILD_CGI_RESPONSE!\n" << RESET;
+
+				clientPTR->status = BUILD_CGI_RESPONSE; // Should we clear the unnecessary pipe FD's from pollVec here...?
+				removeFromPollfdVec(clientPTR->pipeToCgi[0]);
+				removeFromPollfdVec(clientPTR->pipeToCgi[1]);
+				removeFromPollfdVec(clientPTR->pipeFromCgi[1]);
+				addNewPollfd(clientPTR->pipeFromCgi[0]);
+			}
+
+			break ;
+		}
+
+		case BUILD_CGI_RESPONSE:
+		{
+			if (!clientPTR->stateFlags[BUILD_CGI_RESPONSE])
+			{
+				clientPTR->stateFlags[BUILD_CGI_RESPONSE] = true;
+				std::cout << GREEN << "\nCLIENT BUILD_CGI_RESPONSE!\n" << RESET;
+			}
+
+			if (clientPTR->pipeFromCgi[0] == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
+			{
+				std::cout << GREEN << "\nGoing to buildCgiResponse() function!\n" << RESET;
+				std::cout << GREEN << "\nThe pipeFromCGI fd is: " << clientPTR->pipeFromCgi[0] << RESET;
+
+				if (clientPTR->respHandler->m_cgiHandler->buildCgiResponse(clientPTR) == -1)
+					clientPTR->status = DISCONNECT; // This is wrong, we need an error page! But what type of page...?
+			}
+			break ;
+		}
+
 		case SEND_RESPONSE:
 		{
 			if (!clientPTR->stateFlags[SEND_RESPONSE])
@@ -244,12 +322,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 				std::cout << GREEN << "\nCLIENT DISCONNECT!\n" << RESET;
 			}
 
-			if (clientPTR->clientFd != -1)
-				removeFromPollfdVec(clientPTR->clientFd);
-			if (clientPTR->errorFileFd != -1)
-				removeFromPollfdVec(clientPTR->errorFileFd);
-			if (clientPTR->responseFileFd != -1)
-				removeFromPollfdVec(clientPTR->responseFileFd);
+			removeClientFdsFromPollVec(clientPTR);
 			clientCleanUp(clientPTR);
 			removeFromClientVec(clientPTR);
 
@@ -321,6 +394,8 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 	char	buf[1024] = {0};
 	int		bufLen = 1023; // what is the correct size for recv() buffer...?
 
+	// When using phpPost, recv() fails at some point... very random
+
 	int recievedBytes = recv(clientFd, buf, bufLen, 0);
 	if (recievedBytes <= 0)
 	{
@@ -345,6 +420,12 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 		parseClientRequest(clientPTR);
 		if (clientPTR->status == BUILD_REPONSE)
 			addNewPollfd(clientPTR->responseFileFd);
+		else if (clientPTR->status == EXECUTE_CGI)
+		{
+			addNewPollfd(clientPTR->pipeToCgi[0]);
+			addNewPollfd(clientPTR->pipeToCgi[1]);
+			addNewPollfd(clientPTR->pipeFromCgi[1]);
+		}
 		
 		std::cout << RED << "Parse done" << RESET << "\n";
 		std::cout << RED << "Client status: " << clientPTR->status << RESET << "\n\n";
@@ -423,6 +504,25 @@ void	ConnectionHandler::removeFromPollfdVec(int fdToRemove)
 	}
 }
 
+void	ConnectionHandler::removeClientFdsFromPollVec(clientInfo *clientPTR)
+{
+	if (clientPTR->clientFd != -1)
+		removeFromPollfdVec(clientPTR->clientFd);
+	if (clientPTR->errorFileFd != -1)
+		removeFromPollfdVec(clientPTR->errorFileFd);
+	if (clientPTR->responseFileFd != -1)
+		removeFromPollfdVec(clientPTR->responseFileFd);
+	if (clientPTR->pipeToCgi[0] != -1)
+		removeFromPollfdVec(clientPTR->pipeToCgi[0]);
+	if (clientPTR->pipeToCgi[1] != -1)
+		removeFromPollfdVec(clientPTR->pipeToCgi[1]);
+	if (clientPTR->pipeFromCgi[0] != -1)
+		removeFromPollfdVec(clientPTR->pipeFromCgi[0]);
+	if (clientPTR->pipeFromCgi[1] != -1)
+		removeFromPollfdVec(clientPTR->pipeFromCgi[1]);
+
+}
+
 /*
 	CLOSE SOCKETS
 */
@@ -469,7 +569,11 @@ clientInfo	*ConnectionHandler::getClientPTR(const int clientFd)
 	{
 		if (obj.clientFd == clientFd
 		|| obj.errorFileFd == clientFd
-		|| obj.responseFileFd == clientFd)
+		|| obj.responseFileFd == clientFd
+		|| obj.pipeToCgi[0] == clientFd
+		|| obj.pipeToCgi[1] == clientFd
+		|| obj.pipeFromCgi[0] == clientFd
+		|| obj.pipeFromCgi[1] == clientFd)
 			return (&obj);
 	}
 
@@ -502,13 +606,25 @@ void		ConnectionHandler::removeFromClientVec(clientInfo *clientPTR)
 void	ConnectionHandler::clientCleanUp(clientInfo *clientPTR)
 {
 	if (clientPTR->respHandler != nullptr)
+	{
+		if (clientPTR->respHandler->m_cgiHandler != nullptr)
+			delete clientPTR->respHandler->m_cgiHandler;
 		delete clientPTR->respHandler;
+	}
 	if (clientPTR->clientFd != -1)
 		close(clientPTR->clientFd); // do i need to check close() for fail...?
 	if (clientPTR->errorFileFd != -1)
 		close(clientPTR->errorFileFd); // do we need error handling for close()...?
 	if (clientPTR->responseFileFd != -1)
 		close(clientPTR->responseFileFd); // do i need to check close() for fail...?
+	if (clientPTR->pipeToCgi[0] != -1)
+		close(clientPTR->pipeToCgi[0]);
+	if (clientPTR->pipeToCgi[1] != -1)
+		close(clientPTR->pipeToCgi[1]);
+	if (clientPTR->pipeFromCgi[0] != -1)
+		close(clientPTR->pipeFromCgi[0]);
+	if (clientPTR->pipeFromCgi[1] != -1)
+		close(clientPTR->pipeFromCgi[1]);
 }
 
 

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Types.hpp"
-#include "ResponseHandler.hpp"
 #include <chrono> // for timer building
 #include <filesystem> // for current directory path
 #include <cstring> // for errno
@@ -20,7 +19,16 @@ class CgiHandler
 	CgiHandler(clientInfo &client);
 	~CgiHandler() {};
 
+	int	writeToCgiPipe(); // new structure test
 	int	executeCgi();
+	int	checkWaitStatus();
+	int	buildCgiResponse(clientInfo *clientPTR);
+
+	void setPipeToCgiReadReady(void);
+	void setPipeFromCgiWriteReady(void);
+
+	pid_t &getCgiChildPid();
+
 
 //////
 
@@ -42,9 +50,12 @@ class CgiHandler
 	std::string	m_serverName;
 	std::string	m_serverPort;
 
+	bool		m_pipeToCgiWriteDone;
+	bool		m_pipeToCgiReadReady;
+	bool		m_pipeFromCgiWriteReady;
+	bool		m_childProcRunning;
 	bool		m_scriptReady; // meaning the child process has finished
 	bool		m_responseReady; // When read() returns < buffersize
-	int			m_cgiTimeOut; // How long we wait for the script to finish
 
 	std::string 	m_pathToInterpreter;
 	std::string 	m_pathToScript;
@@ -56,8 +67,7 @@ class CgiHandler
 	char 	*m_argsForExecve[3] = {}; // is this initialization ok?
 	char 	*m_envArrExecve[16] = {};
 
-	int		m_pipeFromCgi[2];
-	int		m_pipeToCgi[2];
+	pid_t	m_childProcPid;
 
 	std::chrono::time_point<std::chrono::high_resolution_clock> m_startTime;
 
@@ -65,11 +75,9 @@ class CgiHandler
 	void	setExecveEnvArr();
 
 	int		cgiChildProcess();
-	int		waitForChildProcess(pid_t &cgiPid);
-	void	buildCgiResponse();
 
 	int		errorExit(std::string errStr);
-	void	closeAndInitFd(int fd);
+	void	closeAndInitFd(int &fd);
 	void	closeAllFd();
 
 

@@ -9,6 +9,7 @@
 #include <map>
 #include "Types.hpp"
 #include <filesystem>
+#include "CgiHandler.hpp"
 
 struct clientInfo;
 
@@ -27,6 +28,10 @@ class ResponseHandler
 		int  openResponseFile(clientInfo *clientPTR, std::string filePath);
 	
     public:
+		CgiHandler	*m_cgiHandler = nullptr; // Should this be private and accessed through getter...?
+		int openCgiPipes(clientInfo *clientPTR);
+
+
         ResponseHandler() = default;
         ResponseHandler(const ResponseHandler& other) = delete;
         const ResponseHandler& operator=(const ResponseHandler& other) = delete;

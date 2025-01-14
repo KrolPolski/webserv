@@ -13,7 +13,7 @@
 # define GREEN	"\033[32m"
 # define RESET	"\033[0m"
 // # define BLUE	"\033[34m"
-// # define PURPLE	"\033[35m"
+ # define PURPLE	"\033[35m"
 // # define CYAN   "\033[36m"
 
 
@@ -44,6 +44,8 @@ enum clientStatus
 	PARSE_REQUEST,
 	BUILD_ERRORPAGE,
 	BUILD_REPONSE,
+	EXECUTE_CGI,
+	BUILD_CGI_RESPONSE,
 	SEND_RESPONSE,
 	DISCONNECT
 };

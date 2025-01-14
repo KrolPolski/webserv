@@ -9,6 +9,9 @@
 #include <map>
 #include "Types.hpp"
 #include <filesystem>
+#include "CgiHandler.hpp"
+
+struct clientInfo;
 
 class ResponseHandler
 {
@@ -21,10 +24,14 @@ class ResponseHandler
 		static const std::map<const unsigned int, std::string> errorCodes;
 		void setRequestType(enum requestTypes reqType);
 		void setResponseCode(unsigned int code);
-		void buildErrorResponse(clientInfo *ClientPTR);
 		void buildDirListingResponse(const std::string& pathToDir, clientInfo *ClientPTR);
+		int  openResponseFile(clientInfo *clientPTR, std::string filePath);
 	
     public:
+		CgiHandler	*m_cgiHandler = nullptr; // Should this be private and accessed through getter...?
+		int openCgiPipes(clientInfo *clientPTR);
+
+
         ResponseHandler() = default;
         ResponseHandler(const ResponseHandler& other) = delete;
         const ResponseHandler& operator=(const ResponseHandler& other) = delete;
@@ -38,5 +45,11 @@ class ResponseHandler
 		unsigned int getResponseCode() const;
 		bool checkRequestAllowed(clientInfo *clientPTR, std::string filePath);
 		void buildRedirectResponse(std::string filePath, clientInfo *clientPTR);
+		void buildErrorResponse(clientInfo *ClientPTR); // is this ok in public...? used to be in private! - Panu
+		void openErrorResponseFile(clientInfo *clientPTR);
+		int buildResponse(clientInfo *clientPTR);
+
+
+
 };
 

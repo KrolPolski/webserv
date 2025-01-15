@@ -325,37 +325,38 @@ void ResponseHandler::parseRequest(clientInfo *clientPTR, std::string requestStr
 //				std::cout << phrase << std::endl;
 	}
 	if (lineOne.size() >= 2)
-		{
-	switch (requestType)
 	{
-		case GET:
+		switch (requestType)
 		{
-			requestTypeAsString = "GET";
-			
-					if (checkRequestAllowed(clientPTR, lineOne.at(1)))
-						checkFile(clientPTR, lineOne.at(1)); // we need to check return value here in case something goes wrong
-					else
-					{
-						setResponseCode(405);
-						openErrorResponseFile(clientPTR);
-					}
-				
-			break;
-		}	
-		case POST:
-		{
-			requestTypeAsString = "POST";
-			if (checkRequestAllowed(clientPTR, lineOne.at(1)))
-				checkFile(clientPTR, ""); // JUST A TEST
-			else
+			case GET:
 			{
-				setResponseCode(405);
-					buildErrorResponse(clientPTR);
+				requestTypeAsString = "GET";
+				
+						if (checkRequestAllowed(clientPTR, lineOne.at(1)))
+							checkFile(clientPTR, lineOne.at(1)); // we need to check return value here in case something goes wrong
+						else
+						{
+							setResponseCode(405);
+							openErrorResponseFile(clientPTR);
+						}
+					
+				break;
+			}	
+			case POST:
+			{
+				requestTypeAsString = "POST";
+				if (checkRequestAllowed(clientPTR, lineOne.at(1)))
+					checkFile(clientPTR, ""); // JUST A TEST
+				else
+				{
+					setResponseCode(405);
+						buildErrorResponse(clientPTR);
+				}
+				break ;
 			}
-			break ;
+			default:
+				std::cout << "unhandled parseRequest" << std::endl;
 		}
-		default:
-			std::cout << "unhandled parseRequest" << std::endl;
 	}
 }
 

@@ -16,7 +16,6 @@
 #ifndef CONFIGURATIONHANDLER_HPP
 # define CONFIGURATIONHANDLER_HPP
 
-# include <iostream>
 # include <vector>
 # include <map>
 # include <regex>

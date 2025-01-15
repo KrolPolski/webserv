@@ -1,9 +1,11 @@
 #include "ResponseHandler.hpp"
 #include "ConnectionHandler.hpp"
+#include "Logger.hpp"
 
 /*
 	MAIN FUNCTION
 */
+Logger log("logfile.log");
 
 int main(int argc, char *argv[])
 {
@@ -25,7 +27,7 @@ int main(int argc, char *argv[])
 	if (handler.initServers(configPTR) == -1)
 		return (1);
 
-
+	log.log(INFO, "Starting server", true);
 	if (handler.startServers() == -1)
 		return (1);
 

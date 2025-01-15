@@ -44,6 +44,7 @@ class ConfigurationHandler
 {
 	private:
 		enum dirListStates						dirListState;
+		enum dirListStates						globalDirListing;
 		std::vector<std::string>				m_rawBlock;				// the whole server block as cleaned up text
 		std::string 							m_host;					// e.g. 127.0.0.1
 		std::string 							m_port;					// listen e.g. 8080
@@ -53,6 +54,7 @@ class ConfigurationHandler
 		std::map<std::string, locationBlock>	m_routes;				// root of that location as key & struct for each block info
 		std::map<int, std::string>				m_redirect;				// HTTP to HTTPS redirection, not much knowledge on this yet
 		std::map<int, std::string>				m_errorPages;			// Custom error pages and their location, error code as key
+		std::map<int, std::string>				m_defaultErrorPages;	// Default for the server if permissions are not in order for custom
 
 		ConfigurationHandler();
 
@@ -74,11 +76,13 @@ class ConfigurationHandler
 		enum dirListStates		getDirListing(std::string) const;
 		std::string				getCgiPath(std::string key) const;
 		std::string				getErrorPages(uint) const;
+		std::string				getDefaultErrorPages(uint) const;
 
 		bool					checkLocationBlock(locationBlock &);
 		bool					requiredCgiHomeSettings();
 
 		void					printSettings(); // remove this before we eval -- Patrik
+		void					printLocationBlock(locationBlock &); // remove this before we eval -- Patrik
 };
 
 std::string	fileNameCheck(char *);

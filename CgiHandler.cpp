@@ -1,24 +1,22 @@
 #include "CgiHandler.hpp"
+#include "Structs.hpp"
 
-/*
-	CONSTRUCTOR
-*/
 
 CgiHandler::CgiHandler(clientInfo &client) : m_client(client)
 {
+	m_pipeToCgiWriteDone = false;
+	m_pipeToCgiReadReady = false;
+	m_pipeFromCgiWriteReady = false;
+	m_childProcRunning = false;
 	m_scriptReady = false;
 	m_responseReady = false;
-	m_cgiTimeOut = 3;
-	m_pipeFromCgi[0] = -1;
-	m_pipeFromCgi[1] = -1;
-	m_pipeToCgi[0] = -1;
-	m_pipeToCgi[1] = -1;
+
+	m_childProcPid = -1;
 
 	CgiTypes 	type = m_client.parsedRequest.cgiType;
 
 	if (type == PHP)
-		//m_pathToInterpreter = "/opt/homebrew/bin/php-cgi"; homebrew path is different
-		m_pathToInterpreter = m_client.relatedServer->serverConfig->getCgiPath("/cgi/") + "/php-cgi"; // do I need to search for this in computer...?
+		m_pathToInterpreter = m_client.relatedServer->serverConfig->getCgiPath("/cgi/") + "/php-cgi";
 	else if (type == PYTHON)
 		m_pathToInterpreter = m_client.relatedServer->serverConfig->getCgiPath("/cgi/") + "/python3"; // check this later // with the regex changes in that merge i might change this. ----- Patrik
 
@@ -30,10 +28,6 @@ CgiHandler::CgiHandler(clientInfo &client) : m_client(client)
 	setExecveEnvArr();
 
 }
-
-/*
-	SET EXECVE ARRAYS
-*/
 
 void	CgiHandler::setExecveArgs()
 {
@@ -88,88 +82,68 @@ void	CgiHandler::setExecveEnvArr()
 
 // Returns -1 on failure
 int	CgiHandler::executeCgi()
-{
-	std::cout << "Entering executeCgi" << std::endl;
-	
-	if (pipe(m_pipeFromCgi) == -1) // make these O_NONBLOCK
-		return (errorExit("Pipe() failed"));
-	if (pipe(m_pipeToCgi) == -1) // make these O_NONBLOCK
-		return (errorExit("Pipe() failed"));
+{	
+	if (!m_pipeToCgiWriteDone || !m_pipeToCgiReadReady || !m_pipeFromCgiWriteReady)
+		return (1);
 
-	pid_t	cgiPid;
-	cgiPid = fork();
-	if (cgiPid == -1)
-		return (errorExit("Fork() failed"));
+//	std::cout << GREEN << "\nStarting execute CGI!\n" << RESET;
 
-	if (cgiPid == 0)
-		return (cgiChildProcess());
-	else
+
+	if (m_childProcRunning == false)
 	{
-		// In parent/main process
+		m_childProcRunning = true;
+	//	std::cout << GREEN << "\nStarting Child proc!\n" << RESET;
 
-		if (close(m_pipeFromCgi[1]) == -1)
-			return (errorExit("Close() failed")); // is this needed...?
-		if (close(m_pipeToCgi[0]) == -1)
-			return (errorExit("Close() failed")); // is this needed...?
+		m_childProcPid = fork();
+		if (m_childProcPid == -1)
+			return (errorExit("Fork() failed", false));
 
-		if (m_client.parsedRequest.method == "POST")
-		{
-			const char *buf = m_client.parsedRequest.rawContent.c_str();
-			size_t len = m_client.parsedRequest.rawContent.length();
-
-			if (write(m_pipeToCgi[1], buf, len + 1) == -1)
-				return (errorExit("Write() failed"));
-			if (close(m_pipeToCgi[1]) == -1)
-				return (errorExit("Close() failed")); // is this needed...?
-		}
+		if (m_childProcPid == 0)
+			return (cgiChildProcess());
 		else
 		{
-			if (close(m_pipeToCgi[1]) == -1)
-				return (errorExit("Close() failed")); // is this needed...?
+			// In parent/main process
+	//		std::cout << GREEN << "\nClosing stuff in parent!\n" << RESET;
+
+
+			close(m_client.pipeFromCgi[1]); // Do we need to check close() return value here...?
+			close(m_client.pipeToCgi[0]);
+			close(m_client.pipeToCgi[1]);
+
+	//		std::cout << GREEN << "\n Client's FDs in Parent proc after close:\n"
+	//		<< m_client.pipeFromCgi[1] << ", " << m_client.pipeToCgi[0] << ", " << m_client.pipeToCgi[1] << RESET;
+
+			return (checkWaitStatus());
 		}
-
-		if (waitForChildProcess(cgiPid) == -1)
-			return (-1);
-
-		/*
-			PANU:
-
-			This needs a rebuild. 
-			It needs to happen like the response building: read one chunk per round, and check if all has been read.
-			Also: Do I need to do poll() check before entering this...?
-		*/
-
-
-		char 	buffer[1024];
-		int		bytesRead;
-		int		readPerCall = 1023;
-		bytesRead = read(m_pipeFromCgi[0], buffer, readPerCall); // This needs to go thorugh poll()...?
-		if (bytesRead == -1)
-			return (errorExit("Read() failed")); // is this needed...?
-
-		buffer[bytesRead] = '\0';
-
-		std::string bufStr = buffer;
-		m_responseBody += bufStr;
-
-		/*
-			NOTE:
-
-			We need to also check in the ConnectionHandler the Cgi status somehow.
-			I mean, when m_responseReady == true, only then we send the response!
-		*/
-		if (bytesRead < readPerCall)
-		{
-			buildCgiResponse();
-			m_responseReady = true;
-		}
-
-		if (close(m_pipeFromCgi[0]) == -1)
-			return (errorExit("Close() failed")); // is this needed...?
-;
 	}
-	return (0);
+	else
+		return (checkWaitStatus());
 
+	return (0);
+}
+
+int		CgiHandler::writeToCgiPipe()
+{
+//	std::cout << GREEN << "\nStartig to write in ToCgi Pipe!\n" << RESET;
+
+	if (m_pipeToCgiWriteDone)
+		return (0);
+
+	if (m_client.parsedRequest.method == "POST")
+	{
+		const char *buf = m_client.parsedRequest.rawContent.c_str();
+		size_t len = m_client.parsedRequest.rawContent.length();
+
+		if (write(m_client.pipeToCgi[1], buf, len + 1) == -1)
+			return (errorExit("Write() failed", false));
+
+	//	std::cout << GREEN << "\nWrite to ToCgi Pipe success!\n" << RESET;
+
+	}
+	else if (m_client.parsedRequest.method == "GET")
+		m_client.respHandler->m_cgiHandler->setPipeToCgiReadReady();
+	m_pipeToCgiWriteDone = true;
+	return (0);
 }
 
 /*
@@ -182,54 +156,35 @@ int		CgiHandler::cgiChildProcess()
 	int			len = m_pathToScript.length() - (m_pathToScript.length() - index);
 	std::string scriptDirectoryPath = m_pathToScript.substr(0, len);
 
-	if (close (m_pipeFromCgi[0]) == -1 || close (m_pipeToCgi[1]) == -1)
-		return (errorExit("Close() failed")); // is this needed...?
+	if (close(m_client.pipeFromCgi[0]) == -1 || close(m_client.pipeToCgi[1]) == -1)
+		return (errorExit("Close() failed", true)); // is this needed...?
 
-	std::cout << "String used for chdir: " << scriptDirectoryPath.c_str() << std::endl;
 	if (chdir(scriptDirectoryPath.c_str()) == -1)
-		return (errorExit("Chdir() failed"));
+		return (errorExit("Chdir() failed", true));
 
-	if (dup2(m_pipeFromCgi[1], STDOUT_FILENO) == -1 || dup2(m_pipeToCgi[0], STDIN_FILENO) == -1)
-		return (errorExit("Dup2() failed"));
+	if (dup2(m_client.pipeFromCgi[1], STDOUT_FILENO) == -1 || dup2(m_client.pipeToCgi[0], STDIN_FILENO) == -1)
+		return (errorExit("Dup2() failed", true));
 
-	if (close (m_pipeFromCgi[1]) == -1 || close (m_pipeToCgi[0]) == -1)
-		return (errorExit("Close() failed")); // is this needed...?
-
+	if (close(m_client.pipeFromCgi[1]) == -1 || close(m_client.pipeToCgi[0]) == -1)
+		return (errorExit("Close() failed", true)); // is this needed...?
 
 	if (execve(m_pathToInterpreter.c_str(), m_argsForExecve, m_envArrExecve) == -1)
-	{
-		std::cerr << RED << "\nExecve() failed:\n" << RESET << std::strerror(errno) << "\n\n";
-		return (1);
-	}
+		return (errorExit("Execve() failed", true));
+
 	return (0);
 }
 
-int	CgiHandler::waitForChildProcess(pid_t &cgiPid)
+int	CgiHandler::checkWaitStatus()
 {
 	int statloc;
-	int	waitpidStatus = 0;
+	int	waitpidStatus;
 
-	/*
-		PANU:
-		Evantually do this timeout check in the poll loop!
-	*/
-	std::chrono::time_point<std::chrono::high_resolution_clock> startTime = std::chrono::high_resolution_clock::now();
-	std::chrono::time_point<std::chrono::high_resolution_clock> curTime;
-	while (waitpidStatus == 0)
-	{
-		curTime = std::chrono::high_resolution_clock::now();
-		if (curTime - startTime >= std::chrono::seconds(m_cgiTimeOut))
-		{
-			kill(cgiPid, SIGKILL); // Or sigint...? And errorhandling?
-			std::cerr << RED << "\nCGI failed due to time out\n" << RESET << "\n";
-			closeAllFd();
-			return (-1);
-		}
-		waitpidStatus = waitpid(cgiPid, &statloc, WNOHANG);
-	}
+	waitpidStatus = waitpid(m_childProcPid, &statloc, WNOHANG);
+	if (waitpidStatus == 0)
+		return (1);
 
 	if (waitpidStatus == -1)
-		return (errorExit("Waitpid() failed"));
+		return (errorExit("Waitpid() failed", false));
 	if (WIFEXITED(statloc) == 1)
 	{
 		if (WEXITSTATUS(statloc) != 0)
@@ -247,45 +202,82 @@ int	CgiHandler::waitForChildProcess(pid_t &cgiPid)
 	return (0);
 }
 
-void	CgiHandler::buildCgiResponse()
+int	CgiHandler::buildCgiResponse(clientInfo *clientPTR)
 {
-	if (m_client.parsedRequest.cgiType == PHP)
+	char 	buffer[1024];
+	int		bytesRead;
+	int		readPerCall = 1023;
+
+//	std::cout << GREEN << "\nStarting to read pipe\n" <<  RESET;
+
+	bytesRead = read(clientPTR->pipeFromCgi[0], buffer, readPerCall);
+	if (bytesRead == -1)
+		return (errorExit("Read() failed", false));
+
+
+
+	buffer[bytesRead] = '\0';
+
+	std::string bufStr = buffer;
+	m_responseBody += bufStr;
+
+	if (bytesRead < readPerCall)
 	{
-		// Remove extra headers created by php-cgi
-		size_t index = m_responseBody.find_first_of('\n');
-		index = m_responseBody.find_first_of('\n', index + 1);
-		m_responseBody = m_responseBody.substr(index + 1, m_responseBody.length() - index);	
+	//		std::cout << GREEN << "\nBuilding final response\n" << RESET;
+
+		if (clientPTR->parsedRequest.cgiType == PHP)
+		{
+			// Remove extra headers created by php-cgi
+			size_t index = m_responseBody.find_first_of('\n');
+			index = m_responseBody.find_first_of('\n', index + 1);
+			m_responseBody = m_responseBody.substr(index + 1, m_responseBody.length() - index);	
+		}
+		
+		// Should we do these in the server manually like these
+		// OR do we expect the CGI scripts themselves to create headers...?
+		m_responseHeaders = "HTTP/1.1 200 OK\r\n";
+		m_responseHeaders += "Content-Type: text/html\r\n"; // check this
+		m_responseHeaders += "Content-Length: ";
+		m_responseHeaders += std::to_string(m_responseBody.length());
+		m_responseHeaders += "\r\n\r\n";
+		clientPTR->responseString = m_responseHeaders + m_responseBody;
+		clientPTR->status = SEND_RESPONSE;
+
+		//	std::cout << GREEN << "RESPONSE STRING:\n" << RESET << m_client.responseString << "\n\n";
+
+		close(clientPTR->pipeFromCgi[0]); // Do we need to check close() return value...?
 	}
 	
-	// Should we do these in the server manually like these
-	// OR do we expect the CGI scripts themselves to create headers...?
-	m_responseHeaders = "HTTP/1.1 200 OK\r\n";
-	m_responseHeaders += "Content-Type: text/html\r\n"; // check this
-	m_responseHeaders += "Content-Length: ";
-	m_responseHeaders += std::to_string(m_responseBody.length());
-	m_responseHeaders += "\r\n\r\n";
-	m_client.responseString = m_responseHeaders + m_responseBody;
-
-//	std::cout << GREEN << "RESPONSE STRING:\n" << RESET << m_client.responseString << "\n\n";
+	return (0);
 }
 
 
-int		CgiHandler::errorExit(std::string errStr)
+int		CgiHandler::errorExit(std::string errStr, bool isChildProc)
 {
 	std::cerr << RED << "\n" << errStr << ":\n" << RESET << std::strerror(errno) << "\n\n";
-	closeAllFd();
+	if (isChildProc)
+		closeAndDeleteClient();
 	return (-1);
 }
 
-void	CgiHandler::closeAllFd()
+void	CgiHandler::closeAndDeleteClient()
 {
-	closeAndInitFd(m_pipeFromCgi[0]);
-	closeAndInitFd(m_pipeFromCgi[1]);
-	closeAndInitFd(m_pipeToCgi[0]);
-	closeAndInitFd(m_pipeToCgi[1]);
+	closeAndInitFd(m_client.clientFd);
+	closeAndInitFd(m_client.responseFileFd);
+	closeAndInitFd(m_client.errorFileFd);
+	closeAndInitFd(m_client.pipeFromCgi[0]);
+	closeAndInitFd(m_client.pipeFromCgi[1]);
+	closeAndInitFd(m_client.pipeToCgi[0]);
+	closeAndInitFd(m_client.pipeToCgi[1]);
+	if (m_client.respHandler != nullptr)
+	{
+		if (m_client.respHandler->m_cgiHandler != nullptr)
+			delete m_client.respHandler->m_cgiHandler;
+		delete m_client.respHandler;
+	}
 }
 
-void	CgiHandler::closeAndInitFd(int fd)
+void	CgiHandler::closeAndInitFd(int &fd)
 {
 	if (fd >= 0)
 	{
@@ -294,6 +286,20 @@ void	CgiHandler::closeAndInitFd(int fd)
 	}
 }
 
+void CgiHandler::setPipeToCgiReadReady(void)
+{
+	m_pipeToCgiReadReady = true;
+}
+
+void CgiHandler::setPipeFromCgiWriteReady(void)
+{
+	m_pipeFromCgiWriteReady = true;
+}
+
+pid_t &CgiHandler::getCgiChildPid()
+{
+	return (m_childProcPid);
+}
 
 
 

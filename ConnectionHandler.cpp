@@ -187,7 +187,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[RECIEVE_REQUEST])
 			{
 				clientPTR->stateFlags[RECIEVE_REQUEST] = true;
-	//			std::cout << GREEN << "\nCLIENT RECIEVE_REQUEST!\n" << RESET;
+				std::cout << GREEN << "\nCLIENT RECIEVE_REQUEST!\n" << RESET;
 			}
 
 			if (clientPTR->clientFd == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
@@ -200,7 +200,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[BUILD_ERRORPAGE])
 			{
 				clientPTR->stateFlags[BUILD_ERRORPAGE] = true;
-	//			std::cout << GREEN << "\nCLIENT BUILD_ERRORPAGE!\n" << RESET;
+				std::cout << GREEN << "\nCLIENT BUILD_ERRORPAGE!\n" << RESET;
 			}
 
 			if (clientPTR->errorFileFd == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
@@ -213,7 +213,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[BUILD_REPONSE])
 			{
 				clientPTR->stateFlags[BUILD_REPONSE] = true;
-	//			std::cout << GREEN << "\nCLIENT BUILD_REPONSE!\n" << RESET;
+				std::cout << GREEN << "\nCLIENT BUILD_REPONSE!\n" << RESET;
 			}
 
 			if (clientPTR->responseFileFd == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
@@ -226,7 +226,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[EXECUTE_CGI])
 			{
 				clientPTR->stateFlags[EXECUTE_CGI] = true;
-	//			std::cout << GREEN << "\nCLIENT EXECUTE_CGI!\n" << RESET;
+				std::cout << GREEN << "\nCLIENT EXECUTE_CGI!\n" << RESET;
 			}
 
 			if (clientPTR->pipeToCgi[1] == pollFdStuct.fd && pollFdStuct.revents & POLLOUT)
@@ -266,7 +266,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[BUILD_CGI_RESPONSE])
 			{
 				clientPTR->stateFlags[BUILD_CGI_RESPONSE] = true;
-	//			std::cout << GREEN << "\nCLIENT BUILD_CGI_RESPONSE!\n" << RESET;
+				std::cout << GREEN << "\nCLIENT BUILD_CGI_RESPONSE!\n" << RESET;
 			}
 
 			if (clientPTR->pipeFromCgi[0] == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
@@ -285,7 +285,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[SEND_RESPONSE])
 			{
 				clientPTR->stateFlags[SEND_RESPONSE] = true;
-	//			std::cout << GREEN << "\nCLIENT SEND_RESPONSE!\n" << RESET;
+				std::cout << GREEN << "\nCLIENT SEND_RESPONSE!\n" << RESET;
 			}
 
 			if (clientPTR->clientFd == pollFdStuct.fd && pollFdStuct.revents & POLLOUT)
@@ -298,7 +298,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[DISCONNECT])
 			{
 				clientPTR->stateFlags[DISCONNECT] = true;
-	//			std::cout << GREEN << "\nCLIENT DISCONNECT!\n" << RESET;
+				std::cout << GREEN << "\nCLIENT DISCONNECT!\n" << RESET;
 			}
 
 			clientCleanUp(clientPTR);
@@ -391,7 +391,7 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 	}
 
 	buf[recievedBytes] = '\0';
-	clientPTR->requestString += buf;
+	clientPTR->requestString.append(buf, recievedBytes);
 
 	if (clientPTR->reqType == UNDEFINED && checkRequestType(clientPTR) == CHUNKED)
 	{
@@ -412,7 +412,7 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 	else if (clientPTR->reqType == CHUNKED && checkChunkedEnd(clientPTR))
 	{
 		std::cout << GREEN << "Chunked request ended\n" << RESET;
-		std::cout << RED << "Recieved request:\n\n" << RESET << clientPTR->requestString << "\n\n";
+	//	std::cout << RED << "Recieved request:\n\n" << RESET << clientPTR->requestString << "\n\n";
 		clientPTR->status = DISCONNECT; // TEST
 	}
 	else if (clientPTR->reqType == MULTIPART)
@@ -422,7 +422,7 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 		if (clientPTR->multipartDataRead == clientPTR->multipartTotalLen)
 		{
 			std::cout << GREEN << "Multipart request ended\n" << RESET;
-		//	std::cout << RED << "Recieved request:\n\n" << RESET << clientPTR->requestString << "\n\n";
+	//		std::cout << RED << "Recieved request:\n\n" << RESET << clientPTR->requestString << "\n\n";
 
 			multipartSaveTest(clientPTR);
 			clientPTR->status = DISCONNECT; // TEST
@@ -495,23 +495,41 @@ int		ConnectionHandler::getMultidataLength(clientInfo *clientPTR)
 
 void	ConnectionHandler::multipartSaveTest(clientInfo *clientPTR)
 {
-	size_t boundaryStartIdx = clientPTR->requestString.find("boundary=");
-	boundaryStartIdx += 9;
+	std::string temp = "boundary=";
+	size_t boundaryStartIdx = clientPTR->requestString.find(temp);
+	boundaryStartIdx += temp.length();
 	size_t boundaryEndIdx = clientPTR->requestString.find("\r\n", boundaryStartIdx);
 	std::string boundaryStr = clientPTR->requestString.substr(boundaryStartIdx, boundaryEndIdx - boundaryStartIdx);
 
-	size_t binaryStartIdx = clientPTR->requestString.find("Content-Type: image/jpeg\r\n\r\n");
-	binaryStartIdx += 32;
-	size_t binaryEndIdx = clientPTR->requestString.find(boundaryStr + "--");
-	std::string binaryStr = clientPTR->requestString.substr(binaryStartIdx, binaryEndIdx - binaryStartIdx);
 
-	std::ofstream outFile("./home/images/uploads/image1");
+	temp = "Content-Type: image/jpeg\r\n\r\n";
+	size_t binaryStartIdx = clientPTR->requestString.find(temp);
+	binaryStartIdx += temp.length();
+	size_t binaryEndIdx = clientPTR->requestString.find(boundaryStr + "--");
+	std::string binaryStr = clientPTR->requestString.substr(binaryStartIdx, binaryEndIdx - binaryStartIdx - 2);
+
+	std::cout << RED << "Binary data len: " << binaryStr.size() << "\n" << RESET;
+
+	std::ofstream outFile("./home/images/uploads/image1.png");
 
 	outFile << binaryStr;
 
 	outFile.close();
 
 	std::cout << GREEN << "Multipart save test complete\n" << RESET;
+
+	
+	clientPTR->status = PARSE_REQUEST;
+	parseClientRequest(clientPTR);
+	if (clientPTR->status == BUILD_REPONSE)
+		addNewPollfd(clientPTR->responseFileFd);
+	else if (clientPTR->status == EXECUTE_CGI)
+	{
+		addNewPollfd(clientPTR->pipeToCgi[0]);
+		addNewPollfd(clientPTR->pipeToCgi[1]);
+		addNewPollfd(clientPTR->pipeFromCgi[0]);
+		addNewPollfd(clientPTR->pipeFromCgi[1]);
+	}
 
 
 }
@@ -543,6 +561,8 @@ void	ConnectionHandler::parseClientRequest(clientInfo *clientPTR)
 
 void		ConnectionHandler::sendDataToClient(clientInfo *clientPTR)
 {
+	std::cout << RED << "RESPONSE:\n" << RESET << clientPTR->responseString << "\n";
+
 	// Send response to client
 	int sendBytes = send(clientPTR->clientFd, clientPTR->responseString.c_str(), clientPTR->responseString.length(), 0);
 

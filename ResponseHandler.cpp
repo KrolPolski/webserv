@@ -320,7 +320,7 @@ void ResponseHandler::parseRequest(clientInfo *clientPTR, std::string requestStr
 		}	
 		case POST:
 		{
-			checkFile(clientPTR, ""); // JUST A TEST
+			checkFile(clientPTR, clientPTR->parsedRequest.filePath); // JUST A TEST
 			break ;
 		}
 		default:
@@ -346,7 +346,7 @@ int ResponseHandler::buildResponse(clientInfo *clientPTR)
 	}
 
 	buffer[bytesRead] = '\0';
-	clientPTR->responseBody += buffer;
+	clientPTR->responseBody.append(buffer, bytesRead);
 
 	if (bytesRead < readPerCall)
 	{

@@ -49,6 +49,13 @@ enum clientStatus
 	DISCONNECT
 };
 
+enum clientRequestType
+{
+	UNDEFINED,
+	MULTIPART,
+	CHUNKED
+};
+
 /*enum contentTypes
 {
 	HTML,

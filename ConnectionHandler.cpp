@@ -393,10 +393,44 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 	buf[recievedBytes] = '\0';
 	clientPTR->requestString += buf;
 
-	// If we managed to recieve everything from client
-	if (recievedBytes < bufLen)
+	if (clientPTR->reqType == UNDEFINED && checkRequestType(clientPTR) == CHUNKED)
 	{
-	//	std::cout << RED << "Recieved request:\n\n" << RESET << clientPTR->requestString << "\n\n";
+		clientPTR->reqType = CHUNKED;
+		if (checkChunkedEnd(clientPTR))
+			std::cout << RED << "Chunked request ended\n" << RESET;
+
+	}
+	else if (clientPTR->reqType == UNDEFINED && checkRequestType(clientPTR) == MULTIPART)
+	{
+		std::cout << GREEN << "It's multipart\n" << RESET;
+
+		clientPTR->reqType = MULTIPART;
+		clientPTR->multipartTotalLen = getMultidataLength(clientPTR);
+		std::cout << GREEN << "The length is: " << clientPTR->multipartTotalLen << "\n" << RESET;
+
+	}
+	else if (clientPTR->reqType == CHUNKED && checkChunkedEnd(clientPTR))
+	{
+		std::cout << GREEN << "Chunked request ended\n" << RESET;
+		std::cout << RED << "Recieved request:\n\n" << RESET << clientPTR->requestString << "\n\n";
+		clientPTR->status = DISCONNECT; // TEST
+	}
+	else if (clientPTR->reqType == MULTIPART)
+	{
+		clientPTR->multipartDataRead += recievedBytes;
+
+		if (clientPTR->multipartDataRead == clientPTR->multipartTotalLen)
+		{
+			std::cout << GREEN << "Multipart request ended\n" << RESET;
+		//	std::cout << RED << "Recieved request:\n\n" << RESET << clientPTR->requestString << "\n\n";
+
+			multipartSaveTest(clientPTR);
+			clientPTR->status = DISCONNECT; // TEST
+		}
+	}
+	else if (recievedBytes < bufLen)
+	{
+		std::cout << RED << "Recieved request:\n\n" << RESET << clientPTR->requestString << "\n\n";
 
 		clientPTR->status = PARSE_REQUEST;
 		parseClientRequest(clientPTR);
@@ -409,14 +443,81 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 			addNewPollfd(clientPTR->pipeFromCgi[0]);
 			addNewPollfd(clientPTR->pipeFromCgi[1]);
 		}
-		
+
 		// std::cout << RED << "Parse done" << RESET << "\n";
 		// std::cout << RED << "Client status: " << clientPTR->status << RESET << "\n\n";
-
-
 	}
 	
 }
+
+clientRequestType	ConnectionHandler::checkRequestType(clientInfo *clientPTR)
+{
+	if (clientPTR->requestString.find("\r\nTransfer-Encoding: chunked\r\n") != std::string::npos)
+		return CHUNKED;
+	else if (clientPTR->requestString.find("\r\nContent-Type: multipart/form-data") != std::string::npos)
+		return MULTIPART;
+	else
+		return UNDEFINED;
+}
+
+bool	ConnectionHandler::checkChunkedEnd(clientInfo *clientPTR)
+{
+	if (clientPTR->requestString.find("\r\n0\r\n\r\n") != std::string::npos) // Might be more efficient to look only the recieved buffer, not entire string!!
+		return true;
+	else
+		return false;
+}
+
+int		ConnectionHandler::getMultidataLength(clientInfo *clientPTR)
+{
+	std::string	strToFind = "Content-Length: ";
+	size_t 		startIdx = clientPTR->requestString.find(strToFind);
+
+	if (startIdx == std::string::npos)
+	{
+		std::cerr << RED << "\ngetMultidataLength() failed:\n" << RESET << "Content-Length header was not found" << "\n\n";
+		// What should we do then...? Code 500?
+	}
+	startIdx += strToFind.length(); // +1 to get over the extra space
+
+	size_t endIdx = clientPTR->requestString.find("\r\n", startIdx);
+	if (endIdx == std::string::npos)
+	{
+		std::cerr << RED << "\ngetMultidataLength() failed:\n" << RESET << "Content-Length header is empty" << "\n\n";
+		// What should we do then...? Code 500?
+	}
+
+	std::string lengthStr = clientPTR->requestString.substr(startIdx, endIdx - startIdx);
+
+	return (std::stoi(lengthStr));
+}
+
+
+void	ConnectionHandler::multipartSaveTest(clientInfo *clientPTR)
+{
+	size_t boundaryStartIdx = clientPTR->requestString.find("boundary=");
+	boundaryStartIdx += 9;
+	size_t boundaryEndIdx = clientPTR->requestString.find("\r\n", boundaryStartIdx);
+	std::string boundaryStr = clientPTR->requestString.substr(boundaryStartIdx, boundaryEndIdx - boundaryStartIdx);
+
+	size_t binaryStartIdx = clientPTR->requestString.find("Content-Type: image/jpeg\r\n\r\n");
+	binaryStartIdx += 32;
+	size_t binaryEndIdx = clientPTR->requestString.find(boundaryStr + "--");
+	std::string binaryStr = clientPTR->requestString.substr(binaryStartIdx, binaryEndIdx - binaryStartIdx);
+
+	std::ofstream outFile("./home/images/uploads/image1");
+
+	outFile << binaryStr;
+
+	outFile.close();
+
+	std::cout << GREEN << "Multipart save test complete\n" << RESET;
+
+
+}
+
+
+
 
 void	ConnectionHandler::parseClientRequest(clientInfo *clientPTR)
 {

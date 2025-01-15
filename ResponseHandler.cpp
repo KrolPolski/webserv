@@ -257,7 +257,7 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 		else
 			setResponseCode(500);
 		std::cerr << "Response Code: " << getResponseCode() << std::endl;
-		buildErrorResponse(clientPTR);
+		openErrorResponseFile(clientPTR);
 		return -1;
 	}
 	/*
@@ -452,25 +452,34 @@ void ResponseHandler::build500Response(clientInfo *clientPTR)
 
 void ResponseHandler::openErrorResponseFile(clientInfo *clientPTR)
 {
-	std::string errorFileName = "home/error/" + std::to_string(getResponseCode()) + ".html"; // HARD CODED!!
+	std::string errorFileName = clientPTR->relatedServer->serverConfig->getErrorPages(responseCode); 
+	std::cout << "Our error page we are trying to use, returned from config handler: " << errorFileName << std::endl;
 	checkExtension(errorFileName); // Is this a good place for this...?
 
+	// this doesn't work because we are passing the web path, not the actual physical path on the drive. 
+	if (errorFileName[0] == '/') // we need to strip the leading / so it uses relative paths instead of absolute ones
+		errorFileName = errorFileName.substr(1, errorFileName.size() - 1);
 	clientPTR->errorFileFd = open(errorFileName.c_str(), O_RDONLY);
+	//if (clientPTR->errorFileFd == -1)
+		//this will get implemented after Patrik's branch gets pulled into main- he's added a method for this.
+		//errorFileName = clientPTR->relatedServer->serverConfig->getDefaultErrorPages(responseCode);
+		//clientPTR->errorFileFd = open(errorFileName.c_str(), O_RDONLY);
 	if (clientPTR->errorFileFd == -1)
 	{
 		// Do we need to specify what went wrong with the opening...?
 		std::cerr << RED << "\nopen() of error page file failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		build500Response(clientPTR);	
 		// Should we have a backup error page here...? That is built within our code?
 		// If for example someone were to mess with all the permissions of our error pages...
-
 		// Disconnect is not good. Here we need to build some kind of "general error page" within our code !!
-		clientPTR->status = DISCONNECT;
+		clientPTR->status = SEND_RESPONSE;
 	}
 	else if (fcntl(clientPTR->errorFileFd, F_SETFL, O_NONBLOCK) == -1) // make file fd non-blocking
 	{
 		std::cerr << RED << "\nfcntl() failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		build500Response(clientPTR);
 		// Disconnect is not good. Here we need to build some kind of "general error page" within our code !!
-		clientPTR->status = DISCONNECT;
+		clientPTR->status = SEND_RESPONSE;
 	}
 	else
 		clientPTR->status = BUILD_ERRORPAGE;

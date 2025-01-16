@@ -31,7 +31,7 @@ enum dirListStates
 struct locationBlock
 {
 	std::string					m_root;
-	std::string					m_methods; 		// GET POST DELETE (HEAD)?
+	std::string					m_methods; 		// GET POST DELETE
 	std::string					m_cgiPath;		// path to cgi interpreter
 	enum dirListStates			m_dirListing; 	// directory listing ON or OFF
 	//std::string					index; 			// if we are choose to override?
@@ -43,26 +43,28 @@ struct locationBlock
 class ConfigurationHandler
 {
 	private:
-		enum dirListStates						dirListState;
-		enum dirListStates						globalDirListing;
+		enum dirListStates						m_globalDirListing;
+		std::string								m_globalMethods;
+		std::map<int, std::string>				m_defaultErrorPages;	// Default for the server if permissions are not in order for custom
+
 		std::vector<std::string>				m_rawBlock;				// the whole server block as cleaned up text
 		std::string 							m_host;					// e.g. 127.0.0.1
 		std::string 							m_port;					// listen e.g. 8080
+		std::string								m_names;				// server names (www.bla.com & bla.com)
+		std::map<int, std::string>				m_redirect;				// HTTP to HTTPS redirection, not much knowledge on this yet
 		std::string								m_index;				// e.g. index.html
 		uint 									m_maxClientBodySize;	// max client body size
-		std::string								m_names;				// server names (www.bla.com & bla.com)
 		std::map<std::string, locationBlock>	m_routes;				// root of that location as key & struct for each block info
-		std::map<int, std::string>				m_redirect;				// HTTP to HTTPS redirection, not much knowledge on this yet
 		std::map<int, std::string>				m_errorPages;			// Custom error pages and their location, error code as key
-		std::map<int, std::string>				m_defaultErrorPages;	// Default for the server if permissions are not in order for custom
+		// enum dirListStates						dirListState;
 
 		ConfigurationHandler();
 
 	public:
-		ConfigurationHandler(std::vector<std::string>, std::string);
+		ConfigurationHandler(std::vector<std::string>);
 		~ConfigurationHandler() {};
 
-		void		defaultSettings(std::string);
+		void		defaultSettings();
 
 		std::string				getHost() const;
 		std::string				getPort() const;
@@ -79,7 +81,7 @@ class ConfigurationHandler
 		std::string				getDefaultErrorPages(uint) const;
 
 		bool					checkLocationBlock(locationBlock &);
-		bool					requiredCgiHomeSettings();
+		bool					requiredSettings();
 
 		void					printSettings(); // remove this before we eval -- Patrik
 		void					printLocationBlock(locationBlock &); // remove this before we eval -- Patrik

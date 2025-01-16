@@ -57,6 +57,10 @@ void	ConfigurationHandler::printSettings()
 	std::cout << "\n--------- Default error pages --------------------\n\n";
 	for (auto &x : m_defaultErrorPages)
 		std::cout << x.first << " : " << x.second << std::endl;
+	std::cout << "\n--------- Global DirListing ---------------------------\n\n";
+	std::cout << m_globalDirListing << std::endl;
+	std::cout << "\n--------- Global Methods ---------------------------\n\n";
+	std::cout << m_globalMethods << std::endl;
 }
 
 void	ConfigurationHandler::printLocationBlock(locationBlock &block)
@@ -75,35 +79,33 @@ void	ConfigurationHandler::printLocationBlock(locationBlock &block)
 DEFAULT SETTINGS
 */
 
-void	ConfigurationHandler::defaultSettings(std::string port)
+void	ConfigurationHandler::defaultSettings()
 {
-	locationBlock loc;
-	m_port = port;
-	m_host = "127.0.0.1";
+	// locationBlock loc;
 	m_index = "index.html";
-	m_maxClientBodySize = 0;
-	globalDirListing = FALSE;
+	m_maxClientBodySize = 1000000;
+	m_globalDirListing = FALSE;
 	m_errorPages.emplace(400, "/default-error-pages/400.html");
 	m_errorPages.emplace(403, "/default-error-pages/403.html");
 	m_errorPages.emplace(404, "/default-error-pages/404.html");
 	m_errorPages.emplace(405, "/default-error-pages/405.html");
 	m_errorPages.emplace(500, "/default-error-pages/500.html");
-
 	m_defaultErrorPages.emplace(400, "/default-error-pages/400.html");
 	m_defaultErrorPages.emplace(403, "/default-error-pages/403.html");
 	m_defaultErrorPages.emplace(404, "/default-error-pages/404.html");
 	m_defaultErrorPages.emplace(405, "/default-error-pages/405.html");
 	m_defaultErrorPages.emplace(500, "/default-error-pages/500.html");
-	loc.m_root = "home";
-	loc.m_methods = "GET";
-	m_routes.emplace("/", loc);
+	m_globalMethods = "GET POST";
+	// loc.m_root = "home";
+	// loc.m_methods = "GET";
+	// m_routes.emplace("/", loc);
 	printSettings(); //remove before end -- Patrik
 }
 
 bool	ConfigurationHandler::checkLocationBlock(locationBlock &block)
 {
 	printLocationBlock(block);
-	if (block.m_root == "")
+	if (block.m_root.empty())
 		return false;
 	// if (block.m_methods == "")
 	// 	block.m_methods = getMethods("/");
@@ -112,25 +114,43 @@ bool	ConfigurationHandler::checkLocationBlock(locationBlock &block)
 	return true;
 }
 
-bool	ConfigurationHandler::requiredCgiHomeSettings()
+bool	ConfigurationHandler::requiredSettings()
 {
-	if (m_routes.contains("/cgi/")
-		&& m_routes.contains("/")
-		&& m_routes.find("/cgi/")->second.m_cgiPath != ""
-		&& m_routes.find("/cgi/")->second.m_root != "")
-		return true;
-	return false;
+	if (m_port.empty())
+	{
+		std::cerr << "Error: Port missing!" << std::endl;
+		return false;
+	}
+	if (m_host.empty())
+	{
+		std::cerr << "Error: IP address missing!" << std::endl;
+		return false;
+	}
+	if (m_names.empty())
+	{
+		std::cerr << "Error: Server names missing!" << std::endl;
+		return false;
+	}
+	if (m_redirect.empty())
+	{
+		std::cerr << "Error: Redirect missing!" << std::endl;
+		return false;
+	}
+	// if (!m_routes.contains("/")) /// if no location block is set. globals haave to be given!!!
+	
+	// 	&& m_routes.find("/cgi/")->second.m_root != "")
+	return true;
 }
 
 /*
 CONSTRUCTOR
 */
 
-ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck, std::string port) : m_rawBlock(servBlck)
+ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : m_rawBlock(servBlck)
 {
 	std::cout << "\n\n\nSetting defaults\n";
 
-	defaultSettings(port);
+	defaultSettings();
 
 	std::cout << "\n\n\nBuilding object\n";
 
@@ -159,7 +179,7 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck, st
 		else if (std::regex_search(*iter, match, returnRegex) == true)
 			m_redirect.emplace(std::stoi(match[1]), match[2]);
 		else if (std::regex_search(*iter, match, maxClientBodyRegex) == true)
-			m_maxClientBodySize = std::stoi(match[1]);
+			m_maxClientBodySize = std::stoi(match[1]) * 1000000;
 		else if (std::regex_search(*iter, match, errorPageRegex) == true)
 		{
 			if (m_errorPages.contains(std::stoi(match[1])))
@@ -170,7 +190,7 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck, st
 			m_index = match[1];
 		else if (std::regex_search(*iter, match, locationRegex) == true)
 		{
-			std::cout << "Processing line: " << *iter << std::endl;
+			// std::cout << "Processing line: " << *iter << std::endl;
 			int openBraces = 0;
 			locationBlock loc;
 			std::string key = match[1];
@@ -180,7 +200,7 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck, st
 				openBraces++;
 				while (openBraces == 1 && iter != m_rawBlock.end())
 				{
-					std::cout << "Processing line: " << *iter << std::endl;
+					// std::cout << "Processing line: " << *iter << std::endl;
 					if (std::regex_search(*iter, match, locationRegex) == true)
 					{
 						openBraces = 0;
@@ -207,25 +227,25 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck, st
 					if (iter->find('{') != std::string::npos)
 						openBraces++;
 				}
-				std::cout << *iter << std::endl;
+				// std::cout << *iter << std::endl;
 				if (openBraces == 0)
 				{
 					if (checkLocationBlock(loc) == false)
 						throw std::runtime_error("Error: Location block not complete"); // this needs more checks in my opinion, depending on the evaluators, what will they test
 					if (m_routes.contains(key))
 						m_routes.erase(key);
-					auto dup = m_routes.emplace(key, loc);
-					if (dup.second == false)
-						throw std::runtime_error("Error: Duplicate location block found"); // is this extra now when .contains check is right before this?
+					m_routes.emplace(key, loc);//auto dup = 
+					// if (dup.second == false)
+					// 	throw std::runtime_error("Error: Duplicate location block found"); // is this extra now when .contains check is right before this?
 					loc = locationBlock();
 				}
 			}
 		}
-		std::cout << "Processing line: " << *iter << std::endl;
+		// std::cout << "Processing line: " << *iter << std::endl;
 	}
 	printSettings(); //remove before the end of the project -- Patrik // std:::optional
-	if (requiredCgiHomeSettings() == false)
-		throw std::runtime_error("Error: Location block not complete, /cgi/ or /"); // What do we decide, what is a must to start our server?? --- Ryan,Panu?
+	if (requiredSettings() == false)
+		throw std::runtime_error("Error: Location block not complete");
 }
 
 /*
@@ -463,7 +483,7 @@ void	extractServerBlocks(std::map<std::string, ConfigurationHandler> &servers, s
 			if (openBraces == 0)
 			{
 				temp.push_back(*iter);
-				auto dup = servers.emplace(port, ConfigurationHandler(temp, port));
+				auto dup = servers.emplace(port, ConfigurationHandler(temp));
 				if (dup.second == false)
 					throw std::runtime_error("Error: Duplicate port found");
 				std::cout << servers.size() << " -------------------------- Checking size\n";

@@ -287,7 +287,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 				clientPTR->stateFlags[SEND_RESPONSE] = true;
 				std::cout << GREEN << "\nCLIENT SEND_RESPONSE!\n" << RESET;
 
-				std::cout << RED << "ResponseStr:\n" << RESET << clientPTR->responseString << "\n";
+			//	std::cout << RED << "ResponseStr:\n" << RESET << clientPTR->responseString << "\n";
 			}
 
 			if (clientPTR->clientFd == pollFdStuct.fd && pollFdStuct.revents & POLLOUT)
@@ -429,9 +429,9 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 
 	//		std::cout << RED << "Recieved request:\n\n" << RESET << clientPTR->requestString << "\n\n";
 
-	//		multipartSaveTest(clientPTR); --> Panu's simple test function
+			multipartSaveTest(clientPTR); // --> Panu's simple test function
 
-			clientPTR->status = PARSE_REQUEST;
+		/*	clientPTR->status = PARSE_REQUEST;
 			parseClientRequest(clientPTR);
 			if (clientPTR->status == BUILD_REPONSE)
 				addNewPollfd(clientPTR->responseFileFd);
@@ -441,7 +441,7 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 				addNewPollfd(clientPTR->pipeToCgi[1]);
 				addNewPollfd(clientPTR->pipeFromCgi[0]);
 				addNewPollfd(clientPTR->pipeFromCgi[1]);
-			}
+			} */
 		}
 	}
 	else if (recievedBytes < bufLen)
@@ -597,9 +597,6 @@ void		ConnectionHandler::sendDataToClient(clientInfo *clientPTR)
 	clientPTR->bytesSent += sendBytes;
 	if (sendBytes <= clientPTR->responseString.size())
 		clientPTR->responseString.erase(0, sendBytes);
-
-	std::cout << RED << "sendDataLen: " << RESET << sendDataLen << "\n"
-	<< RED << "responseStr size: " << RESET << clientPTR->responseString.size() << "\n";
 
 	// std::cout << RED << "Bytes sent:\n" << RESET << clientPTR->bytesSent << "\n";
 

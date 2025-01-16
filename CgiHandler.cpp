@@ -131,7 +131,7 @@ int		CgiHandler::writeToCgiPipe()
 		const char *buf = m_client.parsedRequest.rawContent.c_str();
 		size_t len = m_client.parsedRequest.rawContent.length();
 
-		std::cout << RED << "Raw content:\n" << RESET << m_client.parsedRequest.rawContent << "\n";
+	//	std::cout << RED << "Raw content:\n" << RESET << m_client.parsedRequest.rawContent << "\n";
 
 
 		if (write(m_client.pipeToCgi[1], buf, len + 1) == -1)

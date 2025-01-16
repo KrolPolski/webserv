@@ -15,7 +15,8 @@
 
 #include "ConfigurationHandler.hpp"
 #include <fcntl.h>
-#include <fstream>
+#include "Logger.hpp"
+#include <iostream>
 
 /*
 PRINT SETTINGS
@@ -23,7 +24,7 @@ PRINT SETTINGS
 
 void	ConfigurationHandler::printSettings()
 {
-	std::cout << std::boolalpha;
+	log.log(INFO, "Printing configuration file settings", false);
 	std::cout << "\n--------- Port -----------------------------------\n\n";
 	std::cout << m_port << std::endl;
 	std::cout << "\n--------- Host -----------------------------------\n\n";
@@ -39,11 +40,11 @@ void	ConfigurationHandler::printSettings()
 	{
 		std::cout 
 		<< "\n" << x.first;
-		if (x.second.m_root != "")
+		if (!x.second.m_root.empty())
 			std::cout << "\n  " << x.second.m_root;
-		if (x.second.m_methods != "")
+		if (!x.second.m_methods.empty())
 			std::cout << "\n  " << x.second.m_methods;
-		if (x.second.m_cgiPath != "")
+		if (!x.second.m_cgiPath.empty())
 			std::cout << "\n  " << x.second.m_cgiPath;
 		std::cout << "\n  " << x.second.m_dirListing;
 		std::cout << std::endl;
@@ -79,11 +80,11 @@ void	ConfigurationHandler::defaultSettings(std::string port)
 
 bool	ConfigurationHandler::checkLocationBlock(locationBlock &block)
 {
-	if (block.m_root == "")
+	if (block.m_root.empty())
 		return false;
-	// if (block.m_methods == "")
+	// if (block.m_methods.empty())
 	// 	return false;
-	if (m_names == "")
+	if (m_names.empty())
 		return false;
 	return true;
 }
@@ -92,8 +93,8 @@ bool	ConfigurationHandler::requiredCgiHomeSettings()
 {
 	if (m_routes.contains("/cgi/")
 		&& m_routes.contains("/")
-		&& m_routes.find("/cgi/")->second.m_cgiPath != ""
-		&& m_routes.find("/cgi/")->second.m_root != "")
+		&& !m_routes.find("/cgi/")->second.m_cgiPath.empty()
+		&& !m_routes.find("/cgi/")->second.m_root.empty())
 		return true;
 	return false;
 }
@@ -104,11 +105,11 @@ CONSTRUCTOR
 
 ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck, std::string port) : m_rawBlock(servBlck)
 {
-	std::cout << "\n\n\nSetting defaults\n";
+	log.log(INFO, "Setting default configuration settings", false);
 
 	defaultSettings(port);
 
-	std::cout << "\n\n\nBuilding object\n";
+	log.log(INFO, "Building ConfigurationHandler object", false);
 
 	std::regex	listenRegex(R"(^listen\s+(\d+)\s*;\s*$)");
 	std::regex	hostRegex(R"(^\s*host\s+([^\s]+)\s*;\s*$)");
@@ -170,14 +171,14 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck, st
 						if (subMatch[1] == "off")
 							loc.m_dirListing = FALSE;
 						else if (subMatch[1] == "on")
-							loc.m_dirListing = TRUE; // if dir listing is not set, we are going to get by default false on it and it will not inhetite from the root "/"
+							loc.m_dirListing = TRUE;
 					}
 					if (openBraces == 0)
 					{
-						if (checkLocationBlock(loc) == false)
-							throw std::runtime_error("Error: Location block not complete"); // this needs more checks in my opinion, depending on the evaluators, what will they test
 						if (m_routes.contains(key))
 							m_routes.erase(key);
+						if (checkLocationBlock(loc) == false)
+							throw std::runtime_error("Error: Location block not complete"); // this needs more checks in my opinion, depending on the evaluators, what will they test
 						auto dup = m_routes.emplace(key, loc);
 						if (dup.second == false)
 							throw std::runtime_error("Error: Duplicate location block found"); // is this extra now when .contains check is right before this?
@@ -228,19 +229,18 @@ std::string	ConfigurationHandler::getInheritedMethods(std::string key) const
 		std::string keyFromOurMap = route.first;
 		if (keyFromOurMap == "/")
 			continue ;
-		std::cout << "the key inside getInheritedMethods: " << key << " --- " << keyFromOurMap << std::endl;
 		if (key.starts_with(keyFromOurMap))
 		{
-			std::cout << "match found in " << key << " and " << keyFromOurMap << std::endl;
-			if (route.second.m_methods != "")
+			if (!route.second.m_methods.empty())
 				return route.second.m_methods;
 			else
 			{
-				std::cout << "Methods not set, inheriting from root" << std::endl;
+				log.log(INFO, "Could not find route for methods, inheriting from root", false);
 				return getMethods("/");
 			}
 		}
 	}
+	log.log(INFO, "Could not find route for methods, inheriting from root", false);
 	return getMethods("/"); // if we dont find, we return what the root "/" (home) directory has which we set to defalt if that aswell is missing from the config file
 }
 
@@ -251,16 +251,17 @@ enum dirListStates	ConfigurationHandler::getInheritedDirListing(std::string key)
 		std::string keyFromOurMap = route.first;
 		if (keyFromOurMap == "/")
 			continue ;
-		std::cout << "the key inside getDirListing: " << key << " --- " << keyFromOurMap << std::endl;
 		if (key.starts_with(keyFromOurMap))
 		{
-			std::cout << "match found in " << key << " and " << keyFromOurMap << std::endl;
 			if (route.second.m_dirListing == UNSET)
+			{
+				log.log(INFO, "Could not find route for directory listing, inheriting from root", false);
 				return getDirListing("/");
+			}
 			return route.second.m_dirListing;
 		}
 	}
-	std::cout << "Getting dir list from root\n";
+	log.log(INFO, "Could not find route for directory listing, inheriting from root", false);
 	return getDirListing("/"); // if we dont find, we return what the root "/" (home) directory has wich we set to defalt if that aswell is missing from the config file
 }
 
@@ -268,7 +269,7 @@ std::string	ConfigurationHandler::getRoot(std::string key) const
 {
 	auto map_key = m_routes.find(key);
 	if (map_key == m_routes.end())
-		std::cout << "Error: could not find route for root" << std::endl;
+		log.log(ERROR, "Could not find route for root", false);
 	return map_key->second.m_root;
 }
 
@@ -277,7 +278,7 @@ std::string	ConfigurationHandler::getMethods(std::string key) const
 	auto map_key = m_routes.find(key);
 	if (map_key == m_routes.end())
 	{
-		std::cout << "Error: could not find route for methods" << std::endl;
+		log.log(INFO, "Could not find route for methods, inheriting", false);
 		return getInheritedMethods(key);
 	}
 	return map_key->second.m_methods;
@@ -285,16 +286,17 @@ std::string	ConfigurationHandler::getMethods(std::string key) const
 
 enum dirListStates	ConfigurationHandler::getDirListing(std::string key) const
 {
-	std::cout << "In get dirlist with key: " << key << "\n";
 	auto map_key = m_routes.find(key);
 	if (map_key == m_routes.end())
 	{
-		std::cout << "Error: could not find route for directory listing" << std::endl;
+		log.log(INFO, "Could not find route for directory listing, inheriting", false);
 		return getInheritedDirListing(key);
 	}
 	if (map_key->second.m_dirListing == UNSET)
+	{
+		log.log(INFO, "Could not find route for directory listing, inheriting", false);
 		return getInheritedDirListing(key);
-	std::cout << "Leaving get dirlist with " << map_key->second.m_dirListing << "\n";
+	}
 	return map_key->second.m_dirListing;
 }
 
@@ -302,7 +304,7 @@ std::string	ConfigurationHandler::getCgiPath(std::string key) const
 {
 	auto map_key = m_routes.find(key);
 	if (map_key == m_routes.end())
-		std::cout << "Error: could not find route cgi interpreter path" << std::endl;
+		log.log(ERROR, "Could not find route cgi interpreter path", false);
 	return map_key->second.m_cgiPath;
 }
 
@@ -310,7 +312,7 @@ std::string	ConfigurationHandler::getErrorPages(uint key) const
 {
 	auto map_key = m_errorPages.find(key);
 	if (map_key == m_errorPages.end())
-		std::cout << "Error: could not find this error pages" << std::endl;
+		log.log(ERROR, "Could not find this error pages", false);
 	return map_key->second;
 }
 
@@ -322,7 +324,6 @@ CHECK THE FILE NAME
 
 std::string	fileNameCheck(char *argv)
 {
-	std::cout << "Checking\n\n";
 	std::string	file = argv;
 
 	if (std::regex_match(file, std::regex(".*\\.conf$")) == false)
@@ -336,7 +337,7 @@ READ THE FILE
 
 void	readFile(const std::string &fileName, std::vector<std::string> &rawFile)
 {
-	std::cout << "Reading\n\n";
+	log.log(INFO, "Reading configuration file", false);
 	std::string		line;
 	std::ifstream	file(fileName);
 	int				curlyBrace = 0;
@@ -377,7 +378,7 @@ EXTRACTING EACH SERVER BLOCK
 
 void	extractServerBlocks(std::map<std::string, ConfigurationHandler> &servers, std::vector<std::string> &rawFile)
 {
-	std::cout << "Extracting\n\n";
+	log.log(INFO, "Extracting server blocks from Configuration file", false);
 	try
 	{
 		std::string	port;
@@ -403,7 +404,7 @@ void	extractServerBlocks(std::map<std::string, ConfigurationHandler> &servers, s
 				auto dup = servers.emplace(port, ConfigurationHandler(temp, port));
 				if (dup.second == false)
 					throw std::runtime_error("Error: Duplicate port found");
-				std::cout << servers.size() << " -------------------------- Checking size\n";
+				// std::cout << servers.size() << " -------------------------- Checking size\n";
 				if (servers.size() > 5)
 					throw std::runtime_error("Error: Configuration file is too big");
 				temp.clear();

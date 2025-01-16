@@ -24,6 +24,7 @@ class ResponseHandler
 		static const std::map<const unsigned int, std::string> errorCodes;
 		void setRequestType(enum requestTypes reqType);
 		void setResponseCode(unsigned int code);
+		void build500Response(clientInfo *clientPTR);
 		void buildDirListingResponse(const std::string& pathToDir, clientInfo *ClientPTR);
 		int  openResponseFile(clientInfo *clientPTR, std::string filePath);
 	

@@ -241,6 +241,29 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 		}
 	}
 	// If we get here then we have concluded that it isn't a directory.
+	
+	std::ifstream ourFile(filePath);
+	/*We need to detect which type of error we got with the file, so we 
+	can send the appropriate response code*/
+	if (!ourFile)
+	{
+		std::cerr << "Error: " << strerror(errno) << errno << std::endl;
+		if (errno == 2) //file missing
+		{
+			setResponseCode(404);
+		}
+		else if (errno == 13) //bad permissions
+			setResponseCode(403);
+		else
+			setResponseCode(500);
+		std::cerr << "Response Code: " << getResponseCode() << std::endl;
+		buildErrorResponse(clientPTR);
+		return -1;
+	}
+	/*
+		Panu addition (CGI)
+	*/
+
 
 	
 	if (clientPTR->parsedRequest.isCgi)
@@ -281,50 +304,59 @@ bool ResponseHandler::checkRequestAllowed(clientInfo *clientPTR, std::string fil
 // And I'd just use the parsing I did in the other function, that is stored in clientPTR->parsedRequest
 void ResponseHandler::parseRequest(clientInfo *clientPTR, std::string requestString)
 {
-	switch (requestType)
-	{
-		case GET:
-		{
-			requestTypeAsString = "GET";
-			std::istringstream stream(requestString);
-			std::vector<std::string> reqVec;
-			std::string line;
+	std::istringstream stream(requestString);
+	std::vector<std::string> reqVec;
+	std::string line;
 //			std::cout <<"\nBeginning line splits" << std::endl;
-			while (std::getline(stream, line, '\n'))
-			{
-				reqVec.push_back(line);
+	while (std::getline(stream, line, '\n'))
+	{
+		reqVec.push_back(line);
 //				std::cout << line << std::endl;
-			}
+	}
 //			std::cout << "Line splits done" << std::endl;
 //			std::cout << "Line one is: " << reqVec.at(0) << std::endl;
-			std::istringstream streamL1(reqVec.at(0));
-			std::string phrase; 
-			std::vector<std::string> lineOne;
+	std::istringstream streamL1(reqVec.at(0));
+	std::string phrase; 
+	std::vector<std::string> lineOne;
 //			std::cout << "\nBeginning phrase split" << std::endl;
-			while (std::getline(streamL1, phrase, ' '))
-			{
-				lineOne.push_back(phrase);
+	while (std::getline(streamL1, phrase, ' '))
+	{
+		lineOne.push_back(phrase);
 //				std::cout << phrase << std::endl;
-			}
-			if (lineOne.size() >= 2)
-				{
-					if (checkRequestAllowed(clientPTR, lineOne.at(1)))
-						checkFile(clientPTR, lineOne.at(1)); // we need to check return value here in case something goes wrong
-					else
-					{
-						setResponseCode(405);
-						openErrorResponseFile(clientPTR);
-					}
-				}
-			break;
-		}	
-		case POST:
+	}
+	if (lineOne.size() >= 2)
+	{
+		switch (requestType)
 		{
-			checkFile(clientPTR, clientPTR->parsedRequest.filePath); // JUST A TEST
-			break ;
+			case GET:
+			{
+				requestTypeAsString = "GET";
+				
+						if (checkRequestAllowed(clientPTR, lineOne.at(1)))
+							checkFile(clientPTR, lineOne.at(1)); // we need to check return value here in case something goes wrong
+						else
+						{
+							setResponseCode(405);
+							openErrorResponseFile(clientPTR);
+						}
+					
+				break;
+			}	
+			case POST:
+			{
+				requestTypeAsString = "POST";
+				if (checkRequestAllowed(clientPTR, lineOne.at(1)))
+					checkFile(clientPTR, ""); // JUST A TEST
+				else
+				{
+					setResponseCode(405);
+						buildErrorResponse(clientPTR);
+				}
+				break ;
+			}
+			default:
+				std::cout << "unhandled parseRequest" << std::endl;
 		}
-		default:
-			std::cout << "unhandled parseRequest" << std::endl;
 	}
 }
 
@@ -395,6 +427,27 @@ void ResponseHandler::ServeErrorPages(clientInfo *ClientPTR, std::string request
 	// This is just to satisfy compiler
 	if (ClientPTR == NULL || requestString == "")
 		return ;
+}
+
+void ResponseHandler::build500Response(clientInfo *clientPTR)
+{
+	std::string	headers;
+	std::string content;
+
+	content = "<html lang='EN'>"
+	"<head><title>500 Internal Server Error</title></head>"
+		"<body>"
+			"<h1>500 Internal Server Error</h1>"
+			"<p>Something went wrong.</p>"
+		"</body>"
+	"</html>";
+	headers = "HTTP/1.1 " + std::to_string(500) + " Internal Server Error\r\n";
+	headers += "Content-Type: text/html;\r\n";
+	headers += "Content-Length: ";
+	headers += std::to_string(content.length());
+	headers += "\r\n\r\n";
+	clientPTR->responseString = headers + content;
+	std::cout << "responseString: " << clientPTR->responseString << std::endl;
 }
 
 void ResponseHandler::openErrorResponseFile(clientInfo *clientPTR)

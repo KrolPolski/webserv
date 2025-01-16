@@ -175,7 +175,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 	clientInfo *clientPTR = getClientPTR(pollFdStuct.fd);
 	if (clientPTR == nullptr)
 	{
-		std::cout << RED << "Client data could not be recieved; client not found\n" << RESET;
+		std::cerr << RED << "Client data could not be recieved; client not found\n" << RESET;
 		return ;
 	}
 
@@ -286,6 +286,8 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			{
 				clientPTR->stateFlags[SEND_RESPONSE] = true;
 				std::cout << GREEN << "\nCLIENT SEND_RESPONSE!\n" << RESET;
+
+				std::cout << RED << "ResponseStr:\n" << RESET << clientPTR->responseString << "\n";
 			}
 
 			if (clientPTR->clientFd == pollFdStuct.fd && pollFdStuct.revents & POLLOUT)
@@ -406,7 +408,7 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 
 		clientPTR->reqType = MULTIPART;
 		clientPTR->multipartTotalLen = getMultidataLength(clientPTR);
-		std::cout << GREEN << "The length is: " << clientPTR->multipartTotalLen << "\n" << RESET;
+		std::cout << GREEN << "The req body length is: " << clientPTR->multipartTotalLen << "\n" << RESET;
 
 	}
 	else if (clientPTR->reqType == CHUNKED && checkChunkedEnd(clientPTR))
@@ -422,10 +424,24 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 		if (clientPTR->multipartDataRead == clientPTR->multipartTotalLen)
 		{
 			std::cout << GREEN << "Multipart request ended\n" << RESET;
+			std::cout << GREEN << "Multipart body data read: " << RESET << clientPTR->multipartDataRead << "\n";
+			std::cout << GREEN << "Request string length: " << RESET << clientPTR->requestString.size() << "\n";
+
 	//		std::cout << RED << "Recieved request:\n\n" << RESET << clientPTR->requestString << "\n\n";
 
-			multipartSaveTest(clientPTR);
-			clientPTR->status = DISCONNECT; // TEST
+	//		multipartSaveTest(clientPTR); --> Panu's simple test function
+
+			clientPTR->status = PARSE_REQUEST;
+			parseClientRequest(clientPTR);
+			if (clientPTR->status == BUILD_REPONSE)
+				addNewPollfd(clientPTR->responseFileFd);
+			else if (clientPTR->status == EXECUTE_CGI)
+			{
+				addNewPollfd(clientPTR->pipeToCgi[0]);
+				addNewPollfd(clientPTR->pipeToCgi[1]);
+				addNewPollfd(clientPTR->pipeFromCgi[0]);
+				addNewPollfd(clientPTR->pipeFromCgi[1]);
+			}
 		}
 	}
 	else if (recievedBytes < bufLen)
@@ -510,7 +526,7 @@ void	ConnectionHandler::multipartSaveTest(clientInfo *clientPTR)
 
 	std::cout << RED << "Binary data len: " << binaryStr.size() << "\n" << RESET;
 
-	std::ofstream outFile("./home/images/uploads/image1.png");
+	std::ofstream outFile("./home/images/uploads/image1.jpeg");
 
 	outFile << binaryStr;
 
@@ -561,23 +577,33 @@ void	ConnectionHandler::parseClientRequest(clientInfo *clientPTR)
 
 void		ConnectionHandler::sendDataToClient(clientInfo *clientPTR)
 {
-	std::cout << RED << "RESPONSE:\n" << RESET << clientPTR->responseString << "\n";
+	// std::cout << RED << "RESPONSE:\n" << RESET << clientPTR->responseString << "\n";
+
+	size_t	sendLenMax = 1000000;
+	size_t	sendDataLen = clientPTR->responseString.size();
+	if (sendDataLen > sendLenMax)
+		sendDataLen = sendLenMax;
 
 	// Send response to client
-	int sendBytes = send(clientPTR->clientFd, clientPTR->responseString.c_str(), clientPTR->responseString.length(), 0);
+	size_t sendBytes = send(clientPTR->clientFd, clientPTR->responseString.c_str(), sendDataLen, 0);
 
 	if (sendBytes < 0) // should 0 be included...?
 	{
 		std::cerr << RED << "\nsend() failed:\n" << RESET << std::strerror(errno) << "\n\n";
 		// Do we need any other error handling...? For example close the client connection?
+		clientPTR->status = DISCONNECT; // check this!
 	}
 
 	clientPTR->bytesSent += sendBytes;
+	if (sendBytes <= clientPTR->responseString.size())
+		clientPTR->responseString.erase(0, sendBytes);
+
+	std::cout << RED << "sendDataLen: " << RESET << sendDataLen << "\n"
+	<< RED << "responseStr size: " << RESET << clientPTR->responseString.size() << "\n";
 
 	// std::cout << RED << "Bytes sent:\n" << RESET << clientPTR->bytesSent << "\n";
 
-	// What should we do if these don't match...? Most likely do another send starting from response[bytesSent]...?
-	if (clientPTR->bytesSent == (int)clientPTR->responseString.length()) // int casting... not good
+	if (clientPTR->bytesSent == clientPTR->responseString.size() || clientPTR->responseString.size() == 0)
 		clientPTR->status = DISCONNECT;
 }
 

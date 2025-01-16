@@ -50,7 +50,7 @@ struct clientInfo
 	int		responseFileFd = -1;
 	int		pipeToCgi[2] = {-1, -1};
 	int		pipeFromCgi[2] = {-1, -1};
-	int		bytesSent = 0;
+	size_t	bytesSent = 0;
 
 	int		clientTimeOutLimit = 3;
 

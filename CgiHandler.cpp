@@ -131,10 +131,13 @@ int		CgiHandler::writeToCgiPipe()
 		const char *buf = m_client.parsedRequest.rawContent.c_str();
 		size_t len = m_client.parsedRequest.rawContent.length();
 
+		std::cout << RED << "Raw content:\n" << RESET << m_client.parsedRequest.rawContent << "\n";
+
+
 		if (write(m_client.pipeToCgi[1], buf, len + 1) == -1)
 			return (errorExit("Write() failed", false));
 
-	//	std::cout << GREEN << "\nWrite to ToCgi Pipe success!\n" << RESET;
+		std::cout << GREEN << "\nWrite to ToCgi Pipe success!\n" << RESET;
 
 	}
 	else if (m_client.parsedRequest.method == "GET")
@@ -220,7 +223,7 @@ int	CgiHandler::buildCgiResponse(clientInfo *clientPTR)
 
 	if (bytesRead < readPerCall)
 	{
-	//		std::cout << GREEN << "\nBuilding final response\n" << RESET;
+			std::cout << GREEN << "\nBuilding final response\n" << RESET;
 
 		if (clientPTR->parsedRequest.cgiType == PHP)
 		{

@@ -5,7 +5,7 @@
 /*
 	MAIN FUNCTION
 */
-Logger log("logfile.log");
+Logger webservLog("logfile.log");
 
 int main(int argc, char *argv[])
 {
@@ -27,7 +27,7 @@ int main(int argc, char *argv[])
 	if (handler.initServers(configPTR) == -1)
 		return (1);
 
-	log.log(INFO, "Starting server", true);
+	webservLog.webservLog(INFO, "Starting server", true);
 	if (handler.startServers() == -1)
 		return (1);
 

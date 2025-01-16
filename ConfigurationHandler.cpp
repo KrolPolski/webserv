@@ -24,7 +24,7 @@ PRINT SETTINGS
 
 void	ConfigurationHandler::printSettings()
 {
-	log.log(INFO, "Printing configuration file settings", false);
+	webservLog.webservLog(INFO, "Printing configuration file settings", false);
 	std::cout << "\n--------- Port -----------------------------------\n\n";
 	std::cout << m_port << std::endl;
 	std::cout << "\n--------- Host -----------------------------------\n\n";
@@ -105,11 +105,11 @@ CONSTRUCTOR
 
 ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck, std::string port) : m_rawBlock(servBlck)
 {
-	log.log(INFO, "Setting default configuration settings", false);
+	webservLog.webservLog(INFO, "Setting default configuration settings", false);
 
 	defaultSettings(port);
 
-	log.log(INFO, "Building ConfigurationHandler object", false);
+	webservLog.webservLog(INFO, "Building ConfigurationHandler object", false);
 
 	std::regex	listenRegex(R"(^listen\s+(\d+)\s*;\s*$)");
 	std::regex	hostRegex(R"(^\s*host\s+([^\s]+)\s*;\s*$)");
@@ -235,12 +235,12 @@ std::string	ConfigurationHandler::getInheritedMethods(std::string key) const
 				return route.second.m_methods;
 			else
 			{
-				log.log(INFO, "Could not find route for methods, inheriting from root", false);
+				webservLog.webservLog(INFO, "Could not find route for methods, inheriting from root", false);
 				return getMethods("/");
 			}
 		}
 	}
-	log.log(INFO, "Could not find route for methods, inheriting from root", false);
+	webservLog.webservLog(INFO, "Could not find route for methods, inheriting from root", false);
 	return getMethods("/"); // if we dont find, we return what the root "/" (home) directory has which we set to defalt if that aswell is missing from the config file
 }
 
@@ -255,13 +255,13 @@ enum dirListStates	ConfigurationHandler::getInheritedDirListing(std::string key)
 		{
 			if (route.second.m_dirListing == UNSET)
 			{
-				log.log(INFO, "Could not find route for directory listing, inheriting from root", false);
+				webservLog.webservLog(INFO, "Could not find route for directory listing, inheriting from root", false);
 				return getDirListing("/");
 			}
 			return route.second.m_dirListing;
 		}
 	}
-	log.log(INFO, "Could not find route for directory listing, inheriting from root", false);
+	webservLog.webservLog(INFO, "Could not find route for directory listing, inheriting from root", false);
 	return getDirListing("/"); // if we dont find, we return what the root "/" (home) directory has wich we set to defalt if that aswell is missing from the config file
 }
 
@@ -269,7 +269,7 @@ std::string	ConfigurationHandler::getRoot(std::string key) const
 {
 	auto map_key = m_routes.find(key);
 	if (map_key == m_routes.end())
-		log.log(ERROR, "Could not find route for root", false);
+		webservLog.webservLog(ERROR, "Could not find route for root", false);
 	return map_key->second.m_root;
 }
 
@@ -278,7 +278,7 @@ std::string	ConfigurationHandler::getMethods(std::string key) const
 	auto map_key = m_routes.find(key);
 	if (map_key == m_routes.end())
 	{
-		log.log(INFO, "Could not find route for methods, inheriting", false);
+		webservLog.webservLog(INFO, "Could not find route for methods, inheriting", false);
 		return getInheritedMethods(key);
 	}
 	return map_key->second.m_methods;
@@ -289,12 +289,12 @@ enum dirListStates	ConfigurationHandler::getDirListing(std::string key) const
 	auto map_key = m_routes.find(key);
 	if (map_key == m_routes.end())
 	{
-		log.log(INFO, "Could not find route for directory listing, inheriting", false);
+		webservLog.webservLog(INFO, "Could not find route for directory listing, inheriting", false);
 		return getInheritedDirListing(key);
 	}
 	if (map_key->second.m_dirListing == UNSET)
 	{
-		log.log(INFO, "Could not find route for directory listing, inheriting", false);
+		webservLog.webservLog(INFO, "Could not find route for directory listing, inheriting", false);
 		return getInheritedDirListing(key);
 	}
 	return map_key->second.m_dirListing;
@@ -304,7 +304,7 @@ std::string	ConfigurationHandler::getCgiPath(std::string key) const
 {
 	auto map_key = m_routes.find(key);
 	if (map_key == m_routes.end())
-		log.log(ERROR, "Could not find route cgi interpreter path", false);
+		webservLog.webservLog(ERROR, "Could not find route cgi interpreter path", false);
 	return map_key->second.m_cgiPath;
 }
 
@@ -312,7 +312,7 @@ std::string	ConfigurationHandler::getErrorPages(uint key) const
 {
 	auto map_key = m_errorPages.find(key);
 	if (map_key == m_errorPages.end())
-		log.log(ERROR, "Could not find this error pages", false);
+		webservLog.webservLog(ERROR, "Could not find this error pages", false);
 	return map_key->second;
 }
 
@@ -337,7 +337,7 @@ READ THE FILE
 
 void	readFile(const std::string &fileName, std::vector<std::string> &rawFile)
 {
-	log.log(INFO, "Reading configuration file", false);
+	webservLog.webservLog(INFO, "Reading configuration file", false);
 	std::string		line;
 	std::ifstream	file(fileName);
 	int				curlyBrace = 0;
@@ -378,7 +378,7 @@ EXTRACTING EACH SERVER BLOCK
 
 void	extractServerBlocks(std::map<std::string, ConfigurationHandler> &servers, std::vector<std::string> &rawFile)
 {
-	log.log(INFO, "Extracting server blocks from Configuration file", false);
+	webservLog.webservLog(INFO, "Extracting server blocks from Configuration file", false);
 	try
 	{
 		std::string	port;

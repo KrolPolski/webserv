@@ -19,6 +19,7 @@
 # include <sstream>
 # include <ctime>
 # include <fstream>
+# include <iostream>
 
 enum LogStatus
 {
@@ -35,10 +36,10 @@ class Logger
 		Logger(const std::string &);
 		~Logger();
 
-		void	log(LogStatus, const std::string &, bool);
+		void	webservLog(LogStatus, const std::string &, bool);
 
 };
 
-extern Logger log;
+extern Logger webservLog;
 
 #endif

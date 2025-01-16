@@ -399,7 +399,21 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 	{
 		clientPTR->reqType = CHUNKED;
 		if (checkChunkedEnd(clientPTR))
-			std::cout << RED << "Chunked request ended\n" << RESET;
+		{
+			// Patrik's beautiful unchunk-function here
+			
+			clientPTR->status = PARSE_REQUEST;
+			parseClientRequest(clientPTR);
+			if (clientPTR->status == BUILD_REPONSE)
+				addNewPollfd(clientPTR->responseFileFd);
+			else if (clientPTR->status == EXECUTE_CGI)
+			{
+				addNewPollfd(clientPTR->pipeToCgi[0]);
+				addNewPollfd(clientPTR->pipeToCgi[1]);
+				addNewPollfd(clientPTR->pipeFromCgi[0]);
+				addNewPollfd(clientPTR->pipeFromCgi[1]);
+			}
+		}
 
 	}
 	else if (clientPTR->reqType == UNDEFINED && checkRequestType(clientPTR) == MULTIPART)

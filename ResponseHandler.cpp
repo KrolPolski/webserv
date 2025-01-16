@@ -350,14 +350,45 @@ void ResponseHandler::parseRequest(clientInfo *clientPTR, std::string requestStr
 				else
 				{
 					setResponseCode(405);
-						buildErrorResponse(clientPTR);
+						openErrorResponseFile(clientPTR);
 				}
 				break ;
+			}
+			case DELETE:
+			{
+				requestTypeAsString = "DELETE";
+				if (checkRequestAllowed(clientPTR, lineOne.at(1)))
+					deleteHandler(clientPTR, lineOne.at(1));
+				else
+				{
+					setResponseCode(405);
+						openErrorResponseFile(clientPTR);
+				}
+				break ;
+				
 			}
 			default:
 				std::cout << "unhandled parseRequest" << std::endl;
 		}
 	}
+}
+
+void ResponseHandler::deleteHandler(clientInfo *clientPTR, std::string filePath)
+{
+	/* If we get here we can be confident the DELETE method is authorized, but we have no assurances of the path itself being valid. */
+	/* So we need to:
+		1) determine if it is a file or a directory.
+		2) If directory, is it empty? 
+		3) if not empty refuse. If empty delete the directory.
+		4) If a file, do we have write perms? if not, throw 403 error page.
+		5) Now attempt to delete the file. if it works out, return 200 response
+		
+		This won't be testable from within HTML, I'll have to make a python script for this. */
+		if (std::filesystem::is_directory(filePath))
+		{
+
+		}
+		(std::filesystem::is_empty(filePath))
 }
 
 int ResponseHandler::buildResponse(clientInfo *clientPTR)
@@ -453,7 +484,7 @@ void ResponseHandler::build500Response(clientInfo *clientPTR)
 void ResponseHandler::openErrorResponseFile(clientInfo *clientPTR)
 {
 	std::string errorFileName = clientPTR->relatedServer->serverConfig->getErrorPages(responseCode); 
-	std::cout << "Our error page we are trying to use, returned from config handler: " << errorFileName << std::endl;
+	//std::cout << "Our error page we are trying to use, returned from config handler: " << errorFileName << std::endl;
 	checkExtension(errorFileName); // Is this a good place for this...?
 
 	// this doesn't work because we are passing the web path, not the actual physical path on the drive. 

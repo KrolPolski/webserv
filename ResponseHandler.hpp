@@ -27,7 +27,7 @@ class ResponseHandler
 		void build500Response(clientInfo *clientPTR);
 		void buildDirListingResponse(const std::string& pathToDir, clientInfo *ClientPTR);
 		int  openResponseFile(clientInfo *clientPTR, std::string filePath);
-	
+		void deleteHandler(clientInfo *clientPTR, std::string filePath);
     public:
 		CgiHandler	*m_cgiHandler = nullptr; // Should this be private and accessed through getter...?
 		int openCgiPipes(clientInfo *clientPTR);

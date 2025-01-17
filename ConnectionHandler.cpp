@@ -599,7 +599,7 @@ void		ConnectionHandler::sendDataToClient(clientInfo *clientPTR)
 		sendDataLen = sendLenMax;
 
 	// Send response to client
-	size_t sendBytes = send(clientPTR->clientFd, clientPTR->responseString.c_str(), sendDataLen, 0);
+	int sendBytes = send(clientPTR->clientFd, clientPTR->responseString.c_str(), sendDataLen, 0);
 
 	if (sendBytes < 0) // should 0 be included...?
 	{
@@ -609,12 +609,12 @@ void		ConnectionHandler::sendDataToClient(clientInfo *clientPTR)
 	}
 
 	clientPTR->bytesSent += sendBytes;
-	if (sendBytes <= clientPTR->responseString.size())
+	if (sendBytes <= (int)clientPTR->responseString.size()) // check int cast!
 		clientPTR->responseString.erase(0, sendBytes);
 
 	// std::cout << RED << "Bytes sent:\n" << RESET << clientPTR->bytesSent << "\n";
 
-	if (clientPTR->bytesSent == clientPTR->responseString.size() || clientPTR->responseString.size() == 0)
+	if (clientPTR->responseString.size() == 0)
 		clientPTR->status = DISCONNECT;
 }
 

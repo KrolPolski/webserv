@@ -375,6 +375,8 @@ void ResponseHandler::parseRequest(clientInfo *clientPTR, std::string requestStr
 
 void ResponseHandler::deleteHandler(clientInfo *clientPTR, std::string filePath)
 {
+	(void)clientPTR;
+	(void)filePath;
 	/* If we get here we can be confident the DELETE method is authorized, but we have no assurances of the path itself being valid. */
 	/* So we need to:
 		1) determine if it is a file or a directory.
@@ -384,12 +386,19 @@ void ResponseHandler::deleteHandler(clientInfo *clientPTR, std::string filePath)
 		5) Now attempt to delete the file. if it works out, return 200 response
 		
 		This won't be testable from within HTML, I'll have to make a python script for this. */
-		if (std::filesystem::is_directory(filePath))
+		std::string serverLocalPath = clientPTR->relatedServer->serverConfig->getRoot("/") + filePath;
+		std::cout << "deleteHandler called on web path: " << filePath << std::endl;
+		std::cout << "and server local path is: " << serverLocalPath << std::endl;
+		try{if (std::filesystem::is_directory(filePath))
 		{
+			if (std::filesystem::is_empty(filePath))
+				std::cout << "We decided that the target path is both a directory and empty woo" << std::endl;
+		}}
+		catch(std::exception& e)
+		{
+			std::cerr << e.what() << std::endl;
+		}	}
 
-		}
-		(std::filesystem::is_empty(filePath))
-}
 
 int ResponseHandler::buildResponse(clientInfo *clientPTR)
 {

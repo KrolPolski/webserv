@@ -1,8 +1,3 @@
-<<<<<<< HEAD
-=======
-#!/usr/bin/env python3
-
->>>>>>> main
 import os
 import cgi
 import cgitb
@@ -43,8 +38,4 @@ try:
 
 except Exception as e:
     print("<h1>Error while processing the file</h1>")
-<<<<<<< HEAD
     print(f"<pre>{e}</pre>")
-=======
-    print(f"<pre>{e}</pre>")
->>>>>>> main

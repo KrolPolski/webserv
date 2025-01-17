@@ -257,7 +257,7 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 		else
 			setResponseCode(500);
 		std::cerr << "Response Code: " << getResponseCode() << std::endl;
-		buildErrorResponse(clientPTR);
+		openErrorResponseFile(clientPTR);
 		return -1;
 	}
 	/*
@@ -346,11 +346,30 @@ void ResponseHandler::parseRequest(clientInfo *clientPTR, std::string requestStr
 			{
 				requestTypeAsString = "POST";
 				if (checkRequestAllowed(clientPTR, lineOne.at(1)))
-					checkFile(clientPTR, ""); // JUST A TEST
+				{
+					if (clientPTR->reqType != MULTIPART) // Did we parse chunked already...? Or should we do it here? UNDEFINED should at least break ;
+					{
+						std::cout << RED << "POST method used without MULTIPART data!\n" << RESET;
+						// What should we do with the post data, if it isn't directed to CGI...?
+						// Should we save it somehow, or just discard it...?
+						// I think if the user of the server doesn't direct the info anywhere, I see no reason to save it.
+
+						clientPTR->status = DISCONNECT; // JUST A TEST
+						break ;
+					}
+
+					if (checkForMultipartFileData(clientPTR))
+						prepareUploadFile(clientPTR);
+					else
+					{
+						std::cout << RED << "POST method used with MULTIPART data, but it has no files!\n" << RESET;
+					}
+					break ;
+				}
 				else
 				{
 					setResponseCode(405);
-						buildErrorResponse(clientPTR);
+					openErrorResponseFile(clientPTR);
 				}
 				break ;
 			}
@@ -359,6 +378,81 @@ void ResponseHandler::parseRequest(clientInfo *clientPTR, std::string requestStr
 		}
 	}
 }
+
+// Returns the end index of Content-Disposition -header line related to an uploaded file. (so returned index is in the "\r\n" sequence)
+bool	ResponseHandler::checkForMultipartFileData(clientInfo *clientPTR)
+{
+	std::string temp = "boundary=";
+	size_t boundaryStartIdx = clientPTR->requestString.find(temp);
+	boundaryStartIdx += temp.length();
+	size_t boundaryEndIdx = clientPTR->requestString.find("\r\n", boundaryStartIdx);
+	std::string boundaryStr = clientPTR->requestString.substr(boundaryStartIdx, boundaryEndIdx - boundaryStartIdx);
+	clientPTR->multipartBoundaryStr = boundaryStr;
+
+	std::string endBoundary = boundaryStr + "--";
+	size_t startIdx = 0;
+	while (1)
+	{
+		startIdx = clientPTR->requestString.find(boundaryStr, startIdx);
+		std::string lineStr = clientPTR->requestString.substr(startIdx, endBoundary.size());
+		if (lineStr == endBoundary)
+			break ;
+		
+		startIdx += boundaryStr.size() + 2; // +2 to skip the \r\n sequence
+		size_t endIdx = clientPTR->requestString.find("\r\n", startIdx);
+		lineStr = clientPTR->requestString.substr(startIdx, endIdx - startIdx);
+
+		std::vector<std::string> tokensVec;
+		std::istringstream stream(lineStr);
+		std::string tempToken;
+
+		while (std::getline(stream, tempToken, ';')) 
+			tokensVec.push_back(tempToken);
+
+		if (tokensVec.size() > 2 && tokensVec[2].find("filename=") != std::string::npos)
+		{
+			size_t nameStart = tokensVec[2].find_first_of('"') + 1;
+			size_t nameEnd = tokensVec[2].find_last_of('"');
+
+			clientPTR->uploadFileName = "home/images/uploads/" + tokensVec[2].substr(nameStart, nameEnd - nameStart); // HARD CODED for now
+			clientPTR->multipartFileDataStartIdx = clientPTR->requestString.find("\r\n\r\n", endIdx) + 4;
+			return (true);
+		}
+	}
+
+	return (false);
+}
+
+void	ResponseHandler::prepareUploadFile(clientInfo *clientPTR)
+{
+	// Should we check if a file named this already exist...? And what should we do if it does?
+
+//	checkExtension(filePath); // is this a good place for this...?
+
+	clientPTR->uploadFileFd = open(clientPTR->uploadFileName.c_str(), O_WRONLY | O_CREAT);
+	if (clientPTR->uploadFileFd == -1)
+	{
+		std::cerr << RED << "\nopen() of upload file failed:\n" << RESET << std::strerror(errno) << "\n\n";
+	//	if (errno == 2) //file missing
+	//		setResponseCode(404);
+	//	else if (errno == 13) //bad permissions
+	//		setResponseCode(403);
+	//	else
+		setResponseCode(500); // is this ok...?
+		openErrorResponseFile(clientPTR);
+	}
+	else if (fcntl(clientPTR->uploadFileFd, F_SETFL, O_NONBLOCK) == -1) // make file fd non-blocking
+	{
+		std::cerr << RED << "\nfcntl() failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		setResponseCode(500); // is this ok...?
+		openErrorResponseFile(clientPTR);
+	}
+	else
+		clientPTR->status = SAVE_FILE;
+
+}
+
+
 
 int ResponseHandler::buildResponse(clientInfo *clientPTR)
 {
@@ -463,14 +557,15 @@ void ResponseHandler::openErrorResponseFile(clientInfo *clientPTR)
 		// Should we have a backup error page here...? That is built within our code?
 		// If for example someone were to mess with all the permissions of our error pages...
 
-		// Disconnect is not good. Here we need to build some kind of "general error page" within our code !!
-		clientPTR->status = DISCONNECT;
+		build500Response(clientPTR);
+		clientPTR->status = SEND_RESPONSE;
 	}
 	else if (fcntl(clientPTR->errorFileFd, F_SETFL, O_NONBLOCK) == -1) // make file fd non-blocking
 	{
 		std::cerr << RED << "\nfcntl() failed:\n" << RESET << std::strerror(errno) << "\n\n";
 		// Disconnect is not good. Here we need to build some kind of "general error page" within our code !!
-		clientPTR->status = DISCONNECT;
+		build500Response(clientPTR);
+		clientPTR->status = SEND_RESPONSE;
 	}
 	else
 		clientPTR->status = BUILD_ERRORPAGE;

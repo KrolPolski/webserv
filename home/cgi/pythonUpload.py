@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import os
 import cgi
 import cgitb
@@ -8,12 +6,12 @@ import cgitb
 cgitb.enable()
 
 # Directory to save uploaded files
-UPLOAD_DIR = "../uploads"
+UPLOAD_DIR = "../images/uploads"
 
 # Ensure the upload directory exists
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-print("Content-Type: text/html")
+# print("Content-Type: text/html")
 print()
 
 try:

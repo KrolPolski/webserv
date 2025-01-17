@@ -31,7 +31,7 @@ Logger::~Logger()
 	logFile.close();
 }
 
-void	Logger::log(LogStatus status, const std::string& message, bool toTerminal) // variadic template?????
+void	Logger::webservLog(LogStatus status, const std::string& message, bool toTerminal) // variadic template?????
 {
 	time_t	now = time(0);
 	tm*		timeinfo = localtime(&now);

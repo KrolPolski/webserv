@@ -42,7 +42,6 @@ enum CgiTypes
 
 enum clientStatus
 {
-	CONNECTED,
 	RECIEVE_REQUEST,
 	PARSE_REQUEST,
 	BUILD_ERRORPAGE,
@@ -51,6 +50,13 @@ enum clientStatus
 	BUILD_CGI_RESPONSE,
 	SEND_RESPONSE,
 	DISCONNECT
+};
+
+enum clientRequestType
+{
+	UNDEFINED,
+	MULTIPART,
+	CHUNKED
 };
 
 /*enum contentTypes

@@ -15,6 +15,8 @@
 #include "ResponseHandler.hpp"
 #include "ConfigurationHandler.hpp"
 
+#include <fstream> // just for multipart data save test
+
 
 class ConnectionHandler
 {
@@ -57,8 +59,16 @@ class ConnectionHandler
 	void	sendDataToClient(clientInfo *clientPTR);
 	void	clientCleanUp(clientInfo *clientPTR);
 
-	// request parsing
+	// request receiveing & parsing
 	int		parseRequest(clientInfo *clientPTR);
+	clientRequestType	checkRequestType(clientInfo *clientPTR);
+	bool	checkChunkedEnd(clientInfo *clientPTR);
+	int		getMultidataLength(clientInfo *clientPTR);
+
+
+	// multipart data
+
+	void	multipartSaveTest(clientInfo *clientPTR);
 
 	// server helper functions
 	serverInfo *getServerByFd(const int fd);

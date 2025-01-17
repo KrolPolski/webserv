@@ -105,7 +105,6 @@ int	CgiHandler::executeCgi()
 			// In parent/main process
 	//		std::cout << GREEN << "\nClosing stuff in parent!\n" << RESET;
 
-
 			close(m_client.pipeFromCgi[1]); // Do we need to check close() return value here...?
 			close(m_client.pipeToCgi[0]);
 			close(m_client.pipeToCgi[1]);
@@ -118,8 +117,6 @@ int	CgiHandler::executeCgi()
 	}
 	else
 		return (checkWaitStatus());
-
-	return (0);
 }
 
 int		CgiHandler::writeToCgiPipe()
@@ -134,10 +131,13 @@ int		CgiHandler::writeToCgiPipe()
 		const char *buf = m_client.parsedRequest.rawContent.c_str();
 		size_t len = m_client.parsedRequest.rawContent.length();
 
+	//	std::cout << RED << "Raw content:\n" << RESET << m_client.parsedRequest.rawContent << "\n";
+
+
 		if (write(m_client.pipeToCgi[1], buf, len + 1) == -1)
 			return (errorExit("Write() failed", false));
 
-	//	std::cout << GREEN << "\nWrite to ToCgi Pipe success!\n" << RESET;
+		std::cout << GREEN << "\nWrite to ToCgi Pipe success!\n" << RESET;
 
 	}
 	else if (m_client.parsedRequest.method == "GET")
@@ -181,7 +181,7 @@ int	CgiHandler::checkWaitStatus()
 
 	waitpidStatus = waitpid(m_childProcPid, &statloc, WNOHANG);
 	if (waitpidStatus == 0)
-		return (1);
+		return (2);
 
 	if (waitpidStatus == -1)
 		return (errorExit("Waitpid() failed", false));
@@ -223,7 +223,7 @@ int	CgiHandler::buildCgiResponse(clientInfo *clientPTR)
 
 	if (bytesRead < readPerCall)
 	{
-	//		std::cout << GREEN << "\nBuilding final response\n" << RESET;
+			std::cout << GREEN << "\nBuilding final response\n" << RESET;
 
 		if (clientPTR->parsedRequest.cgiType == PHP)
 		{

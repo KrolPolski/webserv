@@ -15,7 +15,8 @@
 
 #include "ConfigurationHandler.hpp"
 #include <fcntl.h>
-#include <fstream>
+#include "Logger.hpp"
+#include <iostream>
 
 /*
 PRINT SETTINGS
@@ -23,7 +24,7 @@ PRINT SETTINGS
 
 void	ConfigurationHandler::printSettings()
 {
-	std::cout << std::boolalpha;
+	webservLog.webservLog(INFO, "Printing configuration file settings", false);
 	std::cout << "\n--------- Port -----------------------------------\n\n";
 	std::cout << m_port << std::endl;
 	std::cout << "\n--------- Host -----------------------------------\n\n";
@@ -39,11 +40,11 @@ void	ConfigurationHandler::printSettings()
 	{
 		std::cout 
 		<< "\n" << x.first;
-		if (x.second.m_root != "")
+		if (!x.second.m_root.empty())
 			std::cout << "\n  " << x.second.m_root;
-		if (x.second.m_methods != "")
+		if (!x.second.m_methods.empty())
 			std::cout << "\n  " << x.second.m_methods;
-		if (x.second.m_cgiPath != "")
+		if (!x.second.m_cgiPath.empty())
 			std::cout << "\n  " << x.second.m_cgiPath;
 		std::cout << "\n  " << x.second.m_dirListing;
 		std::cout << std::endl;
@@ -105,6 +106,8 @@ bool	ConfigurationHandler::checkLocationBlocksRoot(locationBlock &block)
 	if (block.m_root.empty())
 		return false;
 	// if (block.m_methods.empty())
+	// 	return false;
+	// if (block.m_methods.empty())
 	// 	block.m_methods = getMethods("/");
 	// if (m_names == "")
 		// return false;
@@ -162,11 +165,11 @@ CONSTRUCTOR
 
 ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : m_rawBlock(servBlck)
 {
-	std::cout << "\n\n\nSetting defaults\n";
+	webservLog.webservLog(INFO, "Setting default configuration settings", false);
 
 	defaultSettings();
 
-	std::cout << "\n\n\nBuilding object\n";
+	webservLog.webservLog(INFO, "Building ConfigurationHandler object", false);
 
 	std::regex	listenRegex(R"(^listen\s+(\d+)\s*;\s*$)");
 	std::regex	hostRegex(R"(^\s*host\s+([^\s]+)\s*;\s*$)");
@@ -233,7 +236,7 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : 
 						if (subMatch[1] == "off")
 							loc.m_dirListing = FALSE;
 						else if (subMatch[1] == "on")
-							loc.m_dirListing = TRUE; // if dir listing is not set, we are going to get by default false on it and it will not inhetite from the root "/"
+							loc.m_dirListing = TRUE;
 					}
 					iter++;
 					if (iter->find('}') != std::string::npos)
@@ -296,20 +299,18 @@ std::string	ConfigurationHandler::getInheritedMethods(std::string key) const
 		std::string keyFromOurMap = route.first;
 		if (keyFromOurMap == "/")
 			continue ;
-		std::cout << "the key inside getInheritedMethods: " << key << " --- " << keyFromOurMap << std::endl;
 		if (key.starts_with(keyFromOurMap))
 		{
-			std::cout << "match found in " << key << " and " << keyFromOurMap << std::endl;
 			if (!route.second.m_methods.empty())
 				return route.second.m_methods;
 			else
 			{
-				std::cout << "Methods not set, inheriting from root" << std::endl;
+				webservLog.webservLog(INFO, "Could not find route for methods, inheriting from root", false);
 				return getMethods("/");
 			}
 		}
 	}
-	std::cout << "Inheriting from root" << std::endl;
+	webservLog.webservLog(INFO, "Could not find route for methods, inheriting from root", false);
 	return getMethods("/"); // if we dont find, we return what the root "/" (home) directory has which we set to defalt if that aswell is missing from the config file
 }
 
@@ -320,21 +321,18 @@ enum dirListStates	ConfigurationHandler::getInheritedDirListing(std::string key)
 		std::string keyFromOurMap = route.first;
 		if (keyFromOurMap == "/")
 			continue ;
-		std::cout << "the key inside getDirListing: " << key << " --- " << keyFromOurMap << std::endl;
 		if (key.starts_with(keyFromOurMap))
 		{
-			std::cout << "match found in " << key << " and " << keyFromOurMap << std::endl;
-			if (route.second.m_dirListing != UNSET)
-				return route.second.m_dirListing;
-			else
+				if (route.second.m_dirListing == UNSET)
 			{
-				std::cout << "Listing not set, inheriting from root" << std::endl;
+				webservLog.webservLog(INFO, "Could not find route for directory listing, inheriting from root", false);
 				return getDirListing("/");
 			}
+			return route.second.m_dirListing;
 		}
 	}
-	std::cout << "Inheriting from root" << std::endl;
-	return getDirListing("/");
+	webservLog.webservLog(INFO, "Could not find route for directory listing, inheriting from root", false);
+	return getDirListing("/"); 
 }
 
 std::string	ConfigurationHandler::getInheritedCgiPath(std::string key) const
@@ -344,7 +342,6 @@ std::string	ConfigurationHandler::getInheritedCgiPath(std::string key) const
 		std::string keyFromOurMap = route.first;
 		if (keyFromOurMap == "/")
 			continue ;
-		std::cout << "the key inside getInheritedCgiPath: " << key << " --- " << keyFromOurMap << std::endl;
 		if (key.starts_with(keyFromOurMap))
 		{
 			std::cout << "match found in " << key << " and " << keyFromOurMap << std::endl;
@@ -352,12 +349,12 @@ std::string	ConfigurationHandler::getInheritedCgiPath(std::string key) const
 				return route.second.m_cgiPath;
 			else
 			{
-				std::cout << "Cgi path not set, inheriting from root" << std::endl;
+				webservLog.webservLog(INFO, "Could not find route for cgi path, inheriting from root", false);
 				return getCgiPath("/");
 			}
 		}
 	}
-	std::cout << "Inheriting from root" << std::endl;
+	webservLog.webservLog(INFO, "Could not find route for cgi path, inheriting from root", false);
 	return getCgiPath("/");
 }
 
@@ -366,7 +363,7 @@ std::string	ConfigurationHandler::getRoot(std::string key) const
 	auto map_key = m_routes.find(key);
 	if (map_key == m_routes.end())
 	{
-		std::cout << "Error: could not find route for root" << std::endl;
+		webservLog.webservLog(ERROR, "Could not find route for root", false);
 		return ""; // What if no location block is given!? We should serve only the index.html file, right?
 		// PAtrik Patrik PATRIK ----- !!!!!, ASK you team!
 	}
@@ -384,7 +381,7 @@ std::string	ConfigurationHandler::getMethods(std::string key) const
 	auto map_key = m_routes.find(key);
 	if (map_key == m_routes.end())
 	{
-		std::cout << "Error: could not find route for methods" << std::endl;
+		webservLog.webservLog(INFO, "Could not find route for methods, inheriting", false);
 		return getInheritedMethods(key);
 	}
 	if (map_key->second.m_methods.empty())
@@ -404,12 +401,14 @@ enum dirListStates	ConfigurationHandler::getDirListing(std::string key) const
 	auto map_key = m_routes.find(key);
 	if (map_key == m_routes.end())
 	{
-		std::cout << "Error: could not find route for directory listing" << std::endl;
+		webservLog.webservLog(INFO, "Could not find route for directory listing, inheriting", false);
 		return getInheritedDirListing(key);
 	}
 	if (map_key->second.m_dirListing == UNSET)
+	{
+		webservLog.webservLog(INFO, "Could not find route for directory listing, inheriting", false);
 		return getInheritedDirListing(key);
-	// std::cout << "Leaving get dirlist with " << map_key->second.m_dirListing << "\n";
+	}
 	return map_key->second.m_dirListing;
 }
 
@@ -418,11 +417,14 @@ std::string	ConfigurationHandler::getCgiPath(std::string key) const
 	auto map_key = m_routes.find(key);
 	if (map_key == m_routes.end())
 	{
-		std::cout << "Error: could not find route for cgi interpreter path" << std::endl;
+		webservLog.webservLog(ERROR, "Could not find route cgi interpreter path", false);
 		return getInheritedCgiPath(key);
 	}
 	if (map_key->second.m_cgiPath.empty())
-		return getInheritedCgiPath(key);
+  {
+		webservLog.webservLog(ERROR, "Could not find route cgi interpreter path", false);
+    return getInheritedCgiPath(key);
+  }
 	return map_key->second.m_cgiPath;
 }
 
@@ -430,7 +432,7 @@ std::string	ConfigurationHandler::getErrorPages(uint key) const
 {
 	auto map_key = m_errorPages.find(key);
 	if (map_key == m_errorPages.end())
-		std::cout << "Error: could not find this " << key << " error pages" << std::endl;
+		webservLog.webservLog(ERROR, "Could not find this error pages", false);
 	return map_key->second;
 }
 
@@ -452,7 +454,6 @@ CHECK THE FILE NAME
 
 std::string	fileNameCheck(char *argv)
 {
-	std::cout << "Checking\n\n";
 	std::string	file = argv;
 
 	if (std::regex_match(file, std::regex(".*\\.conf$")) == false)
@@ -466,7 +467,7 @@ READ THE FILE
 
 void	readFile(const std::string &fileName, std::vector<std::string> &rawFile)
 {
-	std::cout << "Reading\n\n";
+	webservLog.webservLog(INFO, "Reading configuration file", false);
 	std::string		line;
 	std::ifstream	file(fileName);
 	int				curlyBrace = 0;
@@ -507,7 +508,7 @@ EXTRACTING EACH SERVER BLOCK
 
 void	extractServerBlocks(std::map<std::string, ConfigurationHandler> &servers, std::vector<std::string> &rawFile)
 {
-	std::cout << "Extracting\n\n";
+	webservLog.webservLog(INFO, "Extracting server blocks from Configuration file", false);
 	std::string	port;
 	int	openBraces = 0;
 	std::vector<std::string>	temp;
@@ -516,28 +517,31 @@ void	extractServerBlocks(std::map<std::string, ConfigurationHandler> &servers, s
 		std::smatch	match;
 		if (std::regex_search(*iter, match, std::regex("^server$")) == true)
 		{
-			temp.push_back(*iter);
-			iter++;
-		}
-		if (std::regex_search(*iter, match, std::regex(R"(^listen\s+(\d+)\s*;\s*$)")) == true)
-			port = match[1];
-		if (iter->find('{') != std::string::npos)
-			openBraces++;
-		if (iter->find('}') != std::string::npos)
-			openBraces--;
-		if (openBraces == 0)
-		{
-			temp.push_back(*iter);
-			auto dup = servers.emplace(port, ConfigurationHandler(temp));
-			if (dup.second == false)
-				throw std::runtime_error("Error: Duplicate port found");
-			std::cout << servers.size() << " -------------------------- Checking size\n";
-			if (servers.size() > 5)
-				throw std::runtime_error("Error: Configuration file is too big"); // take look at this later
-			temp.clear();
-			port.clear();
-		}
-		if (!temp.empty())
-			temp.push_back(*iter);
+			std::smatch	match;
+			if (std::regex_search(*iter, match, std::regex("^server$")) == true)
+			{
+				temp.push_back(*iter);
+				iter++;
+			}
+			if (std::regex_search(*iter, match, std::regex(R"(^listen\s+(\d+)\s*;\s*$)")) == true)
+				port = match[1];
+			if (iter->find('{') != std::string::npos)
+				openBraces++;
+			if (iter->find('}') != std::string::npos)
+				openBraces--;
+			if (openBraces == 0)
+			{
+				temp.push_back(*iter);
+				auto dup = servers.emplace(port, ConfigurationHandler(temp, port));
+				if (dup.second == false)
+					throw std::runtime_error("Error: Duplicate port found");
+				// std::cout << servers.size() << " -------------------------- Checking size\n";
+				if (servers.size() > 5)
+					throw std::runtime_error("Error: Configuration file is too big");
+				temp.clear();
+				port.clear();
+			}
+			if (!temp.empty())
+				temp.push_back(*iter);
 	}
 }

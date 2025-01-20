@@ -36,10 +36,14 @@ struct clientInfo
 
 	ResponseHandler		*respHandler = nullptr;
 
-	clientStatus	status = RECIEVE_REQUEST;
+	clientStatus		status = RECIEVE_REQUEST;
+	clientRequestType	reqType = UNDEFINED;
 
 	std::chrono::time_point<std::chrono::high_resolution_clock> startTime;
 	std::chrono::time_point<std::chrono::high_resolution_clock> curTime;
+
+	int		multipartTotalLen = -1;
+	int		multipartDataRead = 0;
 
 	int		clientFd;
 	int		errorFileFd = -1;
@@ -50,7 +54,7 @@ struct clientInfo
 
 	int		clientTimeOutLimit = 3;
 
-	bool	stateFlags[9] = {}; // JUST FOR DEBUG
+	bool	stateFlags[8] = {}; // JUST FOR DEBUG
 
 	std::string	clientIP; // we should probably get this in the constructor
 	std::string	requestString;

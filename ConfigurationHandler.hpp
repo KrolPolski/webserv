@@ -21,6 +21,9 @@
 # include <map>
 # include <regex>
 
+# define G_CGI_PATH	"/usr/bin"
+# define G_METHOD	"GET"
+
 enum dirListStates
 {
 	FALSE,
@@ -45,6 +48,7 @@ class ConfigurationHandler
 	private:
 		enum dirListStates						m_globalDirListing;
 		std::string								m_globalMethods;
+		std::string								m_globalCgiPath;
 		std::map<int, std::string>				m_defaultErrorPages;	// Default for the server if permissions are not in order for custom
 
 		std::vector<std::string>				m_rawBlock;				// the whole server block as cleaned up text
@@ -73,6 +77,7 @@ class ConfigurationHandler
 		std::string				getNames() const;
 		std::string				getInheritedMethods(std::string) const;
 		enum dirListStates		getInheritedDirListing(std::string key) const;
+		std::string				getInheritedCgiPath(std::string) const;
 		std::string				getRoot(std::string) const;
 		std::string				getMethods(std::string) const;
 		enum dirListStates		getDirListing(std::string) const;
@@ -80,7 +85,7 @@ class ConfigurationHandler
 		std::string				getErrorPages(uint) const;
 		std::string				getDefaultErrorPages(uint) const;
 
-		bool					checkLocationBlock(locationBlock &);
+		bool					checkLocationBlocksRoot(locationBlock &);
 		bool					requiredSettings();
 
 		void					printSettings(); // remove this before we eval -- Patrik

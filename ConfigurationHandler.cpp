@@ -76,15 +76,13 @@ void	ConfigurationHandler::printLocationBlock(locationBlock &block)
 }
 
 /*
-DEFAULT SETTINGS
+DEFAULT/GLOBAL SETTINGS
 */
 
 void	ConfigurationHandler::defaultSettings()
 {
-	// locationBlock loc;
 	m_index = "index.html";
 	m_maxClientBodySize = 1000000;
-	m_globalDirListing = FALSE;
 	m_errorPages.emplace(400, "/default-error-pages/400.html");
 	m_errorPages.emplace(403, "/default-error-pages/403.html");
 	m_errorPages.emplace(404, "/default-error-pages/404.html");
@@ -95,19 +93,18 @@ void	ConfigurationHandler::defaultSettings()
 	m_defaultErrorPages.emplace(404, "/default-error-pages/404.html");
 	m_defaultErrorPages.emplace(405, "/default-error-pages/405.html");
 	m_defaultErrorPages.emplace(500, "/default-error-pages/500.html");
-	m_globalMethods = "GET POST";
-	// loc.m_root = "home";
-	// loc.m_methods = "GET";
-	// m_routes.emplace("/", loc);
+	m_globalMethods = G_METHOD;
+	m_globalDirListing = FALSE;
+	m_globalCgiPath = G_CGI_PATH;
 	printSettings(); //remove before end -- Patrik
 }
 
-bool	ConfigurationHandler::checkLocationBlock(locationBlock &block)
+bool	ConfigurationHandler::checkLocationBlocksRoot(locationBlock &block)
 {
-	printLocationBlock(block);
+	// printLocationBlock(block);
 	if (block.m_root.empty())
 		return false;
-	// if (block.m_methods == "")
+	// if (block.m_methods.empty())
 	// 	block.m_methods = getMethods("/");
 	// if (m_names == "")
 		// return false;
@@ -136,9 +133,26 @@ bool	ConfigurationHandler::requiredSettings()
 		std::cerr << "Error: Redirect missing!" << std::endl;
 		return false;
 	}
-	// if (!m_routes.contains("/")) /// if no location block is set. globals haave to be given!!!
-	
-	// 	&& m_routes.find("/cgi/")->second.m_root != "")
+	if (!m_routes.contains("/"))
+	{
+		std::cerr << "Error: Home location missing!" << std::endl;
+		return false;
+	}
+	if (m_routes.contains("/"))
+	{
+		if (m_routes.find("/")->second.m_methods.empty())
+		{
+			m_routes.find("/")->second.m_methods = m_globalMethods;
+		}
+		if (m_routes.find("/")->second.m_dirListing == UNSET)
+		{
+			m_routes.find("/")->second.m_dirListing = m_globalDirListing;
+		}
+		if (m_routes.find("/")->second.m_cgiPath.empty())
+		{
+			m_routes.find("/")->second.m_cgiPath = m_globalCgiPath;
+		}
+	}
 	return true;
 }
 
@@ -230,22 +244,20 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : 
 				// std::cout << *iter << std::endl;
 				if (openBraces == 0)
 				{
-					if (checkLocationBlock(loc) == false)
-						throw std::runtime_error("Error: Location block not complete"); // this needs more checks in my opinion, depending on the evaluators, what will they test
-					if (m_routes.contains(key))
-						m_routes.erase(key);
-					m_routes.emplace(key, loc);//auto dup = 
-					// if (dup.second == false)
-					// 	throw std::runtime_error("Error: Duplicate location block found"); // is this extra now when .contains check is right before this?
+					if (checkLocationBlocksRoot(loc) == false)
+						throw std::runtime_error("Error: Location block not complete");
+					auto dup = m_routes.emplace(key, loc);
+					if (dup.second == false)
+						throw std::runtime_error("Error: Duplicate location block found");
 					loc = locationBlock();
 				}
 			}
 		}
 		// std::cout << "Processing line: " << *iter << std::endl;
 	}
-	printSettings(); //remove before the end of the project -- Patrik // std:::optional
 	if (requiredSettings() == false)
 		throw std::runtime_error("Error: Location block not complete");
+	printSettings(); //remove before the end of the project -- Patrik // std:::optional
 }
 
 /*
@@ -288,7 +300,7 @@ std::string	ConfigurationHandler::getInheritedMethods(std::string key) const
 		if (key.starts_with(keyFromOurMap))
 		{
 			std::cout << "match found in " << key << " and " << keyFromOurMap << std::endl;
-			if (route.second.m_methods != "")
+			if (!route.second.m_methods.empty())
 				return route.second.m_methods;
 			else
 			{
@@ -325,11 +337,39 @@ enum dirListStates	ConfigurationHandler::getInheritedDirListing(std::string key)
 	return getDirListing("/");
 }
 
+std::string	ConfigurationHandler::getInheritedCgiPath(std::string key) const
+{
+	for (auto &route: m_routes)
+	{
+		std::string keyFromOurMap = route.first;
+		if (keyFromOurMap == "/")
+			continue ;
+		std::cout << "the key inside getInheritedCgiPath: " << key << " --- " << keyFromOurMap << std::endl;
+		if (key.starts_with(keyFromOurMap))
+		{
+			std::cout << "match found in " << key << " and " << keyFromOurMap << std::endl;
+			if (!route.second.m_cgiPath.empty())
+				return route.second.m_cgiPath;
+			else
+			{
+				std::cout << "Cgi path not set, inheriting from root" << std::endl;
+				return getCgiPath("/");
+			}
+		}
+	}
+	std::cout << "Inheriting from root" << std::endl;
+	return getCgiPath("/");
+}
+
 std::string	ConfigurationHandler::getRoot(std::string key) const
 {
 	auto map_key = m_routes.find(key);
 	if (map_key == m_routes.end())
+	{
 		std::cout << "Error: could not find route for root" << std::endl;
+		return ""; // What if no location block is given!? We should serve only the index.html file, right?
+		// PAtrik Patrik PATRIK ----- !!!!!, ASK you team!
+	}
 	return map_key->second.m_root;
 }
 
@@ -347,7 +387,7 @@ std::string	ConfigurationHandler::getMethods(std::string key) const
 		std::cout << "Error: could not find route for methods" << std::endl;
 		return getInheritedMethods(key);
 	}
-	if (map_key->second.m_methods == "")
+	if (map_key->second.m_methods.empty())
 		return getInheritedMethods(key);
 	// std::cout << "Leaving get methods with " << map_key->second.m_methods << "\n";
 	return map_key->second.m_methods;
@@ -377,7 +417,12 @@ std::string	ConfigurationHandler::getCgiPath(std::string key) const
 {
 	auto map_key = m_routes.find(key);
 	if (map_key == m_routes.end())
-		std::cout << "Error: could not find route cgi interpreter path" << std::endl;
+	{
+		std::cout << "Error: could not find route for cgi interpreter path" << std::endl;
+		return getInheritedCgiPath(key);
+	}
+	if (map_key->second.m_cgiPath.empty())
+		return getInheritedCgiPath(key);
 	return map_key->second.m_cgiPath;
 }
 
@@ -396,6 +441,8 @@ std::string	ConfigurationHandler::getDefaultErrorPages(uint key) const
 		std::cout << "Error: could not find this " << key << " default error pages" << std::endl;
 	return map_key->second;
 }
+
+// retuns on the 3 functions above need to be addressed!!! ---- Patrik!
 
 /*
 CHECK THE FILE NAME
@@ -461,44 +508,36 @@ EXTRACTING EACH SERVER BLOCK
 void	extractServerBlocks(std::map<std::string, ConfigurationHandler> &servers, std::vector<std::string> &rawFile)
 {
 	std::cout << "Extracting\n\n";
-	try
+	std::string	port;
+	int	openBraces = 0;
+	std::vector<std::string>	temp;
+	for (std::vector<std::string>::iterator iter = rawFile.begin(); iter != rawFile.end(); iter++)
 	{
-		std::string	port;
-		int	openBraces = 0;
-		std::vector<std::string>	temp;
-		for (std::vector<std::string>::iterator iter = rawFile.begin(); iter != rawFile.end(); iter++)
+		std::smatch	match;
+		if (std::regex_search(*iter, match, std::regex("^server$")) == true)
 		{
-			std::smatch	match;
-			if (std::regex_search(*iter, match, std::regex("^server$")) == true)
-			{
-				temp.push_back(*iter);
-				iter++;
-			}
-			if (std::regex_search(*iter, match, std::regex(R"(^listen\s+(\d+)\s*;\s*$)")) == true)
-				port = match[1];
-			if (iter->find('{') != std::string::npos)
-				openBraces++;
-			if (iter->find('}') != std::string::npos)
-				openBraces--;
-			if (openBraces == 0)
-			{
-				temp.push_back(*iter);
-				auto dup = servers.emplace(port, ConfigurationHandler(temp));
-				if (dup.second == false)
-					throw std::runtime_error("Error: Duplicate port found");
-				std::cout << servers.size() << " -------------------------- Checking size\n";
-				if (servers.size() > 5)
-					throw std::runtime_error("Error: Configuration file is too big");
-				temp.clear();
-				port.clear();
-			}
-			if (!temp.empty())
-				temp.push_back(*iter);
+			temp.push_back(*iter);
+			iter++;
 		}
-		
-	}
-	catch(const std::exception& e)
-	{
-		std::cerr << e.what() << '\n';
+		if (std::regex_search(*iter, match, std::regex(R"(^listen\s+(\d+)\s*;\s*$)")) == true)
+			port = match[1];
+		if (iter->find('{') != std::string::npos)
+			openBraces++;
+		if (iter->find('}') != std::string::npos)
+			openBraces--;
+		if (openBraces == 0)
+		{
+			temp.push_back(*iter);
+			auto dup = servers.emplace(port, ConfigurationHandler(temp));
+			if (dup.second == false)
+				throw std::runtime_error("Error: Duplicate port found");
+			std::cout << servers.size() << " -------------------------- Checking size\n";
+			if (servers.size() > 5)
+				throw std::runtime_error("Error: Configuration file is too big"); // take look at this later
+			temp.clear();
+			port.clear();
+		}
+		if (!temp.empty())
+			temp.push_back(*iter);
 	}
 }

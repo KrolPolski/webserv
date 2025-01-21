@@ -532,7 +532,7 @@ void	extractServerBlocks(std::map<std::string, ConfigurationHandler> &servers, s
 			if (openBraces == 0)
 			{
 				temp.push_back(*iter);
-				auto dup = servers.emplace(port, ConfigurationHandler(temp, port));
+				auto dup = servers.emplace(port, ConfigurationHandler(temp));
 				if (dup.second == false)
 					throw std::runtime_error("Error: Duplicate port found");
 				// std::cout << servers.size() << " -------------------------- Checking size\n";
@@ -543,5 +543,6 @@ void	extractServerBlocks(std::map<std::string, ConfigurationHandler> &servers, s
 			}
 			if (!temp.empty())
 				temp.push_back(*iter);
+		}
 	}
 }

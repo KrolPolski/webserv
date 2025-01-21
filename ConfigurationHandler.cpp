@@ -102,20 +102,21 @@ void	ConfigurationHandler::defaultSettings()
 
 bool	ConfigurationHandler::checkLocationBlocksRoot(locationBlock &block)
 {
-	// printLocationBlock(block);
 	if (block.m_root.empty())
 		return false;
-	// if (block.m_methods.empty())
-	// 	return false;
-	// if (block.m_methods.empty())
-	// 	block.m_methods = getMethods("/");
-	// if (m_names == "")
-		// return false;
+	if (!block.m_root.starts_with("home"))
+		return false;
 	return true;
 }
 
 bool	ConfigurationHandler::requiredSettings()
 {
+	std::regex	portRegex(R"(^(8000|8[0-9]{3}|9[0-9]{3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$)");
+	std::regex	ipRegex(R"(^([1-9][0-9]{0,2}|1[0-9]{2}|2[0-4][0-9]|25[0-4])\.([0-9]{1,2}|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.([0-9]{1,2}|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.([0-9]{1,2}|1[0-9]{2}|2[0-4][0-9]|25[0-5])$)");
+	std::regex	serverNameRegex(R"(^([a-zA-Z0-9-]+)\.([a-zA-Z]{2,})(\s+)(www\.)?([a-zA-Z0-9-]+)\.\2$)");
+	std::regex	redirectRegex(R"(^https://\$host\$request_uri$)");
+	std::regex	indexHtmlRegex(R"(^[^.]+\.(html)$)");
+
 	if (m_port.empty())
 	{
 		std::cerr << "Error: Port missing!" << std::endl;
@@ -131,14 +132,45 @@ bool	ConfigurationHandler::requiredSettings()
 		std::cerr << "Error: Server names missing!" << std::endl;
 		return false;
 	}
-	if (m_redirect.empty())
-	{
-		std::cerr << "Error: Redirect missing!" << std::endl;
-		return false;
-	}
 	if (!m_routes.contains("/"))
 	{
 		std::cerr << "Error: Home location missing!" << std::endl;
+		return false;
+	}
+	if (!m_redirect.empty())
+	{
+		if (m_redirect.find(301) == m_redirect.end())
+		{
+			std::cerr << "Error: Redirect is not valid!" << std::endl;
+				return false;
+		}
+		if (m_redirect.find(301) != m_redirect.end())
+		{
+			if (std::regex_match(m_redirect.find(301)->second, redirectRegex) == false)
+			{
+				std::cerr << "Error: Redirect is not valid!" << std::endl;
+				return false;
+			}
+		}
+	}
+	if (std::regex_match(m_port, portRegex) == false)
+	{
+		std::cerr << "Error: Port is not a valid port number" << std::endl;
+		return false;
+	}
+	if (std::regex_match(m_host, ipRegex) == false)
+	{
+		std::cerr << "Error: IP is not a valid IP number" << std::endl;
+		return false;
+	}
+	if (std::regex_match(m_names, serverNameRegex) == false)
+	{
+		std::cerr << "Error: Server name is not valid" << std::endl;
+		return false;
+	}
+	if (std::regex_match(m_index, indexHtmlRegex) == false)
+	{
+		std::cerr << "Error: The index file is not valid" << std::endl;
 		return false;
 	}
 	if (m_routes.contains("/"))
@@ -259,7 +291,7 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : 
 		// std::cout << "Processing line: " << *iter << std::endl;
 	}
 	if (requiredSettings() == false)
-		throw std::runtime_error("Error: Location block not complete");
+		throw std::runtime_error("Error: Required settings not present");
 	printSettings(); //remove before the end of the project -- Patrik // std:::optional
 }
 

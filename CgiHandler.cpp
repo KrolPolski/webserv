@@ -16,9 +16,9 @@ CgiHandler::CgiHandler(clientInfo &client) : m_client(client)
 	CgiTypes 	type = m_client.parsedRequest.cgiType;
 
 	if (type == PHP)
-		m_pathToInterpreter = m_client.relatedServer->serverConfig->getCgiPath("/cgi/") + "/php-cgi";
+		m_pathToInterpreter = m_client.relatedServer->serverConfig->getCgiPath(m_client.parsedRequest.filePath) + "/php-cgi";
 	else if (type == PYTHON)
-		m_pathToInterpreter = m_client.relatedServer->serverConfig->getCgiPath("/cgi/") + "/python3"; // check this later // with the regex changes in that merge i might change this. ----- Patrik
+		m_pathToInterpreter = m_client.relatedServer->serverConfig->getCgiPath(m_client.parsedRequest.filePath) + "/python3";
 
 	std::string currentDir = std::filesystem::current_path();
 	std::string root = m_client.relatedServer->serverConfig->getRoot("/");

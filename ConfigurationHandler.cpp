@@ -517,32 +517,28 @@ void	extractServerBlocks(std::map<std::string, ConfigurationHandler> &servers, s
 		std::smatch	match;
 		if (std::regex_search(*iter, match, std::regex("^server$")) == true)
 		{
-			std::smatch	match;
-			if (std::regex_search(*iter, match, std::regex("^server$")) == true)
-			{
-				temp.push_back(*iter);
-				iter++;
-			}
-			if (std::regex_search(*iter, match, std::regex(R"(^listen\s+(\d+)\s*;\s*$)")) == true)
-				port = match[1];
-			if (iter->find('{') != std::string::npos)
-				openBraces++;
-			if (iter->find('}') != std::string::npos)
-				openBraces--;
-			if (openBraces == 0)
-			{
-				temp.push_back(*iter);
-				auto dup = servers.emplace(port, ConfigurationHandler(temp));
-				if (dup.second == false)
-					throw std::runtime_error("Error: Duplicate port found");
-				// std::cout << servers.size() << " -------------------------- Checking size\n";
-				if (servers.size() > 5)
-					throw std::runtime_error("Error: Configuration file is too big");
-				temp.clear();
-				port.clear();
-			}
-			if (!temp.empty())
-				temp.push_back(*iter);
+			temp.push_back(*iter);
+			iter++;
 		}
+		if (std::regex_search(*iter, match, std::regex(R"(^listen\s+(\d+)\s*;\s*$)")) == true)
+			port = match[1];
+		if (iter->find('{') != std::string::npos)
+			openBraces++;
+		if (iter->find('}') != std::string::npos)
+			openBraces--;
+		if (openBraces == 0)
+		{
+			temp.push_back(*iter);
+			auto dup = servers.emplace(port, ConfigurationHandler(temp));
+			if (dup.second == false)
+				throw std::runtime_error("Error: Duplicate port found");
+			// std::cout << servers.size() << " -------------------------- Checking size\n";
+			if (servers.size() > 5)
+				throw std::runtime_error("Error: Configuration file is too big");
+			temp.clear();
+			port.clear();
+		}
+		if (!temp.empty())
+			temp.push_back(*iter);
 	}
 }

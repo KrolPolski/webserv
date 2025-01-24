@@ -58,6 +58,11 @@ void	Logger::webservLog(LogStatus status, const std::string& message, bool toTer
 			logEntry << LIGHT_GREEN << "[" << timestamp << "] " << CYAN << "DEBUG" << ": " << RESET << message << std::endl;
 			break;
 		}
+		case WARNING:
+		{
+			logEntry << LIGHT_GREEN << "[" << timestamp << "] " << PURPLE << "WARNING" << ": " << RESET << message << std::endl;
+			break;
+		}
 		default:
 		{
 			logEntry << LIGHT_GREEN << "[" << timestamp << "] " << BLUE << "UNKNOWN" << ": " << RESET << message << std::endl;

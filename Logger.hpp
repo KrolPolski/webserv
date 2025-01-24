@@ -25,7 +25,8 @@ enum LogStatus
 {
 	INFO,
 	ERROR,
-	DEBUG
+	DEBUG,
+	WARNING
 };
 
 class Logger

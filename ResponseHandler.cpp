@@ -350,7 +350,7 @@ void ResponseHandler::parseRequest(clientInfo *clientPTR, std::string requestStr
 				else
 				{
 					setResponseCode(405);
-						buildErrorResponse(clientPTR);
+						openErrorResponseFile(clientPTR);
 				}
 				break ;
 			}

@@ -257,7 +257,7 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 		else
 			setResponseCode(500);
 		std::cerr << "Response Code: " << getResponseCode() << std::endl;
-		buildErrorResponse(clientPTR);
+		openErrorResponseFile(clientPTR);
 		return -1;
 	}
 	/*

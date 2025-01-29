@@ -257,7 +257,7 @@ int ResponseHandler::checkFile(clientInfo *clientPTR, std::string filePath)
 		else
 			setResponseCode(500);
 		std::cerr << "Response Code: " << getResponseCode() << std::endl;
-		buildErrorResponse(clientPTR);
+		openErrorResponseFile(clientPTR);
 		return -1;
 	}
 	/*
@@ -350,7 +350,7 @@ void ResponseHandler::parseRequest(clientInfo *clientPTR, std::string requestStr
 				else
 				{
 					setResponseCode(405);
-						buildErrorResponse(clientPTR);
+						openErrorResponseFile(clientPTR);
 				}
 				break ;
 			}

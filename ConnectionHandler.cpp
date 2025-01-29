@@ -1,4 +1,5 @@
 #include "ConnectionHandler.hpp"
+#include "Logger.hpp"
 
 
 ConnectionHandler::ConnectionHandler()
@@ -376,43 +377,50 @@ void		ConnectionHandler::acceptNewClient(const unsigned int serverFd)
 
 void	ConnectionHandler::unChunkRequest(clientInfo *clientPTR)
 {
-	std::string	request = clientPTR->requestString;
-	// "POST /api/example HTTP/1.1\r\nHost: example.com\r\nContent-Type: text/plain\r\nTransfer-Encoding: chunked\r\n\r\n4\r\nWiki\r\n7\r\npedia i\r\nB\r\nn \r\nchunks.\r\n0\r\n\r\n";
-
-	size_t		index = 0;
-	size_t		bodyIndex = 0;
-	int			contentLength = 0;
-	std::string	header;
-	std::string	body;
-	std::string	unChunked;
-	size_t		startIndex = 0;
-
-	index = request.find("Transfer-Encoding: ");
-	bodyIndex = request.find("chunked\r\n\r\n") + 11;
-	header = request.substr(0, index);
-	body = request.substr(bodyIndex, request.size() - bodyIndex);
-
-	while (1)
+	webservLog.webservLog(INFO, "Unchunking", true);
+	try
 	{
-		size_t indexAfterHex = body.find("\r\n", startIndex);
-		std::string	hexValue = body.substr(startIndex, indexAfterHex - startIndex);
-		int bytesToRead = std::stoi(hexValue, nullptr, 16);
-		contentLength += bytesToRead;
-		if (bytesToRead == 0)
-			break ;
-		startIndex = indexAfterHex + 2;
-		unChunked += body.substr(startIndex, bytesToRead);
-		startIndex += bytesToRead + 2;
+		std::string	request = clientPTR->requestString;
+		size_t		indexStart = 0;
+		size_t		indexEnd = 0;
+		size_t		bodyIndex = 0;
+		int			contentLength = 0;
+		std::string	header;
+		std::string	body;
+		std::string	unChunked;
+		size_t		startIndex = 0;
+
+		indexStart = request.find("Transfer-Encoding: ");
+		indexEnd = request.find("\r\n", indexStart) + 2;
+		request.erase(indexStart , indexEnd - indexStart);
+		bodyIndex = request.find("\r\n\r\n") + 4;
+		header = request.substr(0, bodyIndex - 2);
+		body = request.substr(bodyIndex, request.size() - bodyIndex);
+
+		while (1)
+		{
+			size_t indexAfterHex = body.find("\r\n", startIndex);
+			std::string	hexValue = body.substr(startIndex, indexAfterHex - startIndex);
+			int bytesToRead = std::stoi(hexValue, nullptr, 16);
+			contentLength += bytesToRead;
+			if (bytesToRead == 0)
+				break ;
+			startIndex = indexAfterHex + 2;
+			unChunked += body.substr(startIndex, bytesToRead);
+			startIndex += bytesToRead + 2;
+		}
+		header += "Content-Lenght: ";
+		header += std::to_string(contentLength) + "\r\n\r\n";
+
+		clientPTR->requestString.erase();
+		clientPTR->requestString += header + unChunked;
+		// std::cout << request << std::endl;
 	}
-	header += "Content-Lenght: ";
-	header += std::to_string(contentLength) + "\r\n\r\n";
-
-	// clientPTR->requestString.erase();
-	// clientPTR->requestString += header + unChunked;
-	request.erase();
-	request += header + unChunked;
-
-	// std::cout << request << std::endl;
+	catch(const std::exception& e)
+	{
+		webservLog.webservLog(ERROR, "Unchunking chunked request failed", false);
+		// Bad request if chunk size doesnt match the chunk body
+	}
 }
 
 void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clientInfo *clientPTR)

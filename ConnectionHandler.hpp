@@ -59,6 +59,8 @@ class ConnectionHandler
 	void	sendDataToClient(clientInfo *clientPTR);
 	void	clientCleanUp(clientInfo *clientPTR);
 
+	void	unChunkRequest(clientInfo *clientPTR);
+
 	// request receiveing & parsing
 	int		parseRequest(clientInfo *clientPTR);
 	clientRequestType	checkRequestType(clientInfo *clientPTR);

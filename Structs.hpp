@@ -36,10 +36,14 @@ struct clientInfo
 
 	ResponseHandler		*respHandler = nullptr;
 
-	clientStatus	status = RECIEVE_REQUEST;
+	clientStatus		status = RECIEVE_REQUEST;
+	clientRequestType	reqType = UNDEFINED;
 
 	std::chrono::time_point<std::chrono::high_resolution_clock> startTime;
 	std::chrono::time_point<std::chrono::high_resolution_clock> curTime;
+
+	int		multipartTotalLen = -1;
+	int		multipartDataRead = 0;
 
 	int		clientFd;
 	int		errorFileFd = -1;
@@ -56,6 +60,12 @@ struct clientInfo
 	std::string	requestString;
 	std::string responseBody;
 	std::string responseString;
+
+	std::string multipartBoundaryStr;
+	std::string	uploadFileName;
+	size_t		multipartFileDataStartIdx;
+	int			uploadFileFd = -1;
+
 	
 	clientInfo(int clientFd, const serverInfo *server) : relatedServer(server), clientFd(clientFd)
 	{

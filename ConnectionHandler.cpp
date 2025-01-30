@@ -1,4 +1,5 @@
 #include "ConnectionHandler.hpp"
+#include "Logger.hpp"
 
 
 ConnectionHandler::ConnectionHandler()
@@ -175,35 +176,36 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 	clientInfo *clientPTR = getClientPTR(pollFdStuct.fd);
 	if (clientPTR == nullptr)
 	{
-		std::cout << RED << "Client data could not be recieved; client not found\n" << RESET;
+		std::cerr << RED << "Client data could not be recieved; client not found\n" << RESET;
 		return ;
 	}
 
 	switch (clientPTR->status)
 	{
-		case CONNECTED: // This might not be needed, we could basically go straight to RECIEVE_REQUEST
-		{
-			if (!clientPTR->stateFlags[CONNECTED])
-			{
-				clientPTR->stateFlags[CONNECTED] = true;
-		//		std::cout << GREEN << "\nCLIENT CONNECTED!\n" << RESET;
-			}
 
-			if (clientPTR->clientFd == pollFdStuct.fd)
-				clientPTR->status = RECIEVE_REQUEST;
-			break ;
-		}
-		
 		case RECIEVE_REQUEST:
 		{
 			if (!clientPTR->stateFlags[RECIEVE_REQUEST])
 			{
 				clientPTR->stateFlags[RECIEVE_REQUEST] = true;
-		//		std::cout << GREEN << "\nCLIENT RECIEVE_REQUEST!\n" << RESET;
+				std::cout << GREEN << "\nCLIENT RECIEVE_REQUEST!\n" << RESET;
 			}
 
 			if (clientPTR->clientFd == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
 				recieveDataFromClient(pollFdStuct.fd, clientPTR);
+			break ;
+		}
+
+		case SAVE_FILE:
+		{
+			if (!clientPTR->stateFlags[SAVE_FILE])
+			{
+				clientPTR->stateFlags[SAVE_FILE] = true;
+				std::cout << GREEN << "\nCLIENT SAVE_FILE!\n" << RESET;
+			}
+
+			if (clientPTR->uploadFileFd == pollFdStuct.fd && pollFdStuct.revents & POLLOUT)
+				writeUploadData(clientPTR);
 			break ;
 		}
 
@@ -212,7 +214,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[BUILD_ERRORPAGE])
 			{
 				clientPTR->stateFlags[BUILD_ERRORPAGE] = true;
-		//		std::cout << GREEN << "\nCLIENT BUILD_ERRORPAGE!\n" << RESET;
+				std::cout << GREEN << "\nCLIENT BUILD_ERRORPAGE!\n" << RESET;
 			}
 
 			if (clientPTR->errorFileFd == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
@@ -225,7 +227,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[BUILD_REPONSE])
 			{
 				clientPTR->stateFlags[BUILD_REPONSE] = true;
-		//		std::cout << GREEN << "\nCLIENT BUILD_REPONSE!\n" << RESET;
+				std::cout << GREEN << "\nCLIENT BUILD_REPONSE!\n" << RESET;
 			}
 
 			if (clientPTR->responseFileFd == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
@@ -238,7 +240,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[EXECUTE_CGI])
 			{
 				clientPTR->stateFlags[EXECUTE_CGI] = true;
-		//		std::cout << GREEN << "\nCLIENT EXECUTE_CGI!\n" << RESET;
+				std::cout << GREEN << "\nCLIENT EXECUTE_CGI!\n" << RESET;
 			}
 
 			if (clientPTR->pipeToCgi[1] == pollFdStuct.fd && pollFdStuct.revents & POLLOUT)
@@ -255,16 +257,19 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 
 			int executeStatus = clientPTR->respHandler->m_cgiHandler->executeCgi();
 
-			if (executeStatus == -1)
-				clientPTR->status = DISCONNECT; // This is wrong, we need an error page! But what type of page...?
-			else if (executeStatus == 0)
+			if (executeStatus == 0 || executeStatus == 2 || executeStatus == -1)
 			{
-		//		std::cout << GREEN << "\nExecute status = 0, moving on to BUILD_CGI_RESPONSE!\n" << RESET;
-
-				clientPTR->status = BUILD_CGI_RESPONSE;
 				removeFromPollfdVec(clientPTR->pipeToCgi[0]);
+				clientPTR->pipeToCgi[0] = -1;
 				removeFromPollfdVec(clientPTR->pipeToCgi[1]);
+				clientPTR->pipeToCgi[1] = -1;
 				removeFromPollfdVec(clientPTR->pipeFromCgi[1]);
+				clientPTR->pipeFromCgi[1] = -1;
+
+				if (executeStatus == 0)
+					clientPTR->status = BUILD_CGI_RESPONSE;
+				else if (executeStatus == -1)
+					clientPTR->status = DISCONNECT; // This is wrong, we need an error page! But what type of page...?
 			}
 
 			break ;
@@ -275,7 +280,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[BUILD_CGI_RESPONSE])
 			{
 				clientPTR->stateFlags[BUILD_CGI_RESPONSE] = true;
-		//		std::cout << GREEN << "\nCLIENT BUILD_CGI_RESPONSE!\n" << RESET;
+				std::cout << GREEN << "\nCLIENT BUILD_CGI_RESPONSE!\n" << RESET;
 			}
 
 			if (clientPTR->pipeFromCgi[0] == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
@@ -294,7 +299,9 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[SEND_RESPONSE])
 			{
 				clientPTR->stateFlags[SEND_RESPONSE] = true;
-		//		std::cout << GREEN << "\nCLIENT SEND_RESPONSE!\n" << RESET;
+				std::cout << GREEN << "\nCLIENT SEND_RESPONSE!\n" << RESET;
+
+			//	std::cout << RED << "ResponseStr:\n" << RESET << clientPTR->responseString << "\n";
 			}
 
 			if (clientPTR->clientFd == pollFdStuct.fd && pollFdStuct.revents & POLLOUT)
@@ -307,7 +314,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[DISCONNECT])
 			{
 				clientPTR->stateFlags[DISCONNECT] = true;
-		//		std::cout << GREEN << "\nCLIENT DISCONNECT!\n" << RESET;
+				std::cout << GREEN << "\nCLIENT DISCONNECT!\n" << RESET;
 			}
 
 			clientCleanUp(clientPTR);
@@ -381,12 +388,59 @@ void		ConnectionHandler::acceptNewClient(const unsigned int serverFd)
 	RECIEVE DATA FROM CLIENT
 */
 
+void	ConnectionHandler::unChunkRequest(clientInfo *clientPTR)
+{
+	webservLog.webservLog(INFO, "Unchunking", true);
+	try
+	{
+		std::string	request = clientPTR->requestString;
+		size_t		indexStart = 0;
+		size_t		indexEnd = 0;
+		size_t		bodyIndex = 0;
+		int			contentLength = 0;
+		std::string	header;
+		std::string	body;
+		std::string	unChunked;
+		size_t		startIndex = 0;
+
+		indexStart = request.find("Transfer-Encoding: ");
+		indexEnd = request.find("\r\n", indexStart) + 2;
+		request.erase(indexStart , indexEnd - indexStart);
+		bodyIndex = request.find("\r\n\r\n") + 4;
+		header = request.substr(0, bodyIndex - 2);
+		body = request.substr(bodyIndex, request.size() - bodyIndex);
+
+		while (1)
+		{
+			size_t indexAfterHex = body.find("\r\n", startIndex);
+			std::string	hexValue = body.substr(startIndex, indexAfterHex - startIndex);
+			int bytesToRead = std::stoi(hexValue, nullptr, 16);
+			contentLength += bytesToRead;
+			if (bytesToRead == 0)
+				break ;
+			startIndex = indexAfterHex + 2;
+			unChunked += body.substr(startIndex, bytesToRead);
+			startIndex += bytesToRead + 2;
+		}
+		header += "Content-Lenght: ";
+		header += std::to_string(contentLength) + "\r\n\r\n";
+
+		clientPTR->requestString.erase();
+		clientPTR->requestString += header + unChunked;
+		// std::cout << request << std::endl;
+	}
+	catch(const std::exception& e)
+	{
+		webservLog.webservLog(ERROR, "Unchunking chunked request failed", false);
+		// Bad request if chunk size doesnt match the chunk body
+	}
+}
+
 void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clientInfo *clientPTR)
 {
 	char	buf[1024] = {0};
 	int		bufLen = 1023; // what is the correct size for recv() buffer...?
 
-	// When using phpPost, recv() fails at some point... very random
 
 	int recievedBytes = recv(clientFd, buf, bufLen, 0);
 	if (recievedBytes <= 0)
@@ -401,12 +455,76 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 	}
 
 	buf[recievedBytes] = '\0';
-	clientPTR->requestString += buf;
+	clientPTR->requestString.append(buf, recievedBytes);
 
-	// If we managed to recieve everything from client
-	if (recievedBytes < bufLen)
+	if (clientPTR->reqType == UNDEFINED && checkRequestType(clientPTR) == CHUNKED)
 	{
-		// std::cout << RED << "Recieved request:\n\n" << RESET << clientPTR->requestString << "\n\n";
+		clientPTR->reqType = CHUNKED;
+		if (checkChunkedEnd(clientPTR))
+		{
+			unChunkRequest(clientPTR);
+			
+			clientPTR->status = PARSE_REQUEST;
+			parseClientRequest(clientPTR);
+			if (clientPTR->status == BUILD_REPONSE)
+				addNewPollfd(clientPTR->responseFileFd);
+			else if (clientPTR->status == EXECUTE_CGI)
+			{
+				addNewPollfd(clientPTR->pipeToCgi[0]);
+				addNewPollfd(clientPTR->pipeToCgi[1]);
+				addNewPollfd(clientPTR->pipeFromCgi[0]);
+				addNewPollfd(clientPTR->pipeFromCgi[1]);
+			}
+		}
+
+	}
+	else if (clientPTR->reqType == UNDEFINED && checkRequestType(clientPTR) == MULTIPART)
+	{
+		std::cout << GREEN << "It's multipart\n" << RESET;
+
+		clientPTR->reqType = MULTIPART;
+		clientPTR->multipartTotalLen = getMultidataLength(clientPTR);
+		std::cout << GREEN << "The req body length is: " << clientPTR->multipartTotalLen << "\n" << RESET;
+
+	}
+	else if (clientPTR->reqType == CHUNKED && checkChunkedEnd(clientPTR))
+	{
+		std::cout << GREEN << "Chunked request ended\n" << RESET;
+	//	std::cout << RED << "Recieved request:\n\n" << RESET << clientPTR->requestString << "\n\n";
+		clientPTR->status = DISCONNECT; // TEST
+	}
+	else if (clientPTR->reqType == MULTIPART)
+	{
+		clientPTR->multipartDataRead += recievedBytes;
+
+		if (clientPTR->multipartDataRead == clientPTR->multipartTotalLen)
+		{
+			std::cout << GREEN << "Multipart request ended\n" << RESET;
+			std::cout << GREEN << "Multipart body data read: " << RESET << clientPTR->multipartDataRead << "\n";
+			std::cout << GREEN << "Request string length: " << RESET << clientPTR->requestString.size() << "\n";
+
+	//		std::cout << RED << "Recieved request:\n\n" << RESET << clientPTR->requestString << "\n\n";
+
+	//		multipartSaveTest(clientPTR); // --> Panu's simple test function
+
+		clientPTR->status = PARSE_REQUEST;
+		parseClientRequest(clientPTR);
+		if (clientPTR->status == BUILD_REPONSE)
+			addNewPollfd(clientPTR->responseFileFd);
+		else if (clientPTR->status == SAVE_FILE)
+			addNewPollfd(clientPTR->uploadFileFd);
+		else if (clientPTR->status == EXECUTE_CGI)
+		{
+			addNewPollfd(clientPTR->pipeToCgi[0]);
+			addNewPollfd(clientPTR->pipeToCgi[1]);
+			addNewPollfd(clientPTR->pipeFromCgi[0]);
+			addNewPollfd(clientPTR->pipeFromCgi[1]);
+		} 
+		}
+	}
+	else if (recievedBytes < bufLen)
+	{
+		std::cout << RED << "Recieved request:\n\n" << RESET << clientPTR->requestString << "\n\n";
 
 		clientPTR->status = PARSE_REQUEST;
 		parseClientRequest(clientPTR);
@@ -419,20 +537,107 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 			addNewPollfd(clientPTR->pipeFromCgi[0]);
 			addNewPollfd(clientPTR->pipeFromCgi[1]);
 		}
-		
+
 		// std::cout << RED << "Parse done" << RESET << "\n";
 		// std::cout << RED << "Client status: " << clientPTR->status << RESET << "\n\n";
-
-
 	}
 	
 }
+
+clientRequestType	ConnectionHandler::checkRequestType(clientInfo *clientPTR)
+{
+	if (clientPTR->requestString.find("\r\nTransfer-Encoding: chunked\r\n") != std::string::npos)
+		return CHUNKED;
+	else if (clientPTR->requestString.find("\r\nContent-Type: multipart/form-data") != std::string::npos)
+		return MULTIPART;
+	else
+		return UNDEFINED;
+}
+
+bool	ConnectionHandler::checkChunkedEnd(clientInfo *clientPTR)
+{
+	if (clientPTR->requestString.find("\r\n0\r\n\r\n") != std::string::npos) // Might be more efficient to look only the recieved buffer, not entire string!!
+		return true;
+	else
+		return false;
+}
+
+int		ConnectionHandler::getMultidataLength(clientInfo *clientPTR)
+{
+	std::string	strToFind = "Content-Length: ";
+	size_t 		startIdx = clientPTR->requestString.find(strToFind);
+
+	if (startIdx == std::string::npos)
+	{
+		std::cerr << RED << "\ngetMultidataLength() failed:\n" << RESET << "Content-Length header was not found" << "\n\n";
+		// What should we do then...? Code 500?
+	}
+	startIdx += strToFind.length();
+
+	size_t endIdx = clientPTR->requestString.find("\r\n", startIdx);
+	if (endIdx == std::string::npos)
+	{
+		// I think this might be wrong! Because strToFind has already the space after header name
+		std::cerr << RED << "\ngetMultidataLength() failed:\n" << RESET << "Content-Length header is empty" << "\n\n";
+		// What should we do then...? Code 500?
+	}
+
+	std::string lengthStr = clientPTR->requestString.substr(startIdx, endIdx - startIdx);
+
+	return (std::stoi(lengthStr));
+}
+
+/*
+void	ConnectionHandler::multipartSaveTest(clientInfo *clientPTR)
+{
+	std::string temp = "boundary=";
+	size_t boundaryStartIdx = clientPTR->requestString.find(temp);
+	boundaryStartIdx += temp.length();
+	size_t boundaryEndIdx = clientPTR->requestString.find("\r\n", boundaryStartIdx);
+	std::string boundaryStr = clientPTR->requestString.substr(boundaryStartIdx, boundaryEndIdx - boundaryStartIdx);
+
+
+	temp = "Content-Type: image/jpeg\r\n\r\n";
+	size_t binaryStartIdx = clientPTR->requestString.find(temp);
+	binaryStartIdx += temp.length();
+	size_t binaryEndIdx = clientPTR->requestString.find(boundaryStr + "--");
+	std::string binaryStr = clientPTR->requestString.substr(binaryStartIdx, binaryEndIdx - binaryStartIdx - 2);
+
+	std::cout << RED << "Binary data len: " << binaryStr.size() << "\n" << RESET;
+
+	std::ofstream outFile("./home/images/uploads/image1.jpeg");
+
+	outFile << binaryStr;
+
+	outFile.close();
+
+	std::cout << GREEN << "Multipart save test complete\n" << RESET;
+
+	
+	clientPTR->status = PARSE_REQUEST;
+	parseClientRequest(clientPTR);
+	if (clientPTR->status == BUILD_REPONSE)
+		addNewPollfd(clientPTR->responseFileFd);
+	else if (clientPTR->status == EXECUTE_CGI)
+	{
+		addNewPollfd(clientPTR->pipeToCgi[0]);
+		addNewPollfd(clientPTR->pipeToCgi[1]);
+		addNewPollfd(clientPTR->pipeFromCgi[0]);
+		addNewPollfd(clientPTR->pipeFromCgi[1]);
+	}
+
+
+}
+*/
+
+
+
 
 void	ConnectionHandler::parseClientRequest(clientInfo *clientPTR)
 {
 	parseRequest(clientPTR); // this code is in separate file ('requestParsing.cpp')
 
-	clientPTR->respHandler = new ResponseHandler; // get's deleted in the clintInfo destructor
+	clientPTR->respHandler = new ResponseHandler; // get's deleted in the client cleanup
 	clientPTR->respHandler->checkRequestType(clientPTR, clientPTR->requestString);
 
 	if (clientPTR->status == BUILD_ERRORPAGE)
@@ -445,6 +650,31 @@ void	ConnectionHandler::parseClientRequest(clientInfo *clientPTR)
 	}
 }
 
+void	ConnectionHandler::writeUploadData(clientInfo *clientPTR)
+{
+	size_t binaryStartIdx = clientPTR->multipartFileDataStartIdx;
+	size_t binaryEndIdx = clientPTR->requestString.find(clientPTR->multipartBoundaryStr + "--");
+	std::string binaryStr = clientPTR->requestString.substr(binaryStartIdx, binaryEndIdx - binaryStartIdx); // There was a -2, do I need it...?
+
+	std::cout << RED << "Binary data len: " << binaryStr.size() << "\n" << RESET;
+
+	if (write(clientPTR->uploadFileFd, binaryStr.c_str(), binaryStr.size()) == -1)
+	{
+		std::cerr << RED << "\nwrite() in file upload failed\n" << RESET << std::strerror(errno) << "\n\n";
+		clientPTR->respHandler->setResponseCode(500); // check this later
+		clientPTR->respHandler->openErrorResponseFile(clientPTR);
+		addNewPollfd(clientPTR->errorFileFd);
+		return ;
+	}
+
+	clientPTR->respHandler->openResponseFile(clientPTR, "home/images/uploadSuccessful.html"); // hard coded for now
+	if (clientPTR->status == BUILD_ERRORPAGE)
+		addNewPollfd(clientPTR->errorFileFd);
+	else
+		addNewPollfd(clientPTR->responseFileFd);
+
+}
+
 
 /*
 	SEND DATA TO CLIENT
@@ -452,21 +682,30 @@ void	ConnectionHandler::parseClientRequest(clientInfo *clientPTR)
 
 void		ConnectionHandler::sendDataToClient(clientInfo *clientPTR)
 {
+	// std::cout << RED << "RESPONSE:\n" << RESET << clientPTR->responseString << "\n";
+
+	size_t	sendLenMax = 1000000;
+	size_t	sendDataLen = clientPTR->responseString.size();
+	if (sendDataLen > sendLenMax)
+		sendDataLen = sendLenMax;
+
 	// Send response to client
-	int sendBytes = send(clientPTR->clientFd, clientPTR->responseString.c_str(), clientPTR->responseString.length(), 0);
+	int sendBytes = send(clientPTR->clientFd, clientPTR->responseString.c_str(), sendDataLen, 0);
 
 	if (sendBytes < 0) // should 0 be included...?
 	{
 		std::cerr << RED << "\nsend() failed:\n" << RESET << std::strerror(errno) << "\n\n";
 		// Do we need any other error handling...? For example close the client connection?
+		clientPTR->status = DISCONNECT; // check this!
 	}
 
 	clientPTR->bytesSent += sendBytes;
+	if (sendBytes <= (int)clientPTR->responseString.size()) // check int cast!
+		clientPTR->responseString.erase(0, sendBytes);
 
 	// std::cout << RED << "Bytes sent:\n" << RESET << clientPTR->bytesSent << "\n";
 
-	// What should we do if these don't match...? Most likely do another send starting from response[bytesSent]...?
-	if (clientPTR->bytesSent == (int)clientPTR->responseString.length()) // int casting... not good
+	if (clientPTR->responseString.size() == 0)
 		clientPTR->status = DISCONNECT;
 }
 
@@ -490,8 +729,6 @@ void	ConnectionHandler::removeFromPollfdVec(int &fdToRemove)
 	{
 		if (m_pollfdVec[i].fd == fdToRemove)
 		{
-			close(fdToRemove); // Do I have to check close return value...?
-			fdToRemove = -1;
 			m_pollfdVec.erase(m_pollfdVec.begin() + i); // can this be done smarter than with erase()...?
 			return ;
 		}
@@ -501,19 +738,45 @@ void	ConnectionHandler::removeFromPollfdVec(int &fdToRemove)
 void	ConnectionHandler::removeClientFdsFromPollVec(clientInfo *clientPTR)
 {
 	if (clientPTR->clientFd != -1)
+	{
 		removeFromPollfdVec(clientPTR->clientFd);
+		close(clientPTR->clientFd); // Should we check return value...?
+	}
 	if (clientPTR->errorFileFd != -1)
+	{
 		removeFromPollfdVec(clientPTR->errorFileFd);
+		close(clientPTR->errorFileFd); // Should we check return value...?
+	}
 	if (clientPTR->responseFileFd != -1)
+	{
 		removeFromPollfdVec(clientPTR->responseFileFd);
+		close(clientPTR->responseFileFd); // Should we check return value...?
+	}
+	if (clientPTR->uploadFileFd != -1) // Should we close this immidiately after the file data has been saved...?
+	{
+		removeFromPollfdVec(clientPTR->uploadFileFd);
+		close(clientPTR->uploadFileFd); // Should we check return value...?
+	}
 	if (clientPTR->pipeToCgi[0] != -1)
+	{
 		removeFromPollfdVec(clientPTR->pipeToCgi[0]);
+		close(clientPTR->pipeToCgi[0]); // Should we check return value...?
+	}
 	if (clientPTR->pipeToCgi[1] != -1)
+	{
 		removeFromPollfdVec(clientPTR->pipeToCgi[1]);
+		close(clientPTR->pipeToCgi[1]); // Should we check return value...?
+	}
 	if (clientPTR->pipeFromCgi[0] != -1)
+	{
 		removeFromPollfdVec(clientPTR->pipeFromCgi[0]);
+		close(clientPTR->pipeFromCgi[0]); // Should we check return value...?
+	}
 	if (clientPTR->pipeFromCgi[1] != -1)
+	{
 		removeFromPollfdVec(clientPTR->pipeFromCgi[1]);
+		close(clientPTR->pipeFromCgi[1]); // Should we check return value...?
+	}
 
 }
 
@@ -567,7 +830,8 @@ clientInfo	*ConnectionHandler::getClientPTR(const int clientFd)
 		|| obj.pipeToCgi[0] == clientFd
 		|| obj.pipeToCgi[1] == clientFd
 		|| obj.pipeFromCgi[0] == clientFd
-		|| obj.pipeFromCgi[1] == clientFd)
+		|| obj.pipeFromCgi[1] == clientFd
+		|| obj.uploadFileFd == clientFd)
 			return (&obj);
 	}
 

@@ -1,9 +1,11 @@
 #include "ResponseHandler.hpp"
 #include "ConnectionHandler.hpp"
+#include "Logger.hpp"
 
 /*
 	MAIN FUNCTION
 */
+Logger webservLog("logfile.log");
 
 int main(int argc, char *argv[])
 {
@@ -16,7 +18,7 @@ int main(int argc, char *argv[])
 	signal(SIGINT, sigIntHandler); // is this needed...?
 
 	ConnectionHandler	handler;
-	char	configFileName[] = "web.conf"; // our default config file name here
+	char	configFileName[] = "configurations/test.conf"; // our default config file name here
 	char	*configPTR = configFileName;
 
 	if (argc == 2)
@@ -25,7 +27,7 @@ int main(int argc, char *argv[])
 	if (handler.initServers(configPTR) == -1)
 		return (1);
 
-
+	webservLog.webservLog(INFO, "Starting server", true);
 	if (handler.startServers() == -1)
 		return (1);
 

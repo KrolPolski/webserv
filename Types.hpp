@@ -11,10 +11,13 @@
 
 # define RED 	"\033[31m"
 # define GREEN	"\033[32m"
+# define BLUE	"\033[34m"
+# define PURPLE	"\033[35m"
+# define CYAN   "\033[36m"
+# define YELLOW  "\033[33m"
+# define LIGHT_GREEN "\033[92m"
+# define ORANGE "\033[38;5;214m"
 # define RESET	"\033[0m"
-// # define BLUE	"\033[34m"
- # define PURPLE	"\033[35m"
-// # define CYAN   "\033[36m"
 
 
 /*
@@ -39,15 +42,22 @@ enum CgiTypes
 
 enum clientStatus
 {
-	CONNECTED,
 	RECIEVE_REQUEST,
 	PARSE_REQUEST,
+	SAVE_FILE,
 	BUILD_ERRORPAGE,
 	BUILD_REPONSE,
 	EXECUTE_CGI,
 	BUILD_CGI_RESPONSE,
 	SEND_RESPONSE,
 	DISCONNECT
+};
+
+enum clientRequestType
+{
+	UNDEFINED,
+	MULTIPART,
+	CHUNKED
 };
 
 /*enum contentTypes

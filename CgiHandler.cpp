@@ -16,9 +16,9 @@ CgiHandler::CgiHandler(clientInfo &client) : m_client(client)
 	CgiTypes 	type = m_client.parsedRequest.cgiType;
 
 	if (type == PHP)
-		m_pathToInterpreter = m_client.relatedServer->serverConfig->getCgiPath("/cgi/") + "/php-cgi";
+		m_pathToInterpreter = m_client.relatedServer->serverConfig->getCgiPath(m_client.parsedRequest.filePath) + "/php-cgi";
 	else if (type == PYTHON)
-		m_pathToInterpreter = m_client.relatedServer->serverConfig->getCgiPath("/cgi/") + "/python3"; // check this later // with the regex changes in that merge i might change this. ----- Patrik
+		m_pathToInterpreter = m_client.relatedServer->serverConfig->getCgiPath(m_client.parsedRequest.filePath) + "/python3";
 
 	std::string currentDir = std::filesystem::current_path();
 	std::string root = m_client.relatedServer->serverConfig->getRoot("/");
@@ -105,7 +105,6 @@ int	CgiHandler::executeCgi()
 			// In parent/main process
 	//		std::cout << GREEN << "\nClosing stuff in parent!\n" << RESET;
 
-
 			close(m_client.pipeFromCgi[1]); // Do we need to check close() return value here...?
 			close(m_client.pipeToCgi[0]);
 			close(m_client.pipeToCgi[1]);
@@ -118,12 +117,11 @@ int	CgiHandler::executeCgi()
 	}
 	else
 		return (checkWaitStatus());
-
-	return (0);
 }
 
 int		CgiHandler::writeToCgiPipe()
 {
+
 //	std::cout << GREEN << "\nStartig to write in ToCgi Pipe!\n" << RESET;
 
 	if (m_pipeToCgiWriteDone)
@@ -134,10 +132,13 @@ int		CgiHandler::writeToCgiPipe()
 		const char *buf = m_client.parsedRequest.rawContent.c_str();
 		size_t len = m_client.parsedRequest.rawContent.length();
 
-		if (write(m_client.pipeToCgi[1], buf, len + 1) == -1)
+	//	std::cout << RED << "Raw content:\n" << RESET << m_client.parsedRequest.rawContent << "\n";
+
+
+		if (write(m_client.pipeToCgi[1], buf, len + 1) == -1) // This might not work with large file sizes!! Then we do multiple calls, like with send()
 			return (errorExit("Write() failed", false));
 
-	//	std::cout << GREEN << "\nWrite to ToCgi Pipe success!\n" << RESET;
+		std::cout << GREEN << "\nWrite to ToCgi Pipe success!\n" << RESET;
 
 	}
 	else if (m_client.parsedRequest.method == "GET")
@@ -181,7 +182,7 @@ int	CgiHandler::checkWaitStatus()
 
 	waitpidStatus = waitpid(m_childProcPid, &statloc, WNOHANG);
 	if (waitpidStatus == 0)
-		return (1);
+		return (2);
 
 	if (waitpidStatus == -1)
 		return (errorExit("Waitpid() failed", false));
@@ -223,7 +224,7 @@ int	CgiHandler::buildCgiResponse(clientInfo *clientPTR)
 
 	if (bytesRead < readPerCall)
 	{
-	//		std::cout << GREEN << "\nBuilding final response\n" << RESET;
+			std::cout << GREEN << "\nBuilding final response\n" << RESET;
 
 		if (clientPTR->parsedRequest.cgiType == PHP)
 		{

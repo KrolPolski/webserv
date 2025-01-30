@@ -54,12 +54,18 @@ struct clientInfo
 
 	int		clientTimeOutLimit = 3;
 
-	bool	stateFlags[8] = {}; // JUST FOR DEBUG
+	bool	stateFlags[9] = {}; // JUST FOR DEBUG
 
 	std::string	clientIP; // we should probably get this in the constructor
 	std::string	requestString;
 	std::string responseBody;
 	std::string responseString;
+
+	std::string multipartBoundaryStr;
+	std::string	uploadFileName;
+	size_t		multipartFileDataStartIdx;
+	int			uploadFileFd = -1;
+
 	
 	clientInfo(int clientFd, const serverInfo *server) : relatedServer(server), clientFd(clientFd)
 	{

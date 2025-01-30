@@ -121,6 +121,7 @@ int	CgiHandler::executeCgi()
 
 int		CgiHandler::writeToCgiPipe()
 {
+
 //	std::cout << GREEN << "\nStartig to write in ToCgi Pipe!\n" << RESET;
 
 	if (m_pipeToCgiWriteDone)
@@ -134,7 +135,7 @@ int		CgiHandler::writeToCgiPipe()
 	//	std::cout << RED << "Raw content:\n" << RESET << m_client.parsedRequest.rawContent << "\n";
 
 
-		if (write(m_client.pipeToCgi[1], buf, len + 1) == -1)
+		if (write(m_client.pipeToCgi[1], buf, len + 1) == -1) // This might not work with large file sizes!! Then we do multiple calls, like with send()
 			return (errorExit("Write() failed", false));
 
 		std::cout << GREEN << "\nWrite to ToCgi Pipe success!\n" << RESET;

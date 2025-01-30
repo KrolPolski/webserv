@@ -196,6 +196,19 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			break ;
 		}
 
+		case SAVE_FILE:
+		{
+			if (!clientPTR->stateFlags[SAVE_FILE])
+			{
+				clientPTR->stateFlags[SAVE_FILE] = true;
+				std::cout << GREEN << "\nCLIENT SAVE_FILE!\n" << RESET;
+			}
+
+			if (clientPTR->uploadFileFd == pollFdStuct.fd && pollFdStuct.revents & POLLOUT)
+				writeUploadData(clientPTR);
+			break ;
+		}
+
 		case BUILD_ERRORPAGE:
 		{
 			if (!clientPTR->stateFlags[BUILD_ERRORPAGE])
@@ -492,19 +505,21 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 
 	//		std::cout << RED << "Recieved request:\n\n" << RESET << clientPTR->requestString << "\n\n";
 
-			multipartSaveTest(clientPTR); // --> Panu's simple test function
+	//		multipartSaveTest(clientPTR); // --> Panu's simple test function
 
-		/*	clientPTR->status = PARSE_REQUEST;
-			parseClientRequest(clientPTR);
-			if (clientPTR->status == BUILD_REPONSE)
-				addNewPollfd(clientPTR->responseFileFd);
-			else if (clientPTR->status == EXECUTE_CGI)
-			{
-				addNewPollfd(clientPTR->pipeToCgi[0]);
-				addNewPollfd(clientPTR->pipeToCgi[1]);
-				addNewPollfd(clientPTR->pipeFromCgi[0]);
-				addNewPollfd(clientPTR->pipeFromCgi[1]);
-			} */
+		clientPTR->status = PARSE_REQUEST;
+		parseClientRequest(clientPTR);
+		if (clientPTR->status == BUILD_REPONSE)
+			addNewPollfd(clientPTR->responseFileFd);
+		else if (clientPTR->status == SAVE_FILE)
+			addNewPollfd(clientPTR->uploadFileFd);
+		else if (clientPTR->status == EXECUTE_CGI)
+		{
+			addNewPollfd(clientPTR->pipeToCgi[0]);
+			addNewPollfd(clientPTR->pipeToCgi[1]);
+			addNewPollfd(clientPTR->pipeFromCgi[0]);
+			addNewPollfd(clientPTR->pipeFromCgi[1]);
+		} 
 		}
 	}
 	else if (recievedBytes < bufLen)
@@ -557,11 +572,12 @@ int		ConnectionHandler::getMultidataLength(clientInfo *clientPTR)
 		std::cerr << RED << "\ngetMultidataLength() failed:\n" << RESET << "Content-Length header was not found" << "\n\n";
 		// What should we do then...? Code 500?
 	}
-	startIdx += strToFind.length(); // +1 to get over the extra space
+	startIdx += strToFind.length();
 
 	size_t endIdx = clientPTR->requestString.find("\r\n", startIdx);
 	if (endIdx == std::string::npos)
 	{
+		// I think this might be wrong! Because strToFind has already the space after header name
 		std::cerr << RED << "\ngetMultidataLength() failed:\n" << RESET << "Content-Length header is empty" << "\n\n";
 		// What should we do then...? Code 500?
 	}
@@ -571,7 +587,7 @@ int		ConnectionHandler::getMultidataLength(clientInfo *clientPTR)
 	return (std::stoi(lengthStr));
 }
 
-
+/*
 void	ConnectionHandler::multipartSaveTest(clientInfo *clientPTR)
 {
 	std::string temp = "boundary=";
@@ -612,6 +628,7 @@ void	ConnectionHandler::multipartSaveTest(clientInfo *clientPTR)
 
 
 }
+*/
 
 
 
@@ -620,7 +637,7 @@ void	ConnectionHandler::parseClientRequest(clientInfo *clientPTR)
 {
 	parseRequest(clientPTR); // this code is in separate file ('requestParsing.cpp')
 
-	clientPTR->respHandler = new ResponseHandler; // get's deleted in the clintInfo destructor
+	clientPTR->respHandler = new ResponseHandler; // get's deleted in the client cleanup
 	clientPTR->respHandler->checkRequestType(clientPTR, clientPTR->requestString);
 
 	if (clientPTR->status == BUILD_ERRORPAGE)
@@ -631,6 +648,31 @@ void	ConnectionHandler::parseClientRequest(clientInfo *clientPTR)
 		if (clientPTR->status == BUILD_ERRORPAGE)
 			addNewPollfd(clientPTR->errorFileFd);
 	}
+}
+
+void	ConnectionHandler::writeUploadData(clientInfo *clientPTR)
+{
+	size_t binaryStartIdx = clientPTR->multipartFileDataStartIdx;
+	size_t binaryEndIdx = clientPTR->requestString.find(clientPTR->multipartBoundaryStr + "--");
+	std::string binaryStr = clientPTR->requestString.substr(binaryStartIdx, binaryEndIdx - binaryStartIdx); // There was a -2, do I need it...?
+
+	std::cout << RED << "Binary data len: " << binaryStr.size() << "\n" << RESET;
+
+	if (write(clientPTR->uploadFileFd, binaryStr.c_str(), binaryStr.size()) == -1)
+	{
+		std::cerr << RED << "\nwrite() in file upload failed\n" << RESET << std::strerror(errno) << "\n\n";
+		clientPTR->respHandler->setResponseCode(500); // check this later
+		clientPTR->respHandler->openErrorResponseFile(clientPTR);
+		addNewPollfd(clientPTR->errorFileFd);
+		return ;
+	}
+
+	clientPTR->respHandler->openResponseFile(clientPTR, "home/images/uploadSuccessful.html"); // hard coded for now
+	if (clientPTR->status == BUILD_ERRORPAGE)
+		addNewPollfd(clientPTR->errorFileFd);
+	else
+		addNewPollfd(clientPTR->responseFileFd);
+
 }
 
 
@@ -710,6 +752,11 @@ void	ConnectionHandler::removeClientFdsFromPollVec(clientInfo *clientPTR)
 		removeFromPollfdVec(clientPTR->responseFileFd);
 		close(clientPTR->responseFileFd); // Should we check return value...?
 	}
+	if (clientPTR->uploadFileFd != -1) // Should we close this immidiately after the file data has been saved...?
+	{
+		removeFromPollfdVec(clientPTR->uploadFileFd);
+		close(clientPTR->uploadFileFd); // Should we check return value...?
+	}
 	if (clientPTR->pipeToCgi[0] != -1)
 	{
 		removeFromPollfdVec(clientPTR->pipeToCgi[0]);
@@ -783,7 +830,8 @@ clientInfo	*ConnectionHandler::getClientPTR(const int clientFd)
 		|| obj.pipeToCgi[0] == clientFd
 		|| obj.pipeToCgi[1] == clientFd
 		|| obj.pipeFromCgi[0] == clientFd
-		|| obj.pipeFromCgi[1] == clientFd)
+		|| obj.pipeFromCgi[1] == clientFd
+		|| obj.uploadFileFd == clientFd)
 			return (&obj);
 	}
 

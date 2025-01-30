@@ -70,7 +70,8 @@ class ConnectionHandler
 
 	// multipart data
 
-	void	multipartSaveTest(clientInfo *clientPTR);
+	void	writeUploadData(clientInfo *clientPTR);
+//	void	multipartSaveTest(clientInfo *clientPTR);
 
 	// server helper functions
 	serverInfo *getServerByFd(const int fd);

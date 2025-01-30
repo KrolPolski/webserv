@@ -2,6 +2,7 @@
 #include "CgiHandler.hpp"
 #include "Structs.hpp"
 #include <iostream>
+#include <fcntl.h>
 
 const std::map<std::string, std::string> ResponseHandler::extensionTypes = 
 {
@@ -429,7 +430,7 @@ void	ResponseHandler::prepareUploadFile(clientInfo *clientPTR)
 
 //	checkExtension(filePath); // is this a good place for this...?
 
-	clientPTR->uploadFileFd = open(clientPTR->uploadFileName.c_str(), O_WRONLY | O_CREAT);
+	clientPTR->uploadFileFd = open(clientPTR->uploadFileName.c_str(), O_RDWR | O_CREAT, 0644);
 	if (clientPTR->uploadFileFd == -1)
 	{
 		std::cerr << RED << "\nopen() of upload file failed:\n" << RESET << std::strerror(errno) << "\n\n";

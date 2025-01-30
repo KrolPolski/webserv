@@ -1,6 +1,8 @@
 #include "ResponseHandler.hpp"
 #include "CgiHandler.hpp"
 #include "Structs.hpp"
+#include <fcntl.h>
+#include <filesystem>
 #include <iostream>
 
 const std::map<std::string, std::string> ResponseHandler::extensionTypes = 
@@ -386,19 +388,39 @@ void ResponseHandler::deleteHandler(clientInfo *clientPTR, std::string filePath)
 		5) Now attempt to delete the file. if it works out, return 200 response
 		
 		This won't be testable from within HTML, I'll have to make a python script for this. */
-		std::string serverLocalPath = clientPTR->relatedServer->serverConfig->getRoot("/") + filePath;
-		std::cout << "deleteHandler called on web path: " << filePath << std::endl;
-		std::cout << "and server local path is: " << serverLocalPath << std::endl;
-		try{if (std::filesystem::is_directory(filePath))
+	std::string serverLocalPath = clientPTR->relatedServer->serverConfig->getRoot("/") + filePath;
+	std::cout << "deleteHandler called on web path: " << filePath << std::endl;
+	std::cout << "and server local path is: " << serverLocalPath << std::endl;
+	if (std::filesystem::is_directory(serverLocalPath))
+	{
+		std::cout << serverLocalPath << " must be a directory" << std::endl;
+		if (std::filesystem::is_empty(serverLocalPath))
 		{
-			if (std::filesystem::is_empty(filePath))
-				std::cout << "We decided that the target path is both a directory and empty woo" << std::endl;
-		}}
-		catch(std::exception& e)
-		{
-			std::cerr << e.what() << std::endl;
-		}	}
+			std::cout << "We decided that the target path is both a directory and empty woo" << std::endl;
+			try{
+				std::filesystem::remove(serverLocalPath);
+				setResponseCode(204);
+				build204Response(clientPTR);
+			}
+			catch(std::exception& e)
+			{
+				std::cerr << "Attempt to remove " << serverLocalPath << " failed: " << e.what() << std::endl;
+			}
+			//setResponseCode(204);
+		}
+	}
+}
 
+void ResponseHandler::build204Response(clientInfo *clientPTR)
+{
+	std::string	headers;
+	headers = "HTTP/1.1 204 No Content\r\n";
+	headers += "Date: " + std::chrono::format("%Y-%m-%d %H:%M:%S", std::chrono::system_clock::now()) + "\r\n";
+	headers += "Server: 42 webserv\r\n";
+	headers += "Content-Length: 0\r\n";
+	clientPTR->responseString = headers;
+	clientPTR->status = SEND_RESPONSE;
+}
 
 int ResponseHandler::buildResponse(clientInfo *clientPTR)
 {

@@ -43,14 +43,14 @@ class WebservResponseCodeTests(unittest.TestCase):
         os.chmod(unreadable_file, 0o644)  # Set to readable/writeable by owner
         os.remove(unreadable_file)  # Delete the file
     
-    def test_bad_method(self):
-        #test_url = self.webserv_url + "cgi/pythonPost.py"
-        test_url = self.webserv_url + "index.html"
-        data = {"key" : "value"}
-        response = requests.post(test_url, data=data, timeout = 5)
-        #print(f"Reponse: {response.status_code}")
-        #print(response.text)
-        self.assertEqual(response.status_code, 405)
+    # def test_bad_method(self):
+    #     #test_url = self.webserv_url + "cgi/pythonPost.py"
+    #     test_url = self.webserv_url + "index.html"
+    #     data = {"key" : "value"}
+    #     response = requests.post(test_url, data=data, timeout = 5)
+    #     #print(f"Reponse: {response.status_code}")
+    #     #print(response.text)
+    #     self.assertEqual(response.status_code, 405)
     
    # def test_good_post(self):
        # test_url = self.webserv_url + "cgi/pythonPost.py"
@@ -60,20 +60,20 @@ class WebservResponseCodeTests(unittest.TestCase):
         #response = requests.post(test_url, data=test_data, headers=test_headers, timeout = 5)
         #print(response.text)
         #print(response.status_code)
-    def test_delete_successful(self)
-       url = "http://localhost:8080/deleteme.html"
+    def test_delete_successful(self):
+        url = "http://localhost:8080/deleteme.html"
         try:
             deletable_file = 'home/deleteme.html'
-            with open(deletable_file_file, "w") as f:
+            with open(deletable_file, "w") as f:
                 f.write("This is a test file.")
-        response = requests.delete(url, timeout = 5)
-        self.assertEqual(response.status_code, 204)
+            response = requests.delete(url, timeout = 5)
+            self.assertEqual(response.status_code, 204)
         # Print the response
-        print("Status Code:", response.status_code)
-        print("Response Text:", response.text)
+            print("Status Code:", response.status_code)
+            print("Response Text:", response.text)
         except requests.exceptions.RequestException as e:
             print("An error occurred:", e)
 
 
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main() 

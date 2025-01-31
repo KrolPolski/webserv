@@ -504,13 +504,25 @@ void ResponseHandler::deleteHandler(clientInfo *clientPTR, std::string filePath)
 			//setResponseCode(204);
 		}
 	}
+	else
+	{
+		try{
+			std::filesystem::remove(serverLocalPath);
+			setResponseCode(204);
+			build204Response(clientPTR);
+		}
+		catch(std::exception& e)
+		{
+			std::cerr << "Attempt to remove " << serverLocalPath << " failed: " << e.what() << std::endl;
+		}
+	}
 }
 
 void ResponseHandler::build204Response(clientInfo *clientPTR)
 {
 	std::string	headers;
 	headers = "HTTP/1.1 204 No Content\r\n";
-	headers += "Date: " + std::chrono::format("%Y-%m-%d %H:%M:%S", std::chrono::system_clock::now()) + "\r\n";
+	headers += "Date: " + std::format("%Y-%m-%d %H:%M:%S", std::chrono::system_clock::now()) + "\r\n";
 	headers += "Server: 42 webserv\r\n";
 	headers += "Content-Length: 0\r\n";
 	clientPTR->responseString = headers;

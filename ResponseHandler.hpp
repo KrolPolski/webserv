@@ -28,7 +28,7 @@ class ResponseHandler
 		void build500Response(clientInfo *clientPTR);
 		void build204Response(clientInfo *clientPTR);
 		void buildDirListingResponse(const std::string& pathToDir, clientInfo *ClientPTR);
-		int  openResponseFile(clientInfo *clientPTR, std::string filePath);
+		//int  openResponseFile(clientInfo *clientPTR, std::string filePath);
 		void deleteHandler(clientInfo *clientPTR, std::string filePath);
 		bool	checkForMultipartFileData(clientInfo *clientPTR);
 		void	prepareUploadFile(clientInfo *clientPTR);

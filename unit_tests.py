@@ -60,6 +60,7 @@ class WebservResponseCodeTests(unittest.TestCase):
         #response = requests.post(test_url, data=test_data, headers=test_headers, timeout = 5)
         #print(response.text)
         #print(response.status_code)
+
     def test_delete_successful(self):
         url = "http://localhost:8080/deleteme.html"
         try:
@@ -73,6 +74,27 @@ class WebservResponseCodeTests(unittest.TestCase):
             print("Response Text:", response.text)
         except requests.exceptions.RequestException as e:
             print("An error occurred:", e)
+    
+    def test_delete_no_perms(self):
+        undeletable_file = 'home/cantdelete.html'
+        with open(undeletable_file, "w") as f:
+            f.write("This is a test file.")
+        os.chmod(undeletable_file, 0o000)
+        test_url = self.webserv_url + "cantdelete.html"
+        response = requests.delete(test_url, timeout = 5)
+        self.assertEqual(response.status_code, 403)
+        os.chmod(undeletable_file, 0o644)  # Set to readable/writeable by owner
+        os.remove(undeletable_file)  # Delete the file
+    
+    def test_delete_non_existent(self):
+        url = "http://localhost:8080/not_here.html"
+        response = requests.delete(url, timeout = 5)
+        self.assertEqual(response.status_code, 404)
+
+    def test_delete_full_directory(self):
+        url = "http://localhost:8080/full/"
+        response = requests.delete(url, timeout = 5)
+        self.assertEqual(response.status_code, 400)
 
 
 if __name__ == '__main__':

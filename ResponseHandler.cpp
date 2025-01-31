@@ -503,17 +503,41 @@ void ResponseHandler::deleteHandler(clientInfo *clientPTR, std::string filePath)
 			}
 			//setResponseCode(204);
 		}
+		else
+		{
+			//We can't remove directories that are not empty with delete method
+			setResponseCode(400);
+			openErrorResponseFile(clientPTR);
+		}
 	}
 	else
 	{
-		try{
-			std::filesystem::remove(serverLocalPath);
-			setResponseCode(204);
-			build204Response(clientPTR);
-		}
-		catch(std::exception& e)
+		if (std::filesystem::exists(serverLocalPath))
 		{
-			std::cerr << "Attempt to remove " << serverLocalPath << " failed: " << e.what() << std::endl;
+			auto perms = std::filesystem::status(serverLocalPath).permissions();
+			if ((perms & std::filesystem::perms::group_write) != std::filesystem::perms::none)
+			{
+				try{
+					std::filesystem::remove(serverLocalPath);
+					setResponseCode(204);
+					build204Response(clientPTR);
+					}
+				
+				catch(std::exception& e)
+				{
+					std::cerr << "Attempt to remove " << serverLocalPath << " failed: " << e.what() << std::endl;
+				}
+			}
+			else
+			{
+				setResponseCode								(403);
+				openErrorResponseFile(clientPTR);
+			}
+		}
+		else
+		{
+			setResponseCode(404);
+			openErrorResponseFile(clientPTR);
 		}
 	}
 }

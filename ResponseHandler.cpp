@@ -1,6 +1,8 @@
 #include "ResponseHandler.hpp"
 #include "CgiHandler.hpp"
 #include "Structs.hpp"
+#include <fcntl.h>
+#include <filesystem>
 #include <iostream>
 #include <fcntl.h>
 
@@ -374,6 +376,19 @@ void ResponseHandler::parseRequest(clientInfo *clientPTR, std::string requestStr
 				}
 				break ;
 			}
+			case DELETE:
+			{
+				requestTypeAsString = "DELETE";
+				if (checkRequestAllowed(clientPTR, lineOne.at(1)))
+					deleteHandler(clientPTR, lineOne.at(1));
+				else
+				{
+					setResponseCode(405);
+						openErrorResponseFile(clientPTR);
+				}
+				break ;
+				
+			}
 			default:
 				std::cout << "unhandled parseRequest" << std::endl;
 		}
@@ -454,6 +469,89 @@ void	ResponseHandler::prepareUploadFile(clientInfo *clientPTR)
 }
 
 
+
+void ResponseHandler::deleteHandler(clientInfo *clientPTR, std::string filePath)
+{
+	(void)clientPTR;
+	(void)filePath;
+	/* If we get here we can be confident the DELETE method is authorized, but we have no assurances of the path itself being valid. */
+	/* So we need to:
+		1) determine if it is a file or a directory.
+		2) If directory, is it empty? 
+		3) if not empty refuse. If empty delete the directory.
+		4) If a file, do we have write perms? if not, throw 403 error page.
+		5) Now attempt to delete the file. if it works out, return 200 response
+		
+		This won't be testable from within HTML, I'll have to make a python script for this. */
+	std::string serverLocalPath = clientPTR->relatedServer->serverConfig->getRoot("/") + filePath;
+	std::cout << "deleteHandler called on web path: " << filePath << std::endl;
+	std::cout << "and server local path is: " << serverLocalPath << std::endl;
+	if (std::filesystem::is_directory(serverLocalPath))
+	{
+		std::cout << serverLocalPath << " must be a directory" << std::endl;
+		if (std::filesystem::is_empty(serverLocalPath))
+		{
+			std::cout << "We decided that the target path is both a directory and empty woo" << std::endl;
+			try{
+				std::filesystem::remove(serverLocalPath);
+				setResponseCode(204);
+				build204Response(clientPTR);
+			}
+			catch(std::exception& e)
+			{
+				std::cerr << "Attempt to remove " << serverLocalPath << " failed: " << e.what() << std::endl;
+			}
+			//setResponseCode(204);
+		}
+		else
+		{
+			//We can't remove directories that are not empty with delete method
+			setResponseCode(400);
+			openErrorResponseFile(clientPTR);
+		}
+	}
+	else
+	{
+		if (std::filesystem::exists(serverLocalPath))
+		{
+			auto perms = std::filesystem::status(serverLocalPath).permissions();
+			if ((perms & std::filesystem::perms::group_write) != std::filesystem::perms::none)
+			{
+				try{
+					std::filesystem::remove(serverLocalPath);
+					setResponseCode(204);
+					build204Response(clientPTR);
+					}
+				
+				catch(std::exception& e)
+				{
+					std::cerr << "Attempt to remove " << serverLocalPath << " failed: " << e.what() << std::endl;
+				}
+			}
+			else
+			{
+				setResponseCode								(403);
+				openErrorResponseFile(clientPTR);
+			}
+		}
+		else
+		{
+			setResponseCode(404);
+			openErrorResponseFile(clientPTR);
+		}
+	}
+}
+
+void ResponseHandler::build204Response(clientInfo *clientPTR)
+{
+	std::string	headers;
+	headers = "HTTP/1.1 204 No Content\r\n";
+	headers += "Date: " + std::format("%Y-%m-%d %H:%M:%S", std::chrono::system_clock::now()) + "\r\n";
+	headers += "Server: 42 webserv\r\n";
+	headers += "Content-Length: 0\r\n";
+	clientPTR->responseString = headers;
+	clientPTR->status = SEND_RESPONSE;
+}
 
 int ResponseHandler::buildResponse(clientInfo *clientPTR)
 {
@@ -547,14 +645,23 @@ void ResponseHandler::build500Response(clientInfo *clientPTR)
 
 void ResponseHandler::openErrorResponseFile(clientInfo *clientPTR)
 {
-	std::string errorFileName = "home/error/" + std::to_string(getResponseCode()) + ".html"; // HARD CODED!!
+	std::string errorFileName = clientPTR->relatedServer->serverConfig->getErrorPages(responseCode); 
+	//std::cout << "Our error page we are trying to use, returned from config handler: " << errorFileName << std::endl;
 	checkExtension(errorFileName); // Is this a good place for this...?
 
+	// this doesn't work because we are passing the web path, not the actual physical path on the drive. 
+	if (errorFileName[0] == '/') // we need to strip the leading / so it uses relative paths instead of absolute ones
+		errorFileName = errorFileName.substr(1, errorFileName.size() - 1);
 	clientPTR->errorFileFd = open(errorFileName.c_str(), O_RDONLY);
+	//if (clientPTR->errorFileFd == -1)
+		//this will get implemented after Patrik's branch gets pulled into main- he's added a method for this.
+		//errorFileName = clientPTR->relatedServer->serverConfig->getDefaultErrorPages(responseCode);
+		//clientPTR->errorFileFd = open(errorFileName.c_str(), O_RDONLY);
 	if (clientPTR->errorFileFd == -1)
 	{
 		// Do we need to specify what went wrong with the opening...?
 		std::cerr << RED << "\nopen() of error page file failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		build500Response(clientPTR);	
 		// Should we have a backup error page here...? That is built within our code?
 		// If for example someone were to mess with all the permissions of our error pages...
 
@@ -564,6 +671,7 @@ void ResponseHandler::openErrorResponseFile(clientInfo *clientPTR)
 	else if (fcntl(clientPTR->errorFileFd, F_SETFL, O_NONBLOCK) == -1) // make file fd non-blocking
 	{
 		std::cerr << RED << "\nfcntl() failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		build500Response(clientPTR);
 		// Disconnect is not good. Here we need to build some kind of "general error page" within our code !!
 		build500Response(clientPTR);
 		clientPTR->status = SEND_RESPONSE;

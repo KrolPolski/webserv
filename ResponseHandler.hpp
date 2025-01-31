@@ -10,6 +10,8 @@
 #include "Types.hpp"
 #include <filesystem>
 #include "CgiHandler.hpp"
+#include <chrono>
+#include <format>
 
 struct clientInfo;
 
@@ -24,7 +26,10 @@ class ResponseHandler
 		static const std::map<const unsigned int, std::string> errorCodes;
 		void setRequestType(enum requestTypes reqType);
 		void build500Response(clientInfo *clientPTR);
+		void build204Response(clientInfo *clientPTR);
 		void buildDirListingResponse(const std::string& pathToDir, clientInfo *ClientPTR);
+		//int  openResponseFile(clientInfo *clientPTR, std::string filePath);
+		void deleteHandler(clientInfo *clientPTR, std::string filePath);
 		bool	checkForMultipartFileData(clientInfo *clientPTR);
 		void	prepareUploadFile(clientInfo *clientPTR);
 	

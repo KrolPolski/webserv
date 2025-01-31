@@ -60,6 +60,20 @@ class WebservResponseCodeTests(unittest.TestCase):
         #response = requests.post(test_url, data=test_data, headers=test_headers, timeout = 5)
         #print(response.text)
         #print(response.status_code)
+    def test_delete_successful(self)
+       url = "http://localhost:8080/deleteme.html"
+        try:
+            deletable_file = 'home/deleteme.html'
+            with open(deletable_file_file, "w") as f:
+                f.write("This is a test file.")
+        response = requests.delete(url, timeout = 5)
+        self.assertEqual(response.status_code, 204)
+        # Print the response
+        print("Status Code:", response.status_code)
+        print("Response Text:", response.text)
+        except requests.exceptions.RequestException as e:
+            print("An error occurred:", e)
+
 
 if __name__ == '__main__':
     unittest.main()

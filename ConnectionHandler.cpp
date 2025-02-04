@@ -564,11 +564,12 @@ bool	ConnectionHandler::checkForBody(clientInfo *clientPTR)
 		return false;
 
 	bodyStartIdx += 4;
-	size_t bodyEndIdx = clientPTR->requestString.find("\r\n\r\n", bodyStartIdx);
-	if (bodyEndIdx == std::string::npos)
-		return false;
-	else
+	std::string body = clientPTR->requestString.substr(bodyStartIdx); // TEMP! Bad idea
+	int bodySize = body.size();
+	if (bodySize == clientPTR->reqBodyLen)
 		return true;
+	else
+		return false;
 
 	/*
 		Should I also check here that the received body is teh same length as the Content-Length header...?

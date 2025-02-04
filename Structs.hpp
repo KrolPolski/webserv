@@ -42,8 +42,9 @@ struct clientInfo
 	std::chrono::time_point<std::chrono::high_resolution_clock> startTime;
 	std::chrono::time_point<std::chrono::high_resolution_clock> curTime;
 
-	int		multipartTotalLen = -1;
-	int		multipartDataRead = 0;
+	int		reqBodyLen = -1;
+	int		reqBodyDataRead = 0;
+	bool 	bodyOK = false;
 
 	int		clientFd;
 	int		errorFileFd = -1;
@@ -70,6 +71,7 @@ struct clientInfo
 	clientInfo(int clientFd, const serverInfo *server) : relatedServer(server), clientFd(clientFd)
 	{
 		startTime = std::chrono::high_resolution_clock::now();
+		respHandler = new ResponseHandler; // get's deleted in the client cleanup
 	}
 
 };

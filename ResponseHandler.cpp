@@ -336,7 +336,7 @@ void ResponseHandler::parseRequest(clientInfo *clientPTR, std::string requestStr
 			{
 				requestTypeAsString = "GET";
 				
-						if (checkRequestAllowed(clientPTR, lineOne.at(1)))
+						if (checkRequestAllowed(clientPTR, clientPTR->parsedRequest.filePath)) // testing clientPTR parsing
 							checkFile(clientPTR, lineOne.at(1)); // we need to check return value here in case something goes wrong
 						else
 						{

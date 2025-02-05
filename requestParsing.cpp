@@ -1,4 +1,6 @@
 #include "ConnectionHandler.hpp"
+#include "URLhandler.hpp"
+
 
 /*
 	ERROR HANDLING AND VALID REQUEST CHECKING...?
@@ -7,6 +9,7 @@
 // A helper function to split the start line
 void	splitStartLine(requestParseInfo	&parseInfo)
 {
+	URLhandler	urlHandler;
 	size_t		startIndex = 0;
 	size_t		endIndex = 0;
 
@@ -31,6 +34,11 @@ void	splitStartLine(requestParseInfo	&parseInfo)
 		endIndex++;
 		parseInfo.queryString = tempStr.substr(endIndex, tempStr.length() - endIndex);
 	}
+
+	std::cout << "filepath before: " << parseInfo.filePath << "\n";
+	urlHandler.decode(parseInfo.filePath);
+	std::cout << "filepath after: " << parseInfo.filePath << "\n";
+
 
 	// Parse extension
 	startIndex = parseInfo.filePath.find_last_of('.');

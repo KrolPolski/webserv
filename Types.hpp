@@ -56,6 +56,7 @@ enum clientStatus
 enum clientRequestType
 {
 	UNDEFINED,
+	OTHER,
 	MULTIPART,
 	CHUNKED
 };

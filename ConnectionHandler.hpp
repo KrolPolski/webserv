@@ -65,13 +65,12 @@ class ConnectionHandler
 	int		parseRequest(clientInfo *clientPTR);
 	clientRequestType	checkRequestType(clientInfo *clientPTR);
 	bool	checkChunkedEnd(clientInfo *clientPTR);
-	int		getMultidataLength(clientInfo *clientPTR);
+	int		getBodyLength(clientInfo *clientPTR);
+	bool	checkForBody(clientInfo *clientPTR);
 
 
 	// multipart data
-
 	void	writeUploadData(clientInfo *clientPTR);
-//	void	multipartSaveTest(clientInfo *clientPTR);
 
 	// server helper functions
 	serverInfo *getServerByFd(const int fd);

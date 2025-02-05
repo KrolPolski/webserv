@@ -43,23 +43,23 @@ class WebservResponseCodeTests(unittest.TestCase):
         os.chmod(unreadable_file, 0o644)  # Set to readable/writeable by owner
         os.remove(unreadable_file)  # Delete the file
     
-    # def test_bad_method(self):
-    #     #test_url = self.webserv_url + "cgi/pythonPost.py"
-    #     test_url = self.webserv_url + "index.html"
-    #     data = {"key" : "value"}
-    #     response = requests.post(test_url, data=data, timeout = 5)
-    #     #print(f"Reponse: {response.status_code}")
-    #     #print(response.text)
-    #     self.assertEqual(response.status_code, 405)
-    
-   # def test_good_post(self):
-       # test_url = self.webserv_url + "cgi/pythonPost.py"
-       # test_data = {"username": "Mr. Tester",
-              #     "favfood": "The good kind"}
-       # test_headers = {"Content-Type": "application/x-www-form-urlencoded"} 
-        #response = requests.post(test_url, data=test_data, headers=test_headers, timeout = 5)
+    def test_bad_method(self):
+        #test_url = self.webserv_url + "cgi/pythonPost.py"
+        test_url = self.webserv_url + "index.html"
+        data = {"key" : "value"}
+        response = requests.post(test_url, data=data, timeout = 5)
+        #print(f"Reponse: {response.status_code}")
         #print(response.text)
-        #print(response.status_code)
+        self.assertEqual(response.status_code, 405)
+    
+    def test_good_post(self):
+        test_url = self.webserv_url + "cgi/pythonPost.py"
+        test_data = {"username": "Mr. Tester",
+                 "favfood": "The good kind"}
+        test_headers = {"Content-Type": "application/x-www-form-urlencoded"} 
+        response = requests.post(test_url, data=test_data, headers=test_headers, timeout = 5)
+        print(response.text)
+        print(response.status_code)
 
     def test_delete_successful(self):
         url = "http://localhost:8080/deleteme.html"
@@ -67,6 +67,7 @@ class WebservResponseCodeTests(unittest.TestCase):
             deletable_file = 'home/deleteme.html'
             with open(deletable_file, "w") as f:
                 f.write("This is a test file.")
+            os.chmod(deletable_file, 0o664)
             response = requests.delete(url, timeout = 5)
             self.assertEqual(response.status_code, 204)
         # Print the response

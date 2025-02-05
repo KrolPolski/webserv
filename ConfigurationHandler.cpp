@@ -88,11 +88,13 @@ void	ConfigurationHandler::defaultSettings()
 	m_errorPages.emplace(403, "/default-error-pages/403.html");
 	m_errorPages.emplace(404, "/default-error-pages/404.html");
 	m_errorPages.emplace(405, "/default-error-pages/405.html");
+	m_errorPages.emplace(408, "/default-error-pages/408.html");
 	m_errorPages.emplace(500, "/default-error-pages/500.html");
 	m_defaultErrorPages.emplace(400, "/default-error-pages/400.html");
 	m_defaultErrorPages.emplace(403, "/default-error-pages/403.html");
 	m_defaultErrorPages.emplace(404, "/default-error-pages/404.html");
 	m_defaultErrorPages.emplace(405, "/default-error-pages/405.html");
+	m_defaultErrorPages.emplace(408, "/default-error-pages/408.html");
 	m_defaultErrorPages.emplace(500, "/default-error-pages/500.html");
 	m_globalMethods = G_METHOD;
 	m_globalDirListing = FALSE;
@@ -464,7 +466,10 @@ std::string	ConfigurationHandler::getErrorPages(uint key) const
 {
 	auto map_key = m_errorPages.find(key);
 	if (map_key == m_errorPages.end())
+	{
 		webservLog.webservLog(ERROR, "Could not find this error pages", false);
+		return "";
+	}
 	return map_key->second;
 }
 

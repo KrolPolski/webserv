@@ -53,10 +53,11 @@ const std::map<std::string, std::string> ResponseHandler::extensionTypes =
 
 const std::map<const unsigned int, std::string> ResponseHandler::errorCodes =
 {
-	{404, "Not Found"},
-	{403, "Forbidden"},
-	{405, "Method Not Allowed"},
 	{400, "Bad Request"},
+	{403, "Forbidden"},
+	{404, "Not Found"},
+	{405, "Method Not Allowed"},
+	{408, "Client timeout"}, // Is this ok...? -Panu
 	{500, "Internal Server Error"}
 };
 
@@ -352,16 +353,11 @@ void ResponseHandler::parseRequest(clientInfo *clientPTR, std::string requestStr
 				{
 					if (clientPTR->reqType != MULTIPART) // Did we parse chunked already...? Or should we do it here? UNDEFINED should at least break ;
 					{
-						std::cout << RED << "POST method used without MULTIPART data!\n" << RESET;
-						// What should we do with the post data, if it isn't directed to CGI...?
-						// Should we save it somehow, or just discard it...?
-						// I think if the user of the server doesn't direct the info anywhere, I see no reason to save it.
-
-						clientPTR->status = DISCONNECT; // JUST A TEST
+						checkFile(clientPTR, lineOne.at(1)); // we need to check return value here in case something goes wrong
 						break ;
 					}
 
-					if (checkForMultipartFileData(clientPTR))
+					if (checkForMultipartFileData(clientPTR)) // Can you upload files some other way than using a HTML form...?
 						prepareUploadFile(clientPTR);
 					else
 					{
@@ -384,7 +380,7 @@ void ResponseHandler::parseRequest(clientInfo *clientPTR, std::string requestStr
 				else
 				{
 					setResponseCode(405);
-						openErrorResponseFile(clientPTR);
+					openErrorResponseFile(clientPTR);
 				}
 				break ;
 				
@@ -515,7 +511,7 @@ void ResponseHandler::deleteHandler(clientInfo *clientPTR, std::string filePath)
 		if (std::filesystem::exists(serverLocalPath))
 		{
 			auto perms = std::filesystem::status(serverLocalPath).permissions();
-			if ((perms & std::filesystem::perms::group_write) != std::filesystem::perms::none)
+			if ((perms & std::filesystem::perms::group_write) != std::filesystem::perms::none) // Why are these group_write...?
 			{
 				try{
 					std::filesystem::remove(serverLocalPath);
@@ -530,9 +526,10 @@ void ResponseHandler::deleteHandler(clientInfo *clientPTR, std::string filePath)
 			}
 			else
 			{
-				setResponseCode								(403);
+				setResponseCode(403);
 				openErrorResponseFile(clientPTR);
 			}
+
 		}
 		else
 		{
@@ -546,7 +543,7 @@ void ResponseHandler::build204Response(clientInfo *clientPTR)
 {
 	std::string	headers;
 	headers = "HTTP/1.1 204 No Content\r\n";
-	headers += "Date: " + std::format("%Y-%m-%d %H:%M:%S", std::chrono::system_clock::now()) + "\r\n";
+//	headers += "Date: " + std::format("%Y-%m-%d %H:%M:%S", std::chrono::system_clock::now()) + "\r\n";
 	headers += "Server: 42 webserv\r\n";
 	headers += "Content-Length: 0\r\n";
 	clientPTR->responseString = headers;
@@ -645,7 +642,14 @@ void ResponseHandler::build500Response(clientInfo *clientPTR)
 
 void ResponseHandler::openErrorResponseFile(clientInfo *clientPTR)
 {
-	std::string errorFileName = clientPTR->relatedServer->serverConfig->getErrorPages(responseCode); 
+	std::string errorFileName = clientPTR->relatedServer->serverConfig->getErrorPages(responseCode);
+	if (errorFileName == "")
+	{
+		std::cerr << RED << "\nopenErrorResponseFile() failed:\n" << RESET << "Could not locate proper error response file"<< "\n\n";
+		build500Response(clientPTR);
+		clientPTR->status = SEND_RESPONSE;
+		return ;
+	}
 	//std::cout << "Our error page we are trying to use, returned from config handler: " << errorFileName << std::endl;
 	checkExtension(errorFileName); // Is this a good place for this...?
 
@@ -661,18 +665,12 @@ void ResponseHandler::openErrorResponseFile(clientInfo *clientPTR)
 	{
 		// Do we need to specify what went wrong with the opening...?
 		std::cerr << RED << "\nopen() of error page file failed:\n" << RESET << std::strerror(errno) << "\n\n";
-		build500Response(clientPTR);	
-		// Should we have a backup error page here...? That is built within our code?
-		// If for example someone were to mess with all the permissions of our error pages...
-
 		build500Response(clientPTR);
 		clientPTR->status = SEND_RESPONSE;
 	}
 	else if (fcntl(clientPTR->errorFileFd, F_SETFL, O_NONBLOCK) == -1) // make file fd non-blocking
 	{
 		std::cerr << RED << "\nfcntl() failed:\n" << RESET << std::strerror(errno) << "\n\n";
-		build500Response(clientPTR);
-		// Disconnect is not good. Here we need to build some kind of "general error page" within our code !!
 		build500Response(clientPTR);
 		clientPTR->status = SEND_RESPONSE;
 	}
@@ -686,7 +684,8 @@ void ResponseHandler::buildErrorResponse(clientInfo *clientPTR)
 	if (clientPTR->errorFileFd == -1)
 		std::cout << RED << "\nERROR! buildErrorResponse called before error file was opened\n" << RESET;
 
-//	std::cout << "We got to buildErrorResponse" << std::endl;
+	std::cout << "We got to buildErrorResponse" << std::endl;
+
 	//need to update this based on config file path to error pages
 	//tested with this and it works. now just fetch this from the configuration data. --- Patrik
 

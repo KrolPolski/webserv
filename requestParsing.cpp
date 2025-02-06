@@ -35,10 +35,7 @@ void	splitStartLine(requestParseInfo	&parseInfo)
 		parseInfo.queryString = tempStr.substr(endIndex, tempStr.length() - endIndex);
 	}
 
-	std::cout << "filepath before: " << parseInfo.filePath << "\n";
 	urlHandler.decode(parseInfo.filePath);
-	std::cout << "filepath after: " << parseInfo.filePath << "\n";
-
 
 	// Parse extension
 	startIndex = parseInfo.filePath.find_last_of('.');

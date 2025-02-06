@@ -32,6 +32,8 @@ class ResponseHandler
 		void deleteHandler(clientInfo *clientPTR, std::string filePath);
 		bool	checkForMultipartFileData(clientInfo *clientPTR);
 		void	prepareUploadFile(clientInfo *clientPTR);
+		bool 	isValidErrorFile(std::string &errorFileName);
+
 	
     public:
 		CgiHandler	*m_cgiHandler = nullptr; // Should this be private and accessed through getter...?
@@ -42,14 +44,13 @@ class ResponseHandler
         ResponseHandler(const ResponseHandler& other) = delete;
         const ResponseHandler& operator=(const ResponseHandler& other) = delete;
         ~ResponseHandler() = default;
-        void checkRequestType(clientInfo *ClientPTR, std::string requestString);
-		void parseRequest(clientInfo *ClientPTR, std::string requestString);
-		void ServeErrorPages(clientInfo *ClientPTR, std::string requestString);
-        int checkFile(clientInfo *ClientPTR, std::string filePath);
-		void checkExtension(std::string filePath);
+        void setRequestType(clientInfo *clientPTR);
+		void handleRequest(clientInfo *clientPTR);
+        void checkFile(clientInfo *clientPTR);
+		void setExtension(clientInfo *clientPTR);
 		const enum requestTypes& getRequestType() const;
 		unsigned int getResponseCode() const;
-		bool checkRequestAllowed(clientInfo *clientPTR, std::string filePath);
+		bool checkRequestAllowed(clientInfo *clientPTR);
 		void buildRedirectResponse(std::string filePath, clientInfo *clientPTR);
 		void buildErrorResponse(clientInfo *ClientPTR); // is this ok in public...? used to be in private! - Panu
 		void openErrorResponseFile(clientInfo *clientPTR);

@@ -467,7 +467,7 @@ std::string	ConfigurationHandler::getErrorPages(uint key) const
 	auto map_key = m_errorPages.find(key);
 	if (map_key == m_errorPages.end())
 	{
-		webservLog.webservLog(ERROR, "Could not find this error pages", false);
+		webservLog.webservLog(ERROR, "Could not find custom error page; using default instead", false);
 		return "";
 	}
 	return map_key->second;
@@ -475,9 +475,12 @@ std::string	ConfigurationHandler::getErrorPages(uint key) const
 
 std::string	ConfigurationHandler::getDefaultErrorPages(uint key) const
 {
-	auto map_key = m_errorPages.find(key);
-	if (map_key == m_errorPages.end())
-		std::cout << "Error: could not find this " << key << " default error pages" << std::endl;
+	auto map_key = m_defaultErrorPages.find(key);
+	if (map_key == m_defaultErrorPages.end())
+	{
+		webservLog.webservLog(ERROR, "Could not find default error page; sending code 500 instead", false);
+		return "";
+	}
 	return map_key->second;
 }
 

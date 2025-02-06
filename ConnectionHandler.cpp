@@ -323,21 +323,6 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			clientCleanUp(clientPTR);
 			removeFromClientVec(clientPTR);
 
-		//	std::cout << RED << "SERVER STATUS:\n" << RESET
-		//	<< "Server vec size: " << m_serverVec.size() << "\n"
-		//	<< "Client vec size: " << m_clientVec.size() << "\n"
-		//	<< "Poll vec size: " << m_pollfdVec.size() << "\n";
-
-			/*
-				NOTE!
-
-				There appears to be some random "ghost clients" from time to time...
-				don't really know why.
-				They connect but don't send a request.
-				This will automatically be solved once I implement the
-				timeout-system for clients, but still... weird!
-			*/
-
 			break ;
 		}
 
@@ -466,7 +451,13 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 	{
 		if (checkChunkedEnd(clientPTR)) // Should we unchunk as we go...? So that we can more reliable check for max_content_len?
 		{
+
+			std::cout << "BEFORE UNCHUNK: " << clientPTR->requestString << "\n";
+
 			unChunkRequest(clientPTR);
+
+			std::cout << "AFTER UNCHUNK: " << clientPTR->requestString << "\n";
+
 			
 			clientPTR->status = PARSE_REQUEST;
 			parseClientRequest(clientPTR);
@@ -644,13 +635,13 @@ void	ConnectionHandler::parseClientRequest(clientInfo *clientPTR)
 
 	parseRequest(clientPTR); // this code is in separate file ('requestParsing.cpp')
 
-	clientPTR->respHandler->checkRequestType(clientPTR, clientPTR->requestString);
+	clientPTR->respHandler->setRequestType(clientPTR);
 
 	if (clientPTR->status == BUILD_ERRORPAGE)
 		addNewPollfd(clientPTR->errorFileFd);
 	else
 	{
-		clientPTR->respHandler->parseRequest(clientPTR, clientPTR->requestString);
+		clientPTR->respHandler->handleRequest(clientPTR);
 		if (clientPTR->status == BUILD_ERRORPAGE)
 			addNewPollfd(clientPTR->errorFileFd);
 	}
@@ -688,7 +679,7 @@ void	ConnectionHandler::writeUploadData(clientInfo *clientPTR)
 
 void		ConnectionHandler::sendDataToClient(clientInfo *clientPTR)
 {
-	// std::cout << RED << "RESPONSE:\n" << RESET << clientPTR->responseString << "\n";
+	std::cout << RED << "RESPONSE:\n" << RESET << clientPTR->responseString << "\n";
 
 	size_t	sendLenMax = 1000000;
 	size_t	sendDataLen = clientPTR->responseString.size();

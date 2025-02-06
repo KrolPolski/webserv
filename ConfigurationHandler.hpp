@@ -36,7 +36,6 @@ struct locationBlock
 	std::string					m_methods; 		// GET POST DELETE
 	std::string					m_cgiPath;		// path to cgi interpreter
 	enum dirListStates			m_dirListing; 	// directory listing ON or OFF
-	//std::string					index; 			// if we are choose to override?
 
 	locationBlock() : m_dirListing(UNSET)
 	{};
@@ -59,7 +58,6 @@ class ConfigurationHandler
 		uint 									m_maxClientBodySize;	// max client body size
 		std::map<std::string, locationBlock>	m_routes;				// root of that location as key & struct for each block info
 		std::map<int, std::string>				m_errorPages;			// Custom error pages and their location, error code as key
-		// enum dirListStates						dirListState;
 
 		ConfigurationHandler();
 

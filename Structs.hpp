@@ -45,6 +45,7 @@ struct clientInfo
 	int		reqBodyLen = -1;
 	int		reqBodyDataRead = 0;
 	bool 	bodyOK = false;
+	bool	chunkedOK = false;
 
 	int		clientFd;
 	int		errorFileFd = -1;

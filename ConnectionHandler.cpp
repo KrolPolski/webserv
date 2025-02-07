@@ -445,18 +445,26 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 	clientPTR->requestString.append(buf, recievedBytes);
 
 	if (clientPTR->reqType == UNDEFINED)
+	{
 		clientPTR->reqType = checkRequestType(clientPTR);
+
+		// if we have more than 10000 characters of only headers, we say it's a bad request
+		if (clientPTR->reqType == UNDEFINED && clientPTR->requestString.size() > 10000)
+		{
+			std::cerr << RED << "\nBad request:\n" << RESET << "Request headers too long" << "\n\n";
+			clientPTR->respHandler->setResponseCode(400);
+			clientPTR->respHandler->openErrorResponseFile(clientPTR);
+			addNewPollfd(clientPTR->errorFileFd);
+			return ;
+		}
+	}
 
 	if (clientPTR->reqType == CHUNKED)
 	{
 		if (checkChunkedEnd(clientPTR)) // Should we unchunk as we go...? So that we can more reliable check for max_content_len?
 		{
 
-			std::cout << "BEFORE UNCHUNK: " << clientPTR->requestString << "\n";
-
 			unChunkRequest(clientPTR);
-
-			std::cout << "AFTER UNCHUNK: " << clientPTR->requestString << "\n";
 
 			
 			clientPTR->status = PARSE_REQUEST;
@@ -633,7 +641,13 @@ int		ConnectionHandler::getBodyLength(clientInfo *clientPTR)
 void	ConnectionHandler::parseClientRequest(clientInfo *clientPTR)
 {
 
-	parseRequest(clientPTR); // this code is in separate file ('requestParsing.cpp')
+	if (parseRequest(clientPTR) == -1) // this code is in separate file ('requestParsing.cpp')
+	{
+		clientPTR->respHandler->setResponseCode(400);
+		clientPTR->respHandler->openErrorResponseFile(clientPTR);
+		addNewPollfd(clientPTR->errorFileFd);
+		return ;
+	}
 
 	clientPTR->respHandler->setRequestType(clientPTR);
 
@@ -679,7 +693,7 @@ void	ConnectionHandler::writeUploadData(clientInfo *clientPTR)
 
 void		ConnectionHandler::sendDataToClient(clientInfo *clientPTR)
 {
-	std::cout << RED << "RESPONSE:\n" << RESET << clientPTR->responseString << "\n";
+//	std::cout << RED << "RESPONSE:\n" << RESET << clientPTR->responseString << "\n";
 
 	size_t	sendLenMax = 1000000;
 	size_t	sendDataLen = clientPTR->responseString.size();

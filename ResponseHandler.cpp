@@ -195,7 +195,7 @@ void ResponseHandler::checkFile(clientInfo *clientPTR)
 	if (std::filesystem::is_directory(filePath))
 	{
 		if (filePath.back() == '/')
-			defaultFilePath = filePath + "index.html"; // This should not be hard coded, right...? Isn't the default landing file defined in config?
+			defaultFilePath = filePath + clientPTR->relatedServer->serverConfig->getIndex();
 		else
 		{
 			webFilePath += "/";
@@ -269,7 +269,7 @@ void ResponseHandler::handleRequest(clientInfo *clientPTR)
 		{
 			requestTypeAsString = "GET";
 			if (checkRequestAllowed(clientPTR))
-				checkFile(clientPTR); // we need to check return value here in case something goes wrong
+				checkFile(clientPTR);
 			else
 			{
 				setResponseCode(405);
@@ -283,12 +283,15 @@ void ResponseHandler::handleRequest(clientInfo *clientPTR)
 			requestTypeAsString = "POST";
 			if (checkRequestAllowed(clientPTR))
 			{
-
-				
-
-				if (clientPTR->reqType != MULTIPART)
+				if (clientPTR->reqType != MULTIPART) // DO we have to handle other types of file uploads...?
 				{
-					checkFile(clientPTR);
+					if (clientPTR->parsedRequest.cgiType != NONE) // check for CGI
+						checkFile(clientPTR);
+					else
+					{
+						setResponseCode(400); // Sort of a temp solution, what should we actually do if someone uses POST to do something else than CGI or File upload?
+						openErrorResponseFile(clientPTR);
+					}
 					break ;
 				}
 

@@ -680,10 +680,10 @@ void ResponseHandler::buildErrorResponse(clientInfo *clientPTR)
 
 	buffer[bytesRead] = '\0';
 	clientPTR->responseBody += buffer;
-	contentType = "text/html";
 
 	if (bytesRead < readPerCall)
 	{
+		contentType = "text/html";
 		std::string	headers;
 
 		headers = "HTTP/1.1 " + std::to_string(getResponseCode()) + " " + errorCodes.at(getResponseCode()) + "\r\n";

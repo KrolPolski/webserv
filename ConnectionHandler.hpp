@@ -52,6 +52,7 @@ class ConnectionHandler
 
 	// client data functions
 	void	checkClientTimeOut();
+	void	resetClientTimeOut(clientInfo *clientPTR);
 	void	handleClientAction(const pollfd &pollFdStuct);
 	void	acceptNewClient(const unsigned int serverFd);
 	void	recieveDataFromClient(const unsigned int clientFd, clientInfo *clientPTR);

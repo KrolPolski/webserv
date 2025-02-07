@@ -174,6 +174,12 @@ void	ConnectionHandler::checkClientTimeOut()
 	}
 }
 
+// If client has had a recent action in the server side process, we restart their time out clock
+void	ConnectionHandler::resetClientTimeOut(clientInfo *clientPTR)
+{
+	clientPTR->startTime = std::chrono::high_resolution_clock::now();
+}
+
 void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 {
 	clientInfo *clientPTR = getClientPTR(pollFdStuct.fd);
@@ -185,7 +191,6 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 
 	switch (clientPTR->status)
 	{
-
 		case RECIEVE_REQUEST:
 		{
 			if (!clientPTR->stateFlags[RECIEVE_REQUEST])
@@ -195,7 +200,10 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			}
 
 			if (clientPTR->clientFd == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
+			{
 				recieveDataFromClient(pollFdStuct.fd, clientPTR);
+				resetClientTimeOut(clientPTR);
+			}
 			break ;
 		}
 
@@ -208,7 +216,10 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			}
 
 			if (clientPTR->uploadFileFd == pollFdStuct.fd && pollFdStuct.revents & POLLOUT)
+			{
 				writeUploadData(clientPTR);
+				resetClientTimeOut(clientPTR);
+			}
 			break ;
 		}
 
@@ -221,7 +232,10 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			}
 
 			if (clientPTR->errorFileFd == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
+			{
 				clientPTR->respHandler->buildErrorResponse(clientPTR);
+				resetClientTimeOut(clientPTR);
+			}
 			break ;
 		}
 
@@ -234,7 +248,10 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			}
 
 			if (clientPTR->responseFileFd == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
+			{
 				clientPTR->respHandler->buildResponse(clientPTR);
+				resetClientTimeOut(clientPTR);
+			}
 			break ;
 		}
 
@@ -248,10 +265,14 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 
 			if (clientPTR->pipeToCgi[1] == pollFdStuct.fd && pollFdStuct.revents & POLLOUT)
 			{
-		//		std::cout << GREEN << "\nGoing to write in ToCgi Pipe!\n" << RESET;
-
 				if (clientPTR->respHandler->m_cgiHandler->writeToCgiPipe() == -1)
-					clientPTR->status = DISCONNECT; // This is wrong, we need an error page! But what type of page...?
+				{
+					clientPTR->respHandler->setResponseCode(500);
+					clientPTR->respHandler->openErrorResponseFile(clientPTR);
+					addNewPollfd(clientPTR->errorFileFd);
+					return ;
+				}
+				resetClientTimeOut(clientPTR);
 			}
 			else if (clientPTR->pipeToCgi[0] == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
 				clientPTR->respHandler->m_cgiHandler->setPipeToCgiReadReady();
@@ -260,6 +281,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 
 			int executeStatus = clientPTR->respHandler->m_cgiHandler->executeCgi();
 
+			// 0 = CGI child process successful, 2 = still waiting for child process, -1 = error
 			if (executeStatus == 0 || executeStatus == 2 || executeStatus == -1)
 			{
 				removeFromPollfdVec(clientPTR->pipeToCgi[0]);
@@ -272,7 +294,15 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 				if (executeStatus == 0)
 					clientPTR->status = BUILD_CGI_RESPONSE;
 				else if (executeStatus == -1)
-					clientPTR->status = DISCONNECT; // This is wrong, we need an error page! But what type of page...?
+				{
+					clientPTR->respHandler->setResponseCode(500);
+					clientPTR->respHandler->openErrorResponseFile(clientPTR);
+					addNewPollfd(clientPTR->errorFileFd);
+					return ;
+				}
+
+				if (executeStatus != 2)
+					resetClientTimeOut(clientPTR);
 			}
 
 			break ;
@@ -288,11 +318,14 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 
 			if (clientPTR->pipeFromCgi[0] == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
 			{
-		//		std::cout << GREEN << "\nGoing to buildCgiResponse() function!\n" << RESET;
-		//		std::cout << GREEN << "\nThe pipeFromCGI fd is: " << clientPTR->pipeFromCgi[0] << RESET;
-
 				if (clientPTR->respHandler->m_cgiHandler->buildCgiResponse(clientPTR) == -1)
-					clientPTR->status = DISCONNECT; // This is wrong, we need an error page! But what type of page...?
+				{
+					clientPTR->respHandler->setResponseCode(500);
+					clientPTR->respHandler->openErrorResponseFile(clientPTR);
+					addNewPollfd(clientPTR->errorFileFd);
+					return ;
+				}
+				resetClientTimeOut(clientPTR);
 			}
 			break ;
 		}
@@ -303,12 +336,13 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			{
 				clientPTR->stateFlags[SEND_RESPONSE] = true;
 				std::cout << GREEN << "\nCLIENT SEND_RESPONSE!\n" << RESET;
-
-			//	std::cout << RED << "ResponseStr:\n" << RESET << clientPTR->responseString << "\n";
 			}
 
 			if (clientPTR->clientFd == pollFdStuct.fd && pollFdStuct.revents & POLLOUT)
+			{
 				sendDataToClient(clientPTR);
+				resetClientTimeOut(clientPTR);
+			}
 			break ;
 		}
 
@@ -433,11 +467,17 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 	if (recievedBytes <= 0)
 	{
 		if (recievedBytes == 0)
-			std::cout << "Connection with client has been closed\n";
+		{
+			std::cout << "Connection has been closed by the client during recv() operation\n";
+			clientPTR->status = DISCONNECT;
+		}
 		else
+		{
 			std::cerr << RED << "\nrecv() failed\n" << RESET << std::strerror(errno) << "\n\n";
-
-		clientPTR->status = DISCONNECT; // not good, we need to build some sort of response too!
+			clientPTR->respHandler->setResponseCode(500);
+			clientPTR->respHandler->openErrorResponseFile(clientPTR);
+			addNewPollfd(clientPTR->errorFileFd);
+		}	
 		return ;
 	}
 
@@ -452,7 +492,7 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 		if (clientPTR->reqType == UNDEFINED && clientPTR->requestString.size() > 10000)
 		{
 			std::cerr << RED << "\nBad request:\n" << RESET << "Request headers too long" << "\n\n";
-			clientPTR->respHandler->setResponseCode(400);
+			clientPTR->respHandler->setResponseCode(400); 
 			clientPTR->respHandler->openErrorResponseFile(clientPTR);
 			addNewPollfd(clientPTR->errorFileFd);
 			return ;
@@ -667,9 +707,7 @@ void	ConnectionHandler::writeUploadData(clientInfo *clientPTR)
 	size_t binaryEndIdx = clientPTR->requestString.find(clientPTR->multipartBoundaryStr + "--");
 	std::string binaryStr = clientPTR->requestString.substr(binaryStartIdx, binaryEndIdx - binaryStartIdx); // There was a -2, do I need it...?
 
-	std::cout << RED << "Binary data len: " << binaryStr.size() << "\n" << RESET;
-
-	if (write(clientPTR->uploadFileFd, binaryStr.c_str(), binaryStr.size()) == -1)
+	if (write(clientPTR->uploadFileFd, binaryStr.c_str(), binaryStr.size()) == -1) // Is it ok to do the write in one call...?
 	{
 		std::cerr << RED << "\nwrite() in file upload failed\n" << RESET << std::strerror(errno) << "\n\n";
 		clientPTR->respHandler->setResponseCode(500); // check this later
@@ -686,16 +724,13 @@ void	ConnectionHandler::writeUploadData(clientInfo *clientPTR)
 
 }
 
-
 /*
 	SEND DATA TO CLIENT
 */
 
 void		ConnectionHandler::sendDataToClient(clientInfo *clientPTR)
 {
-//	std::cout << RED << "RESPONSE:\n" << RESET << clientPTR->responseString << "\n";
-
-	size_t	sendLenMax = 1000000;
+	size_t	sendLenMax = 1000000; // Check this
 	size_t	sendDataLen = clientPTR->responseString.size();
 	if (sendDataLen > sendLenMax)
 		sendDataLen = sendLenMax;
@@ -703,18 +738,26 @@ void		ConnectionHandler::sendDataToClient(clientInfo *clientPTR)
 	// Send response to client
 	int sendBytes = send(clientPTR->clientFd, clientPTR->responseString.c_str(), sendDataLen, 0);
 
-	if (sendBytes < 0) // should 0 be included...?
+	if (sendBytes <= 0)
 	{
-		std::cerr << RED << "\nsend() failed:\n" << RESET << std::strerror(errno) << "\n\n";
-		// Do we need any other error handling...? For example close the client connection?
-		clientPTR->status = DISCONNECT; // check this!
+		if (sendBytes == 0)
+		{
+			std::cout << "Connection closed by the client during send() operation\n";
+			clientPTR->status = DISCONNECT;
+		}
+		else
+		{
+			std::cerr << RED << "\nsend() failed\n" << RESET << std::strerror(errno) << "\n\n";
+			clientPTR->respHandler->setResponseCode(500);
+			clientPTR->respHandler->openErrorResponseFile(clientPTR);
+			addNewPollfd(clientPTR->errorFileFd);
+		}
+		return ;
 	}
 
 	clientPTR->bytesSent += sendBytes;
 	if (sendBytes <= (int)clientPTR->responseString.size()) // check int cast!
 		clientPTR->responseString.erase(0, sendBytes);
-
-	// std::cout << RED << "Bytes sent:\n" << RESET << clientPTR->bytesSent << "\n";
 
 	if (clientPTR->responseString.size() == 0)
 		clientPTR->status = DISCONNECT;
@@ -736,6 +779,9 @@ void	ConnectionHandler::addNewPollfd(int newFd)
 
 void	ConnectionHandler::removeFromPollfdVec(int &fdToRemove)
 {
+	if (fdToRemove == -1)
+		return ;
+
 	for (int i = 0; i < (int)m_pollfdVec.size(); ++i)
 	{
 		if (m_pollfdVec[i].fd == fdToRemove)
@@ -877,10 +923,14 @@ void	ConnectionHandler::clientCleanUp(clientInfo *clientPTR)
 	if (clientPTR->respHandler != nullptr)
 	{
 		if (clientPTR->respHandler->m_cgiHandler != nullptr)
+		{
+			pid_t cgiChildPid = clientPTR->respHandler->m_cgiHandler->getCgiChildPid();
+			if (cgiChildPid != -1)
+				kill(cgiChildPid, SIGKILL); // Or sigint...? And errorhandling?
 			delete clientPTR->respHandler->m_cgiHandler;
+		}
 		delete clientPTR->respHandler;
 	}
-	
 	removeClientFdsFromPollVec(clientPTR);
 }
 

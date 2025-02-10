@@ -11,7 +11,8 @@
 #include <filesystem>
 #include "CgiHandler.hpp"
 #include <chrono>
-// #include <format>
+#include <iostream>
+#include <fcntl.h>
 
 struct clientInfo;
 
@@ -28,7 +29,6 @@ class ResponseHandler
 		void build500Response(clientInfo *clientPTR);
 		void build204Response(clientInfo *clientPTR);
 		void buildDirListingResponse(const std::string& pathToDir, clientInfo *ClientPTR);
-		//int  openResponseFile(clientInfo *clientPTR, std::string filePath);
 		void deleteHandler(clientInfo *clientPTR, std::string filePath);
 		bool	checkForMultipartFileData(clientInfo *clientPTR);
 		void	prepareUploadFile(clientInfo *clientPTR);
@@ -38,8 +38,6 @@ class ResponseHandler
     public:
 		CgiHandler	*m_cgiHandler = nullptr; // Should this be private and accessed through getter...?
 		int openCgiPipes(clientInfo *clientPTR);
-
-
         ResponseHandler() = default;
         ResponseHandler(const ResponseHandler& other) = delete;
         const ResponseHandler& operator=(const ResponseHandler& other) = delete;
@@ -55,13 +53,7 @@ class ResponseHandler
 		void buildErrorResponse(clientInfo *ClientPTR); // is this ok in public...? used to be in private! - Panu
 		void openErrorResponseFile(clientInfo *clientPTR);
 		int buildResponse(clientInfo *clientPTR);
-		
 		void setResponseCode(unsigned int code); // Added this to public, might be a problem
 		int	openResponseFile(clientInfo *clientPTR, std::string filePath);
-
-
-
-
-
 };
 

@@ -3,31 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upload Success</title>
+    <title>Stylish Image Upload</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            background-color: #e8f5e9;
-            color: #2e7d32;
+            background: linear-gradient(to right, #2f4f4f, #006400);
+            color: white;
             text-align: center;
-            padding: 50px;
+            margin: 0;
+            padding: 0;
         }
+        
         h1 {
-            color: #388e3c;
+            font-size: 3em;
+            margin-top: 50px;
         }
-        .message {
-            font-size: 24px;
-            background-color: #a5d6a7;
-            padding: 20px;
-            border-radius: 10px;
-            display: inline-block;
+        
+        .button-container {
+            background-color: rgba(0, 0, 0, 0.5);
+            border-radius: 15px;
+            padding: 40px;
+            width: 80%;
+            max-width: 500px;
+            margin: 50px auto;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: space-around;
+        }
+
+        label {
+            font-size: 1.2em;
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        .button {
+            background-color: #228b22;
+            color: white;
+            font-size: 1.1em;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+			text-decoration: none;
+        }
+
+        .button:hover {
+            background-color: #006400; /* Darker forest green on hover */
+        }
+
+        .footer {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            text-align: center;
+            color: white;
         }
     </style>
 </head>
 <body>
-    <h1>File Upload</h1>
-    <div class="message">
-        File upload successful
+
+    <h1>Upload successful!</h1>
+	<h2>What do you want to do next?</h2>
+
+    <div class="button-container">
+        <a href="/images" class="button">Download another image</a>
+		<br>
+		<a href="/images/seeImages.html" class="button">View your downloaded images</a>
     </div>
+
+    <div class="footer">
+        <p>&copy; Webserv Image Upload</p>
+    </div>
+
 </body>
 </html>

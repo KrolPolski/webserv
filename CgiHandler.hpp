@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Types.hpp"
-#include <chrono> // for timer building
 #include <filesystem> // for current directory path
 #include <cstring> // for errno
 #include <unistd.h> // fork()
@@ -68,8 +67,6 @@ class CgiHandler
 	char 	*m_envArrExecve[16] = {};
 
 	pid_t	m_childProcPid;
-
-	std::chrono::time_point<std::chrono::high_resolution_clock> m_startTime;
 
 	void	setExecveArgs();
 	void	setExecveEnvArr();

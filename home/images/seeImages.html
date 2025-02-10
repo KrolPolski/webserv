@@ -25,9 +25,13 @@
             border-radius: 15px;
             padding: 40px;
             width: 80%;
-            max-width: 600px;
+            max-width: 800px;
             margin: 50px auto;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: space-around;
         }
 
         h3 {
@@ -46,7 +50,7 @@
             margin: 15px 0;
         }
 
-        button {
+        .view-button {
             background-color: #228b22; /* Forest green button */
             color: white;
             font-size: 1.2em;
@@ -55,9 +59,46 @@
             border-radius: 30px;
             cursor: pointer;
             transition: background-color 0.3s ease, transform 0.3s ease;
+			margin-right: 10px; /* Add right margin to create space */
         }
 
-        button:hover {
+        .view-button:hover {
+            background-color: #006400; /* Darker green on hover */
+            transform: scale(1.05);
+        }
+
+		.delete-button {
+            background-color: #cb2727; /* Forest green button */
+            color: white;
+            font-size: 0.9em;
+            padding: 8px 18px;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.3s ease;
+        }
+
+        .delete-button:hover {
+            background-color: #b10202; /* Darker green on hover */
+            transform: scale(1.05);
+        }
+
+		.option-button {
+            background-color: #228b22; /* Forest green button */
+            color: white;
+            font-size: 1.2em;
+            padding: 12px 24px;
+			border: 2px solid black; /* Black border around the button */
+            border-radius: 30px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.3s ease;
+			text-decoration: none;
+			position: absolute; /* Position relative to the closest positioned ancestor (default is the body) */
+			top: 30px; /* Distance from the top edge of the page */
+			left: 30px; /* Distance from the left edge of the page */
+        }
+
+        .option-button:hover {
             background-color: #006400; /* Darker green on hover */
             transform: scale(1.05);
         }
@@ -95,7 +136,7 @@
     <h1>Image Viewer</h1>
 
     <div class="file-list-container">
-        <h3>Select an Image to View</h3>
+        <h3>Select an Image</h3>
         <ul id="file-list"></ul>
     </div>
 
@@ -104,8 +145,10 @@
         <img id="file-image" alt="Selected Image will appear here">
     </div>
 
+	<a href="/images" class="option-button">Download new images</a>
+
     <div class="footer">
-        <p>&copy; 2025 Image Viewer</p>
+        <p>&copy; Webserv Image Viewer</p>
     </div>
 
     <script>
@@ -116,27 +159,57 @@
                 const fileListElement = document.getElementById('file-list');
                 files.forEach(file => {
                     const listItem = document.createElement('li');
-                    const button = document.createElement('button');
-                    button.textContent = `View ${file}`;
-                    button.onclick = () => viewFileContent(file);
-                    listItem.appendChild(button);
+
+                    const viewButton = document.createElement('button');
+                    viewButton.textContent = `View ${file}`;
+					viewButton.classList.add('view-button');
+					viewButton.setAttribute('data-filename', file);
+                    viewButton.onclick = () => viewFileContent(file);
+
+					const deleteButton = document.createElement('button');
+            		deleteButton.textContent = 'Delete Image';
+					deleteButton.classList.add('delete-button');
+					deleteButton.setAttribute('del-data-filename', file);
+            		deleteButton.onclick = () => deleteImage(file);
+
+                    listItem.appendChild(viewButton);
+					listItem.appendChild(deleteButton);
                     fileListElement.appendChild(listItem);
                 });
             });
 
-        // Fetch and display the content of a selected image
         function viewFileContent(filename) {
-            // Construct the image URL (assuming images are served from the /uploads directory)
-            const imageUrl = `/images/uploads/${filename}`;
 
-            // Get the image element
+            const imageUrl = `/images/uploads/${filename}`;
             const imageElement = document.getElementById('file-image');
 
-            // Set the src attribute of the img element to the image URL
             imageElement.src = imageUrl;
-
-            // Set alt text for the image (optional)
             imageElement.alt = `Image: ${filename}`;
+        }
+
+		function deleteImage(filename) {
+
+            const imageUrl = `/images/uploads/${filename}`;
+			const viewButton = document.querySelector(`[data-filename="${filename}"]`);
+			const delButton = document.querySelector(`[del-data-filename="${filename}"]`);
+
+			fetch(imageUrl, {method: 'DELETE'})
+			.then(response => {
+				if (response.ok) {
+					console.log('Request was successful');
+					if (viewButton)
+						viewButton.remove();
+					if (delButton)
+						delButton.remove();
+					
+				} else {
+				console.error('Request failed with status:', response.status);
+				}
+			})
+			.catch(error => {
+				console.error('Error:', error);
+			});
+
         }
     </script>
 

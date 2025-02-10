@@ -11,7 +11,8 @@
 #include <filesystem>
 #include "CgiHandler.hpp"
 #include <chrono>
-// #include <format>
+#include <iostream>
+#include <fcntl.h>
 
 struct clientInfo;
 
@@ -28,39 +29,31 @@ class ResponseHandler
 		void build500Response(clientInfo *clientPTR);
 		void build204Response(clientInfo *clientPTR);
 		void buildDirListingResponse(const std::string& pathToDir, clientInfo *ClientPTR);
-		//int  openResponseFile(clientInfo *clientPTR, std::string filePath);
 		void deleteHandler(clientInfo *clientPTR, std::string filePath);
 		bool	checkForMultipartFileData(clientInfo *clientPTR);
 		void	prepareUploadFile(clientInfo *clientPTR);
+		bool 	isValidErrorFile(std::string &errorFileName);
+
 	
     public:
 		CgiHandler	*m_cgiHandler = nullptr; // Should this be private and accessed through getter...?
 		int openCgiPipes(clientInfo *clientPTR);
-
-
         ResponseHandler() = default;
         ResponseHandler(const ResponseHandler& other) = delete;
         const ResponseHandler& operator=(const ResponseHandler& other) = delete;
         ~ResponseHandler() = default;
-        void checkRequestType(clientInfo *ClientPTR, std::string requestString);
-		void parseRequest(clientInfo *ClientPTR, std::string requestString);
-		void ServeErrorPages(clientInfo *ClientPTR, std::string requestString);
-        int checkFile(clientInfo *ClientPTR, std::string filePath);
-		void checkExtension(std::string filePath);
+        void setRequestType(clientInfo *clientPTR);
+		void handleRequest(clientInfo *clientPTR);
+        void checkFile(clientInfo *clientPTR);
+		void setExtension(clientInfo *clientPTR);
 		const enum requestTypes& getRequestType() const;
 		unsigned int getResponseCode() const;
-		bool checkRequestAllowed(clientInfo *clientPTR, std::string filePath);
+		bool checkRequestAllowed(clientInfo *clientPTR);
 		void buildRedirectResponse(std::string filePath, clientInfo *clientPTR);
 		void buildErrorResponse(clientInfo *ClientPTR); // is this ok in public...? used to be in private! - Panu
 		void openErrorResponseFile(clientInfo *clientPTR);
 		int buildResponse(clientInfo *clientPTR);
-		
 		void setResponseCode(unsigned int code); // Added this to public, might be a problem
 		int	openResponseFile(clientInfo *clientPTR, std::string filePath);
-
-
-
-
-
 };
 

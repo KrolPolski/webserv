@@ -55,7 +55,7 @@ class ConfigurationHandler
 		std::string								m_names;				// server names (www.bla.com & bla.com)
 		std::map<int, std::string>				m_redirect;				// HTTP to HTTPS redirection, not much knowledge on this yet
 		std::string								m_index;				// e.g. index.html
-		uint 									m_maxClientBodySize;	// max client body size
+		unsigned int 							m_maxClientBodySize;	// max client body size
 		std::map<std::string, locationBlock>	m_routes;				// root of that location as key & struct for each block info
 		std::map<int, std::string>				m_errorPages;			// Custom error pages and their location, error code as key
 
@@ -70,7 +70,7 @@ class ConfigurationHandler
 		std::string				getHost() const;
 		std::string				getPort() const;
 		std::string				getIndex() const;
-		uint					getMCBSize() const;
+		unsigned int			getMCBSize() const;
 		std::string				getNames() const;
 		std::string				getInheritedMethods(std::string) const;
 		enum dirListStates		getInheritedDirListing(std::string key) const;
@@ -79,8 +79,8 @@ class ConfigurationHandler
 		std::string				getMethods(std::string) const;
 		enum dirListStates		getDirListing(std::string) const;
 		std::string				getCgiPath(std::string key) const;
-		std::string				getErrorPages(uint) const;
-		std::string				getDefaultErrorPages(uint) const;
+		std::string				getErrorPages(unsigned int) const;
+		std::string				getDefaultErrorPages(unsigned int) const;
 
 		bool					checkLocationBlocksRoot(locationBlock &);
 		bool					requiredSettings();

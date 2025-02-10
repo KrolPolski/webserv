@@ -16,9 +16,9 @@ CgiHandler::CgiHandler(clientInfo &client) : m_client(client)
 	CgiTypes 	type = m_client.parsedRequest.cgiType;
 
 	if (type == PHP)
-		m_pathToInterpreter = m_client.relatedServer->serverConfig->getCgiPath(m_client.parsedRequest.filePath) + "/php-cgi";
+		m_pathToInterpreter = m_client.relatedServer->serverConfig->getCgiPath(m_client.parsedRequest.filePath) + "/php-cgi"; // NOTE: These might be in different locations with each other
 	else if (type == PYTHON)
-		m_pathToInterpreter = m_client.relatedServer->serverConfig->getCgiPath(m_client.parsedRequest.filePath) + "/python3";
+		m_pathToInterpreter = m_client.relatedServer->serverConfig->getCgiPath(m_client.parsedRequest.filePath) + "/python3"; // NOTE: These might be in different locations with each other
 
 	std::string currentDir = std::filesystem::current_path();
 	std::string root = m_client.relatedServer->serverConfig->getRoot("/");
@@ -86,13 +86,9 @@ int	CgiHandler::executeCgi()
 	if (!m_pipeToCgiWriteDone || !m_pipeToCgiReadReady || !m_pipeFromCgiWriteReady)
 		return (1);
 
-//	std::cout << GREEN << "\nStarting execute CGI!\n" << RESET;
-
-
 	if (m_childProcRunning == false)
 	{
 		m_childProcRunning = true;
-	//	std::cout << GREEN << "\nStarting Child proc!\n" << RESET;
 
 		m_childProcPid = fork();
 		if (m_childProcPid == -1)
@@ -103,14 +99,10 @@ int	CgiHandler::executeCgi()
 		else
 		{
 			// In parent/main process
-	//		std::cout << GREEN << "\nClosing stuff in parent!\n" << RESET;
 
 			close(m_client.pipeFromCgi[1]); // Do we need to check close() return value here...?
 			close(m_client.pipeToCgi[0]);
 			close(m_client.pipeToCgi[1]);
-
-	//		std::cout << GREEN << "\n Client's FDs in Parent proc after close:\n"
-	//		<< m_client.pipeFromCgi[1] << ", " << m_client.pipeToCgi[0] << ", " << m_client.pipeToCgi[1] << RESET;
 
 			return (checkWaitStatus());
 		}
@@ -121,9 +113,6 @@ int	CgiHandler::executeCgi()
 
 int		CgiHandler::writeToCgiPipe()
 {
-
-//	std::cout << GREEN << "\nStartig to write in ToCgi Pipe!\n" << RESET;
-
 	if (m_pipeToCgiWriteDone)
 		return (0);
 
@@ -132,13 +121,8 @@ int		CgiHandler::writeToCgiPipe()
 		const char *buf = m_client.parsedRequest.rawContent.c_str();
 		size_t len = m_client.parsedRequest.rawContent.length();
 
-	//	std::cout << RED << "Raw content:\n" << RESET << m_client.parsedRequest.rawContent << "\n";
-
-
 		if (write(m_client.pipeToCgi[1], buf, len + 1) == -1) // This might not work with large file sizes!! Then we do multiple calls, like with send()
 			return (errorExit("Write() failed", false));
-
-		std::cout << GREEN << "\nWrite to ToCgi Pipe success!\n" << RESET;
 
 	}
 	else if (m_client.parsedRequest.method == "GET")
@@ -184,6 +168,8 @@ int	CgiHandler::checkWaitStatus()
 	if (waitpidStatus == 0)
 		return (2);
 
+	m_childProcPid = -1; // if waitpid != 0, the child process has ended. For cleanup purposes we mark the PID as -1.
+
 	if (waitpidStatus == -1)
 		return (errorExit("Waitpid() failed", false));
 	if (WIFEXITED(statloc) == 1)
@@ -209,13 +195,9 @@ int	CgiHandler::buildCgiResponse(clientInfo *clientPTR)
 	int		bytesRead;
 	int		readPerCall = 1023;
 
-//	std::cout << GREEN << "\nStarting to read pipe\n" <<  RESET;
-
 	bytesRead = read(clientPTR->pipeFromCgi[0], buffer, readPerCall);
 	if (bytesRead == -1)
 		return (errorExit("Read() failed", false));
-
-
 
 	buffer[bytesRead] = '\0';
 
@@ -234,17 +216,14 @@ int	CgiHandler::buildCgiResponse(clientInfo *clientPTR)
 			m_responseBody = m_responseBody.substr(index + 1, m_responseBody.length() - index);	
 		}
 		
-		// Should we do these in the server manually like these
-		// OR do we expect the CGI scripts themselves to create headers...?
+		// FIX THIS: Scripts handle the headers, NOT the server
 		m_responseHeaders = "HTTP/1.1 200 OK\r\n";
-		m_responseHeaders += "Content-Type: text/html\r\n"; // check this
+		m_responseHeaders += "Content-Type: text/html\r\n";
 		m_responseHeaders += "Content-Length: ";
 		m_responseHeaders += std::to_string(m_responseBody.length());
 		m_responseHeaders += "\r\n\r\n";
 		clientPTR->responseString = m_responseHeaders + m_responseBody;
 		clientPTR->status = SEND_RESPONSE;
-
-		//	std::cout << GREEN << "RESPONSE STRING:\n" << RESET << m_client.responseString << "\n\n";
 
 		close(clientPTR->pipeFromCgi[0]); // Do we need to check close() return value...?
 	}

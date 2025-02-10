@@ -1,17 +1,26 @@
 #include "ConnectionHandler.hpp"
+#include "URLhandler.hpp"
+
 
 /*
 	ERROR HANDLING AND VALID REQUEST CHECKING...?
 */
 
 // A helper function to split the start line
-void	splitStartLine(requestParseInfo	&parseInfo)
+int	splitStartLine(requestParseInfo	&parseInfo)
 {
+	URLhandler	urlHandler;
 	size_t		startIndex = 0;
 	size_t		endIndex = 0;
 
 	// Extract HTTP method from start line
 	endIndex = parseInfo.startLine.find_first_of(' ');
+	if (endIndex == parseInfo.startLine.npos)
+	{
+		std::cerr << RED << "\nInvalid request: first line is missing target file\n\n" << RESET;
+		return (-1);
+	}
+
 	parseInfo.method = parseInfo.startLine.substr(0, endIndex);
 	startIndex = endIndex + 1;
 
@@ -19,11 +28,16 @@ void	splitStartLine(requestParseInfo	&parseInfo)
 	std::string tempStr;
 
 	endIndex = parseInfo.startLine.find_first_of(' ', startIndex);
+	if (endIndex == parseInfo.startLine.npos)
+	{
+		std::cerr << RED << "\nInvalid request: first line is missing HTTP protocol\n\n" << RESET;
+		return (-1);
+	}
 	tempStr = parseInfo.startLine.substr(startIndex, endIndex - startIndex);
 	startIndex = endIndex + 1;
 
 	if (tempStr.find_first_of('?') == tempStr.npos)
-		parseInfo.filePath = tempStr; // add also the root folder to the beginning!
+		parseInfo.filePath = tempStr;
 	else
 	{
 		endIndex = tempStr.find_first_of('?');
@@ -31,6 +45,8 @@ void	splitStartLine(requestParseInfo	&parseInfo)
 		endIndex++;
 		parseInfo.queryString = tempStr.substr(endIndex, tempStr.length() - endIndex);
 	}
+
+	urlHandler.decode(parseInfo.filePath);
 
 	// Parse extension
 	startIndex = parseInfo.filePath.find_last_of('.');
@@ -49,7 +65,14 @@ void	splitStartLine(requestParseInfo	&parseInfo)
 		parseInfo.cgiType = PYTHON;
 	}
 
-	// Do I have to extraxt also the protocol and check that it is indeed HTTP/1.1...?
+	startIndex = parseInfo.startLine.find_last_of(' ') + 1;
+	if (parseInfo.startLine.compare(startIndex, 8, "HTTP/1.1") != 0)
+	{
+		std::cerr << RED << "\nInvalid request: invalid HTTP protocol. Only HTTP/1.1 is supported\n\n" << RESET;
+		return (-1);
+	}
+
+	return 0;
 }
 
 /*
@@ -71,15 +94,16 @@ int		ConnectionHandler::parseRequest(clientInfo *clientPTR)
 //	std::cout << "REQUEST:\n" << reqStr << "\n";
 
 	// Separate start line from client's request
-	endIndex = reqStr.find_first_of('\n');
+	endIndex = reqStr.find_first_of("\r\n");
 	if (endIndex == reqStr.npos)
 	{
-		std::cout << RED << "\nInvalid request: no new line found\n\n" << RESET;
+		std::cerr << RED << "\nInvalid request: no new line found\n\n" << RESET;
 		return (-1);
 	}
-	parseInfo.startLine = reqStr.substr(0, endIndex - startIndex - 1); // -1 because of '\r'
-	startIndex = endIndex + 1;
-	splitStartLine(parseInfo);
+	parseInfo.startLine = reqStr.substr(0, endIndex - startIndex);
+	startIndex = endIndex + 2;
+	if (splitStartLine(parseInfo) == -1)
+		return (-1);
 
 	// Set header map
 	std::string headerLine = "";
@@ -90,23 +114,23 @@ int		ConnectionHandler::parseRequest(clientInfo *clientPTR)
 
 	while (reqStr[startIndex] != '\0')
 	{
-		endIndex = reqStr.find_first_of('\n', startIndex);
+		endIndex = reqStr.find_first_of("\r\n", startIndex);
 		if (endIndex == reqStr.npos) // check this later
 		{
-			std::cout << RED << "\nInvalid request: no new line found after header\n\n" << RESET;
+			std::cerr << RED << "\nInvalid request: no new line found after header\n\n" << RESET;
 			return (-1);
 		}
-		headerLine = reqStr.substr(startIndex, endIndex - startIndex - 1); // -1 because of '\r'
+		headerLine = reqStr.substr(startIndex, endIndex - startIndex);
 		headerIndex = headerLine.find_first_of(':');
 		if (headerIndex == headerLine.npos)
 		{
-			std::cout << RED << "\nInvalid request: header is missing ':' character\n\n" << RESET;
+			std::cerr << RED << "\nInvalid request: header is missing ':' character\n\n" << RESET;
 			return (-1);
 		}
 		key = headerLine.substr(0, headerIndex);
 		value = headerLine.substr(headerIndex + 2, headerLine.length() - key.length() - 2);
 		headerMap[key] = value;
-		startIndex = endIndex + 1;
+		startIndex = endIndex + 2;
 		if (reqStr[startIndex] == '\0' || reqStr[startIndex + 1] == '\n')
 			break ;
 	}
@@ -114,7 +138,6 @@ int		ConnectionHandler::parseRequest(clientInfo *clientPTR)
 	// Get content from request
 
 	std::map<std::string, std::string>::iterator it = headerMap.find("Content-Length");
-	// OR "Transfer-Encoding: chunked" !!
 
 	if (it != headerMap.end())
 	{
@@ -123,7 +146,6 @@ int		ConnectionHandler::parseRequest(clientInfo *clientPTR)
 		parseInfo.rawContent = reqStr.substr(startIndex, contenLen);
 
 //		std::cout << RED << "RAW CONTENT:\n" << RESET << parseInfo.rawContent << "\n";
-
 	}
 
 	return (0);

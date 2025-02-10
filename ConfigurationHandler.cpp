@@ -24,7 +24,7 @@ PRINT SETTINGS
 
 void	ConfigurationHandler::printSettings()
 {
-	webservLog.webservLog(INFO, "Printing configuration file settings", false);
+	webservLog.webservLog(INFO, "Printing configuration file server block settings", false);
 	std::cout << "\n--------- Port -----------------------------------\n\n";
 	std::cout << m_port << std::endl;
 	std::cout << "\n--------- Host -----------------------------------\n\n";
@@ -64,18 +64,6 @@ void	ConfigurationHandler::printSettings()
 	std::cout << m_globalMethods << std::endl;
 }
 
-void	ConfigurationHandler::printLocationBlock(locationBlock &block)
-{
-	if (block.m_root != "")
-		std::cout << "\n  " << block.m_root;
-	if (block.m_methods != "")
-		std::cout << "\n  " << block.m_methods;
-	if (block.m_cgiPath != "")
-		std::cout << "\n  " << block.m_cgiPath;
-	std::cout << "\n  " << block.m_dirListing;
-	std::cout << std::endl;
-}
-
 /*
 DEFAULT/GLOBAL SETTINGS
 */
@@ -113,7 +101,7 @@ bool	ConfigurationHandler::checkLocationBlocksRoot(locationBlock &block)
 
 bool	ConfigurationHandler::requiredSettings()
 {
-	std::regex	portRegex(R"(^(8000|8[0-9]{3}|9[0-9]{3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$)");
+	std::regex	portRegex(R"(^(80|443|8000|8[0-9]{3}|9[0-9]{3})$)");
 	std::regex	ipRegex(R"(^([1-9][0-9]{0,2}|1[0-9]{2}|2[0-4][0-9]|25[0-4])\.([0-9]{1,2}|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.([0-9]{1,2}|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.([0-9]{1,2}|1[0-9]{2}|2[0-4][0-9]|25[0-5])$)");
 	std::regex	serverNameRegex(R"(^([a-zA-Z0-9-]+)\.([a-zA-Z]{2,})(\s+)(www\.)?([a-zA-Z0-9-]+)\.\2$)");
 	std::regex	redirectRegex(R"(^https://\$host\$request_uri$)");
@@ -121,58 +109,68 @@ bool	ConfigurationHandler::requiredSettings()
 
 	if (m_port.empty())
 	{
-		std::cerr << "Error: Port missing!" << std::endl;
+		webservLog.webservLog(ERROR, "Port missing", false);
+		// std::cerr << "Error: Port missing!" << std::endl;
 		return false;
 	}
 	if (m_host.empty())
 	{
-		std::cerr << "Error: IP address missing!" << std::endl;
+		webservLog.webservLog(ERROR, "IP address missing", false);
+		// std::cerr << "Error: IP address missing!" << std::endl;
 		return false;
 	}
 	if (m_names.empty())
 	{
-		std::cerr << "Error: Server names missing!" << std::endl;
+		webservLog.webservLog(ERROR, "Server names missing", false);
+		// std::cerr << "Error: Server names missing!" << std::endl;
 		return false;
 	}
 	if (!m_routes.contains("/"))
 	{
-		std::cerr << "Error: Home location missing!" << std::endl;
+		webservLog.webservLog(ERROR, "Home location missing", false);
+		// std::cerr << "Error: Home location missing!" << std::endl;
 		return false;
 	}
 	if (!m_redirect.empty())
 	{
 		if (m_redirect.find(301) == m_redirect.end())
 		{
-			std::cerr << "Error: Redirect is not valid!" << std::endl;
+			webservLog.webservLog(ERROR, "Redirect is not valid", false);
+			// std::cerr << "Error: Redirect is not valid!" << std::endl;
 				return false;
 		}
 		if (m_redirect.find(301) != m_redirect.end())
 		{
 			if (std::regex_match(m_redirect.find(301)->second, redirectRegex) == false)
 			{
-				std::cerr << "Error: Redirect is not valid!" << std::endl;
+				webservLog.webservLog(ERROR, "Redirect is not valid", false);
+				// std::cerr << "Error: Redirect is not valid" << std::endl;
 				return false;
 			}
 		}
 	}
 	if (std::regex_match(m_port, portRegex) == false)
 	{
-		std::cerr << "Error: Port is not a valid port number" << std::endl;
+		webservLog.webservLog(ERROR, "Port is not a valid port number", false);
+		// std::cerr << "Error: Port is not a valid port number" << std::endl;
 		return false;
 	}
 	if (std::regex_match(m_host, ipRegex) == false)
 	{
-		std::cerr << "Error: IP is not a valid IP number" << std::endl;
+		webservLog.webservLog(ERROR, "IP is not a valid IP address", false);
+		// std::cerr << "Error: IP is not a valid IP number" << std::endl;
 		return false;
 	}
 	if (std::regex_match(m_names, serverNameRegex) == false)
 	{
-		std::cerr << "Error: Server name is not valid" << std::endl;
+		webservLog.webservLog(ERROR, "Server name is not valid", false);
+		// std::cerr << "Error: Server name is not valid" << std::endl;
 		return false;
 	}
 	if (std::regex_match(m_index, indexHtmlRegex) == false)
 	{
-		std::cerr << "Error: The index file is not valid" << std::endl;
+		webservLog.webservLog(ERROR, "The index file is not valid", false);
+		// std::cerr << "Error: The index file is not valid" << std::endl;
 		return false;
 	}
 	if (m_routes.contains("/"))
@@ -208,19 +206,28 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : 
 	std::regex	listenRegex(R"(^listen\s+(\d+)\s*;\s*$)");
 	std::regex	hostRegex(R"(^\s*host\s+([^\s]+)\s*;\s*$)");
 	std::regex	serverNameRegex(R"(^\s*server_name\s+([^\s;]+(?:\s+[^\s;]+)*)\s*;\s*$)");
-	std::regex	returnRegex(R"(^\s*return\s+(\d+)\s+([^\s]+)\s*;\s*$)");
-	std::regex	maxClientBodyRegex(R"(^\s*max_client_body_size\s+(\d+)[Mm]\s*;\s*$)");
-	std::regex	errorPageRegex(R"(^\s*error_page\s+(\d+)\s+([^\s]+)\s*;\s*$)");
+	std::regex	returnRegex(R"(^\s*return\s+(\d{3})\s+([^\s]+)\s*;\s*$)");
+	std::regex	maxClientBodyRegex(R"(^\s*max_client_body_size\s+(\d+)\s*;\s*$)");
+	std::regex	errorPageRegex(R"(^\s*error_page\s+(\d{3})\s+([^\s]+\.html)\s*;\s*$)");
 	std::regex	indexRegex(R"(^\s*index\s+([^\s]+)\s*;\s*$)");
 	std::regex	locationRegex(R"(^\s*location\s+([^\s]+)\s*\s*$)");
 	std::regex	rootRegex(R"(^\s*root\s+/?([^/][^;]*[^/])?/?\s*;\s*$)");
-	std::regex	methodsRegex(R"(^\s*methods\s+([^\s;]+(?:\s+[^\s;]+)*)\s*;\s*$)");
+	std::regex	methodsRegex(R"(^\s*methods\s+([^\s;]+(?:\s+[^\s;]+)*)\s*;\s*$)"); // could restrict GET|POST|DELETE as the valid ones
 	std::regex	dirListingRegex(R"(^\s*dir_listing\s+(on|off)\s*;\s*$)");
 	std::regex	cgiPathRegex(R"(^\s*cgi_path\s+(\/[^/][^;]*[^/])?/?\s*;\s*$)");
 
 	for (std::vector<std::string>::iterator iter = m_rawBlock.begin(); iter != m_rawBlock.end(); iter++)
 	{
 		std::smatch	match;
+		try
+		{
+			if (std::regex_search(*iter, match, maxClientBodyRegex) == true)
+				m_maxClientBodySize = std::stoul(match[1]);
+		}
+		catch(const std::exception& e)
+		{
+			webservLog.webservLog(INFO, "Max client body size conversion failed, using default", true);
+		}
 		if (std::regex_search(*iter, match, listenRegex) == true)
 			m_port = match[1];
 		else if (std::regex_search(*iter, match, hostRegex) == true)
@@ -229,8 +236,6 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : 
 			m_names = match[1];
 		else if (std::regex_search(*iter, match, returnRegex) == true)
 			m_redirect.emplace(std::stoi(match[1]), match[2]);
-		else if (std::regex_search(*iter, match, maxClientBodyRegex) == true)
-			m_maxClientBodySize = std::stoi(match[1]) * 1000000;
 		else if (std::regex_search(*iter, match, errorPageRegex) == true)
 		{
 			if (m_errorPages.contains(std::stoi(match[1])))

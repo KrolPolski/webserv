@@ -86,7 +86,6 @@ class ConfigurationHandler
 		bool					requiredSettings();
 
 		void					printSettings(); // remove this before we eval -- Patrik
-		void					printLocationBlock(locationBlock &); // remove this before we eval -- Patrik
 };
 
 std::string	fileNameCheck(char *);

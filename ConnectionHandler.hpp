@@ -59,8 +59,8 @@ class ConnectionHandler
 	void	parseClientRequest(clientInfo *clientPTR);
 	void	sendDataToClient(clientInfo *clientPTR);
 	void	clientCleanUp(clientInfo *clientPTR);
-
-	void	unChunkRequest(clientInfo *clientPTR);
+	bool	checkBodySize(uint contentLength, clientInfo *clientPTR);
+	bool	unChunkRequest(clientInfo *clientPTR);
 
 	// request receiveing & parsing
 	int		parseRequest(clientInfo *clientPTR);

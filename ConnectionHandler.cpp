@@ -37,7 +37,7 @@ int		ConnectionHandler::initServers(char *configFile)
 		}
 		catch(const std::exception& e)
 		{
-			std::cerr << "Error: Port is invalid" << '\n';
+			std::cerr << "Error: Port is invalid" << '\n'; // start servers that have valid ports, stoi fails get discarded and user gets informed.
 			return -1;
 		}
 		
@@ -410,53 +410,103 @@ void		ConnectionHandler::acceptNewClient(const unsigned int serverFd)
 	RECIEVE DATA FROM CLIENT
 */
 
-void	ConnectionHandler::unChunkRequest(clientInfo *clientPTR)
+bool	ConnectionHandler::checkBodySize(uint contentLength, clientInfo *clientPTR)
+{
+	if (contentLength > clientPTR->relatedServer->serverConfig->getMCBSize())
+	{
+		webservLog.webservLog(ERROR, "Max client body size reached", true);
+		return false;
+	}
+	else
+		return true;
+}
+
+bool	ConnectionHandler::unChunkRequest(clientInfo *clientPTR)
 {
 	webservLog.webservLog(INFO, "Unchunking", true);
+
+	static std::string	header = "";
+	static std::string	body = "";
+	static uint			contentLength = 0;
+	std::string			request = clientPTR->requestString;
+	static size_t		bodyIndex = 0;
+	static size_t		startIndex = 0;
+	size_t				indexStart = 0;
+	size_t				indexEnd = 0;
+
+	indexStart = request.find("Transfer-Encoding: ");
+	indexEnd = request.find("\r\n", indexStart) + 2;
+	request.erase(indexStart , indexEnd - indexStart);
+	bodyIndex = request.find("\r\n\r\n") + 4;
+	static std::string conLenStr = "Content-Lenght: ";
+	if (header.empty())
+	{
+		header = request.substr(0, bodyIndex - 2);
+	}
 	try
 	{
-		std::string	request = clientPTR->requestString;
-		size_t		indexStart = 0;
-		size_t		indexEnd = 0;
-		size_t		bodyIndex = 0;
-		int			contentLength = 0;
-		std::string	header;
-		std::string	body;
-		std::string	unChunked;
-		size_t		startIndex = 0;
-
-		indexStart = request.find("Transfer-Encoding: ");
-		indexEnd = request.find("\r\n", indexStart) + 2;
-		request.erase(indexStart , indexEnd - indexStart);
-		bodyIndex = request.find("\r\n\r\n") + 4;
-		header = request.substr(0, bodyIndex - 2);
+		webservLog.webservLog(DEBUG, "Getting body", true);
+		static std::string	unChunked;
 		body = request.substr(bodyIndex, request.size() - bodyIndex);
-
+		webservLog.webservLog(DEBUG, "Entering while loop", true);
 		while (1)
 		{
+			if (body.find("\r\n", startIndex) == body.npos)
+			{
+				webservLog.webservLog(DEBUG, "Exiting, waiting for next chunk hex size", true);
+				break ;
+			}
 			size_t indexAfterHex = body.find("\r\n", startIndex);
 			std::string	hexValue = body.substr(startIndex, indexAfterHex - startIndex);
-			int bytesToRead = std::stoi(hexValue, nullptr, 16);
+			uint bytesToRead = std::stoi(hexValue, nullptr, 16);
+			if (body.size() - startIndex < bytesToRead + 2)
+			{
+				webservLog.webservLog(DEBUG, "Chunk body not complete, waiting for more data", true);
+				return true;
+			}
 			contentLength += bytesToRead;
+			if (checkBodySize(contentLength, clientPTR) == false)
+				return false;
 			if (bytesToRead == 0)
+			{
+				webservLog.webservLog(INFO, "Finished chunked reading request", true);
+				header += conLenStr;
 				break ;
+			}
+
 			startIndex = indexAfterHex + 2;
 			unChunked += body.substr(startIndex, bytesToRead);
 			startIndex += bytesToRead + 2;
-		}
-		header += "Content-Lenght: ";
-		header += std::to_string(contentLength) + "\r\n\r\n";
 
-		clientPTR->requestString.erase();
-		clientPTR->requestString += header + unChunked;
-		// std::cout << request << std::endl;
+		}
+		webservLog.webservLog(DEBUG, "Exiting while loop", true);
+		// webservLog.webservLog(DEBUG, "Reporting size", true);
+		// std::cout << contentLength << std::endl;
+		if (std::search(header.begin(), header.end(), conLenStr.begin(), conLenStr.end()) != header.end()) // here we need to get check for correct thing
+		{
+			header += std::to_string(contentLength) + "\r\n\r\n";
+			std::cout << "Header\n" << header << std::endl; // info
+			std::cout << "Body\n" << unChunked << std::endl; // info
+			clientPTR->requestString.erase();
+			clientPTR->requestString += header + unChunked;
+			header.erase();
+			body.erase();
+			unChunked.erase();
+			contentLength = 0;
+			bodyIndex = 0;
+			startIndex = 0;
+			clientPTR->chunkedOK = true;
+			return true;
+		}
 	}
 	catch(const std::exception& e)
 	{
-		webservLog.webservLog(ERROR, "Unchunking chunked request failed", false);
+		webservLog.webservLog(ERROR, "Unchunking chunked request failed", true);
+		return false;
 		// Bad request if chunk size doesnt match the chunk body
 	}
-}
+	return true;
+} // test with a body that is biiiiiig. change the regex for config mac client body=====Patrik
 
 void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clientInfo *clientPTR)
 {
@@ -477,11 +527,12 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 			clientPTR->respHandler->setResponseCode(500);
 			clientPTR->respHandler->openErrorResponseFile(clientPTR);
 			addNewPollfd(clientPTR->errorFileFd);
-		}	
+		}
 		return ;
 	}
 
 	buf[recievedBytes] = '\0';
+	// CHUNKED: Is there a possibility that we get some chunked data on the first read...?
 	clientPTR->requestString.append(buf, recievedBytes);
 
 	if (clientPTR->reqType == UNDEFINED)
@@ -501,12 +552,15 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 
 	if (clientPTR->reqType == CHUNKED)
 	{
-		if (checkChunkedEnd(clientPTR)) // Should we unchunk as we go...? So that we can more reliable check for max_content_len?
+		if (unChunkRequest(clientPTR) == false)
 		{
-
-			unChunkRequest(clientPTR);
-
-			
+			clientPTR->respHandler->setResponseCode(400);
+			clientPTR->respHandler->openErrorResponseFile(clientPTR);
+			addNewPollfd(clientPTR->errorFileFd);
+			return ;
+		}
+		if (checkChunkedEnd(clientPTR)) // Should we unchunk as we go...? So that we can more reliable check for max_content_len?
+		{		
 			clientPTR->status = PARSE_REQUEST;
 			parseClientRequest(clientPTR);
 			if (clientPTR->status == BUILD_REPONSE)
@@ -629,7 +683,7 @@ clientRequestType	ConnectionHandler::checkRequestType(clientInfo *clientPTR)
 
 bool	ConnectionHandler::checkChunkedEnd(clientInfo *clientPTR)
 {
-	if (clientPTR->requestString.find("\r\n0\r\n\r\n") != std::string::npos) // Might be more efficient to look only the recieved buffer, not entire string!!
+	if (clientPTR->chunkedOK == true) // Might be more efficient to look only the recieved buffer, not entire string!!
 		return true;
 	else
 		return false;

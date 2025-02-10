@@ -1,10 +1,7 @@
 #include "ResponseHandler.hpp"
 #include "CgiHandler.hpp"
 #include "Structs.hpp"
-#include <fcntl.h>
-#include <filesystem>
-#include <iostream>
-#include <fcntl.h>
+#include "Logger.hpp"
 
 const std::map<std::string, std::string> ResponseHandler::extensionTypes = 
 {
@@ -61,6 +58,7 @@ const std::map<const unsigned int, std::string> ResponseHandler::errorCodes =
 	{500, "Internal Server Error"}
 };
 
+/* Sets the appropriate request type enum */
 void ResponseHandler::setRequestType(clientInfo *clientPTR)
 {    
 
@@ -86,19 +84,14 @@ void ResponseHandler::setExtension(clientInfo *clientPTR)
 		contentType = "Unknown";
 		return ;
 	}
-	
-	//std::cout << "filePath: " << filePath << " Extension: " << extension << " Type: " << extensionTypes.at(extension) << std::endl;
 	try
 	{
 		contentType = extensionTypes.at(extension);
-	//	std::cout << "contentType: " << contentType << std::endl;
 	} 
 	catch (std::exception& e)
 	{
-		std::cerr << e.what() << std::endl;
-		//there's probably a response code for this
+		webservLog.webservLog(ERROR, e.what(), false);
 	}
-	//std::cout << "exiting checkExtension" << std::endl;
 }
 
 void ResponseHandler::buildRedirectResponse(std::string webFilePath, clientInfo *clientPTR)

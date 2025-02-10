@@ -502,7 +502,7 @@ std::string	fileNameCheck(char *argv)
 	std::string	file = argv;
 
 	if (std::regex_match(file, std::regex(".*\\.conf$")) == false)
-		throw std::runtime_error("Wrong configuration file");
+		throw std::runtime_error("Configuration file could not be found");
 	return file;
 }
 
@@ -518,33 +518,30 @@ void	readFile(const std::string &fileName, std::vector<std::string> &rawFile)
 	int				curlyBrace = 0;
 
 	if (!file.is_open())
-		throw std::runtime_error("Error: Failed to open the configuration file");
-	try
+		throw std::runtime_error("Failed to open the configuration file");
+	while (getline(file, line))
 	{
-		while (getline(file, line))
-		{
-			if (line.find('{') != line.npos)
-				curlyBrace++;
-			if (line.find('}') != line.npos)
-				curlyBrace--;
-			line = std::regex_replace(line, std::regex("^\\s+|\\s+$"), "");
-			size_t comment = line.find('#');
-			if (comment != std::string::npos)
-				line = line.substr(0, comment);
-			line = std::regex_replace(line, std::regex("^\\s+|\\s+$"), "");
-			if (!line.empty())
-				rawFile.push_back(line);
-		}
+		if (file.fail())
+			throw std::runtime_error("Readeing the file failed");
+		if (line.find('{') != line.npos)
+			curlyBrace++;
+		if (line.find('}') != line.npos)
+			curlyBrace--;
+		line = std::regex_replace(line, std::regex("^\\s+|\\s+$"), "");
+		size_t comment = line.find('#');
+		if (comment != std::string::npos)
+			line = line.substr(0, comment);
+		line = std::regex_replace(line, std::regex("^\\s+|\\s+$"), "");
+		if (!line.empty())
+			rawFile.push_back(line);
 	}
-	catch (const std::exception &e)
-	{
-		std::cerr << "Error: Reading the file: " << e.what() << std::endl;
-		file.close();
-		throw;
-	}
+	if (file.fail() && !file.eof())
+		throw std::runtime_error("Readeing the file failed");
 	file.close();
 	if (curlyBrace != 0)
 		throw std::runtime_error("Open curly braces in the configuration file");
+	if (rawFile.empty())
+		throw std::runtime_error("The given configuration file doesn't have any readable input");
 }
 
 /*
@@ -576,10 +573,10 @@ void	extractServerBlocks(std::map<std::string, ConfigurationHandler> &servers, s
 			temp.push_back(*iter);
 			auto dup = servers.emplace(port, ConfigurationHandler(temp));
 			if (dup.second == false)
-				throw std::runtime_error("Error: Duplicate port found");
-			// std::cout << servers.size() << " -------------------------- Checking size\n";
+				webservLog.webservLog(ERROR, "Duplicate port detected, running valid ones" , true);
+				// throw std::runtime_error("Duplicate port found");
 			if (servers.size() > 5)
-				throw std::runtime_error("Error: Configuration file is too big");
+				throw std::runtime_error("Configuration file is too big"); // figure out later - now when this is in its own try catch. we would need to limit it somehow
 			temp.clear();
 			port.clear();
 		}

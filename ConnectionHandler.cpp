@@ -20,14 +20,20 @@ int		ConnectionHandler::initServers(char *configFile)
 	try
 	{
 		readFile(fileNameCheck(configFile), rawFile);
+	}
+	catch(const std::exception& e)
+	{
+		webservLog.webservLog(ERROR, e.what(), true);
+		return -1;
+	}
+	try
+	{
 		extractServerBlocks(m_configMap, rawFile);
 	}
 	catch(const std::exception& e)
 	{
-		std::cerr << e.what() << '\n';
-		return -1;
+		webservLog.webservLog(ERROR, e.what(), true);
 	}
-
 	for (auto iter = m_configMap.begin(); iter != m_configMap.end(); iter++)
 	{
 		int	portNum;
@@ -48,7 +54,8 @@ int		ConnectionHandler::initServers(char *configFile)
 		m_serverVec.push_back({socketfd, &iter->second});
 		addNewPollfd(socketfd);
 	}
-
+	if (m_configMap.size() == 0)
+		return -1;
 	return (0);
 }
 

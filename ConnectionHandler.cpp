@@ -37,7 +37,7 @@ int		ConnectionHandler::initServers(char *configFile)
 		}
 		catch(const std::exception& e)
 		{
-			std::cerr << "Error: Port is invalid" << '\n';
+			std::cerr << "Error: Port is invalid" << '\n'; // start servers that have valid ports, stoi fails get discarded and user gets informed.
 			return -1;
 		}
 		
@@ -442,7 +442,7 @@ bool	ConnectionHandler::unChunkRequest(clientInfo *clientPTR)
 			uint bytesToRead = std::stoi(hexValue, nullptr, 16);
 			if (body.size() - startIndex < bytesToRead + 2)
 			{
-				webservLog.webservLog(DEBUG, "Chunk body not complete, eaiting for more data", true);
+				webservLog.webservLog(DEBUG, "Chunk body not complete, waiting for more data", true);
 				return true;
 			}
 			contentLength += bytesToRead;

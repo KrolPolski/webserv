@@ -14,8 +14,9 @@
 /* *************************************************************************** */
 
 #include "ConfigurationHandler.hpp"
-#include <fcntl.h>
 #include "Logger.hpp"
+#include "Types.hpp"
+#include <fcntl.h>
 #include <iostream>
 
 /*
@@ -24,7 +25,7 @@ PRINT SETTINGS
 
 void	ConfigurationHandler::printSettings()
 {
-	webservLog.webservLog(INFO, "Printing configuration file server block settings", false);
+	webservLog.webservLog(INFO, "Printing configuration file server block settings", true);
 	std::cout << "\n--------- Port -----------------------------------\n\n";
 	std::cout << m_port << std::endl;
 	std::cout << "\n--------- Host -----------------------------------\n\n";
@@ -44,8 +45,10 @@ void	ConfigurationHandler::printSettings()
 			std::cout << "\n  " << x.second.m_root;
 		if (!x.second.m_methods.empty())
 			std::cout << "\n  " << x.second.m_methods;
-		if (!x.second.m_cgiPath.empty())
-			std::cout << "\n  " << x.second.m_cgiPath;
+		if (!x.second.m_cgiPathPHP.empty())
+			std::cout << "\n  " << x.second.m_cgiPathPHP;
+		if (!x.second.m_cgiPathPython.empty())
+			std::cout << "\n  " << x.second.m_cgiPathPython;
 		std::cout << "\n  " << x.second.m_dirListing;
 		std::cout << std::endl;
 	}
@@ -77,16 +80,30 @@ void	ConfigurationHandler::defaultSettings()
 	m_errorPages.emplace(404, "/default-error-pages/404.html");
 	m_errorPages.emplace(405, "/default-error-pages/405.html");
 	m_errorPages.emplace(408, "/default-error-pages/408.html");
+	m_errorPages.emplace(411, "/default-error-pages/411.html");
+	m_errorPages.emplace(413, "/default-error-pages/413.html");
+	m_errorPages.emplace(414, "/default-error-pages/414.html");
+	m_errorPages.emplace(431, "/default-error-pages/431.html");
 	m_errorPages.emplace(500, "/default-error-pages/500.html");
+	m_errorPages.emplace(501, "/default-error-pages/501.html");
+	m_errorPages.emplace(505, "/default-error-pages/505.html");
 	m_defaultErrorPages.emplace(400, "/default-error-pages/400.html");
 	m_defaultErrorPages.emplace(403, "/default-error-pages/403.html");
 	m_defaultErrorPages.emplace(404, "/default-error-pages/404.html");
 	m_defaultErrorPages.emplace(405, "/default-error-pages/405.html");
 	m_defaultErrorPages.emplace(408, "/default-error-pages/408.html");
+	m_defaultErrorPages.emplace(411, "/default-error-pages/411.html");
+	m_defaultErrorPages.emplace(413, "/default-error-pages/413.html");
+	m_defaultErrorPages.emplace(414, "/default-error-pages/414.html");
+	m_defaultErrorPages.emplace(431, "/default-error-pages/431.html");
 	m_defaultErrorPages.emplace(500, "/default-error-pages/500.html");
+	m_defaultErrorPages.emplace(501, "/default-error-pages/501.html");
+	m_defaultErrorPages.emplace(505, "/default-error-pages/505.html");
+
 	m_globalMethods = G_METHOD;
 	m_globalDirListing = FALSE;
-	m_globalCgiPath = G_CGI_PATH;
+	m_globalCgiPathPHP = G_CGI_PATH_PHP;
+	m_globalCgiPathPython = G_CGI_PATH_PYTHON;
 	printSettings(); //remove before end -- Patrik
 }
 
@@ -98,6 +115,12 @@ bool	ConfigurationHandler::checkLocationBlocksRoot(locationBlock &block)
 		return false;
 	return true;
 }
+
+// bool	ConfigurationHandler::checkForPostUploadDir(locationBlock &block)
+// {
+// 	(void)block;
+// 	return true;
+// }
 
 bool	ConfigurationHandler::requiredSettings()
 {
@@ -183,9 +206,13 @@ bool	ConfigurationHandler::requiredSettings()
 		{
 			m_routes.find("/")->second.m_dirListing = m_globalDirListing;
 		}
-		if (m_routes.find("/")->second.m_cgiPath.empty())
+		if (m_routes.find("/")->second.m_cgiPathPHP.empty())
 		{
-			m_routes.find("/")->second.m_cgiPath = m_globalCgiPath;
+			m_routes.find("/")->second.m_cgiPathPHP= m_globalCgiPathPHP;
+		}
+		if (m_routes.find("/")->second.m_cgiPathPython.empty())
+		{
+			m_routes.find("/")->second.m_cgiPathPython = m_globalCgiPathPython;
 		}
 	}
 	return true;
@@ -214,7 +241,8 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : 
 	std::regex	rootRegex(R"(^\s*root\s+/?([^/][^;]*[^/])?/?\s*;\s*$)");
 	std::regex	methodsRegex(R"(^\s*methods\s+([^\s;]+(?:\s+[^\s;]+)*)\s*;\s*$)"); // could restrict GET|POST|DELETE as the valid ones
 	std::regex	dirListingRegex(R"(^\s*dir_listing\s+(on|off)\s*;\s*$)");
-	std::regex	cgiPathRegex(R"(^\s*cgi_path\s+(\/[^/][^;]*[^/])?/?\s*;\s*$)");
+	std::regex	cgiPathRegexPHP(R"(^\s*cgi_path_php\s+(\/[^/][^;]*[^/])?/?\s*;\s*$)");
+	std::regex	cgiPathRegexPython(R"(^\s*cgi_path_python\s+(\/[^/][^;]*[^/])?/?\s*;\s*$)");
 
 	for (std::vector<std::string>::iterator iter = m_rawBlock.begin(); iter != m_rawBlock.end(); iter++)
 	{
@@ -268,8 +296,10 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : 
 						loc.m_root = subMatch[1];
 					else if (regex_search(*iter, subMatch, methodsRegex) == true)
 						loc.m_methods = subMatch[1];
-					else if (regex_search(*iter, subMatch, cgiPathRegex) == true)
-						loc.m_cgiPath = subMatch[1];
+					else if (regex_search(*iter, subMatch, cgiPathRegexPHP) == true)
+						loc.m_cgiPathPHP = subMatch[1];
+					else if (regex_search(*iter, subMatch, cgiPathRegexPython) == true)
+						loc.m_cgiPathPython = subMatch[1];
 					else if (regex_search(*iter, subMatch, dirListingRegex) == true)
 					{
 						if (subMatch[1] == "off")
@@ -287,10 +317,15 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : 
 				if (openBraces == 0)
 				{
 					if (checkLocationBlocksRoot(loc) == false)
-						throw std::runtime_error("Error: Location block not complete");
-					auto dup = m_routes.emplace(key, loc);
-					if (dup.second == false)
-						throw std::runtime_error("Error: Duplicate location block found");
+						webservLog.webservLog(WARNING, "Location block not complete, discarding block", true);
+						// throw std::runtime_error("Location block not complete"); // test this <---
+					else
+					{
+						auto duplicate = m_routes.emplace(key, loc);
+						if (duplicate.second == false)
+							webservLog.webservLog(WARNING, "Duplicate location block found, discarding duplicate", true);
+					}
+						// throw std::runtime_error("Duplicate location block found"); // test this <---
 					loc = locationBlock();
 				}
 			}
@@ -298,7 +333,7 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : 
 		// std::cout << "Processing line: " << *iter << std::endl;
 	}
 	if (requiredSettings() == false)
-		throw std::runtime_error("Error: Required settings not present");
+		throw std::runtime_error("Required settings not present");
 	printSettings(); //remove before the end of the project -- Patrik // std:::optional
 }
 
@@ -374,7 +409,7 @@ enum dirListStates	ConfigurationHandler::getInheritedDirListing(std::string key)
 	return getDirListing("/"); 
 }
 
-std::string	ConfigurationHandler::getInheritedCgiPath(std::string key) const
+std::string	ConfigurationHandler::getInheritedCgiPathPHP(std::string key) const
 {
 	for (auto &route: m_routes)
 	{
@@ -384,17 +419,40 @@ std::string	ConfigurationHandler::getInheritedCgiPath(std::string key) const
 		if (key.starts_with(keyFromOurMap))
 		{
 			std::cout << "match found in " << key << " and " << keyFromOurMap << std::endl;
-			if (!route.second.m_cgiPath.empty())
-				return route.second.m_cgiPath;
+			if (!route.second.m_cgiPathPHP.empty())
+				return route.second.m_cgiPathPHP;
 			else
 			{
 				webservLog.webservLog(INFO, "Could not find route for cgi path, inheriting from root", false);
-				return getCgiPath("/");
+				return getCgiPathPHP("/");
 			}
 		}
 	}
 	webservLog.webservLog(INFO, "Could not find route for cgi path, inheriting from root", false);
-	return getCgiPath("/");
+	return getCgiPathPHP("/");
+}
+
+std::string	ConfigurationHandler::getInheritedCgiPathPython(std::string key) const
+{
+	for (auto &route: m_routes)
+	{
+		std::string keyFromOurMap = route.first;
+		if (keyFromOurMap == "/")
+			continue ;
+		if (key.starts_with(keyFromOurMap))
+		{
+			std::cout << "match found in " << key << " and " << keyFromOurMap << std::endl;
+			if (!route.second.m_cgiPathPython.empty())
+				return route.second.m_cgiPathPython;
+			else
+			{
+				webservLog.webservLog(INFO, "Could not find route for cgi path, inheriting from root", false);
+				return getCgiPathPython("/");
+			}
+		}
+	}
+	webservLog.webservLog(INFO, "Could not find route for cgi path, inheriting from root", false);
+	return getCgiPathPython("/");
 }
 
 std::string	ConfigurationHandler::getRoot(std::string key) const
@@ -451,20 +509,36 @@ enum dirListStates	ConfigurationHandler::getDirListing(std::string key) const
 	return map_key->second.m_dirListing;
 }
 
-std::string	ConfigurationHandler::getCgiPath(std::string key) const
+std::string	ConfigurationHandler::getCgiPathPHP(std::string key) const
 {
 	auto map_key = m_routes.find(key);
 	if (map_key == m_routes.end())
 	{
 		webservLog.webservLog(ERROR, "Could not find route cgi interpreter path", false);
-		return getInheritedCgiPath(key);
+		return getInheritedCgiPathPHP(key);
 	}
-	if (map_key->second.m_cgiPath.empty())
+	if (map_key->second.m_cgiPathPHP.empty())
   {
 		webservLog.webservLog(ERROR, "Could not find route cgi interpreter path", false);
-    return getInheritedCgiPath(key);
+    return getInheritedCgiPathPHP(key);
   }
-	return map_key->second.m_cgiPath;
+	return map_key->second.m_cgiPathPHP;
+}
+
+std::string	ConfigurationHandler::getCgiPathPython(std::string key) const
+{
+	auto map_key = m_routes.find(key);
+	if (map_key == m_routes.end())
+	{
+		webservLog.webservLog(ERROR, "Could not find route cgi interpreter path", false);
+		return getInheritedCgiPathPython(key);
+	}
+	if (map_key->second.m_cgiPathPython.empty())
+  {
+		webservLog.webservLog(ERROR, "Could not find route cgi interpreter path", false);
+    return getInheritedCgiPathPython(key);
+  }
+	return map_key->second.m_cgiPathPython;
 }
 
 std::string	ConfigurationHandler::getErrorPages(uint key) const
@@ -472,7 +546,7 @@ std::string	ConfigurationHandler::getErrorPages(uint key) const
 	auto map_key = m_errorPages.find(key);
 	if (map_key == m_errorPages.end())
 	{
-		webservLog.webservLog(ERROR, "Could not find custom error page; using default instead", false);
+		webservLog.webservLog(ERROR, "Could not find custom error page, using default instead", false);
 		return "";
 	}
 	return map_key->second;
@@ -483,7 +557,7 @@ std::string	ConfigurationHandler::getDefaultErrorPages(uint key) const
 	auto map_key = m_defaultErrorPages.find(key);
 	if (map_key == m_defaultErrorPages.end())
 	{
-		webservLog.webservLog(ERROR, "Could not find default error page; sending code 500 instead", false);
+		webservLog.webservLog(ERROR, "Could not find default error page, sending code 500 instead", false);
 		return "";
 	}
 	return map_key->second;
@@ -494,8 +568,6 @@ std::string	ConfigurationHandler::getDefaultErrorPages(uint key) const
 /*
 CHECK THE FILE NAME
 */
-
-// this is not final!! ----- Patrik
 
 std::string	fileNameCheck(char *argv)
 {
@@ -573,7 +645,7 @@ void	extractServerBlocks(std::map<std::string, ConfigurationHandler> &servers, s
 			temp.push_back(*iter);
 			auto dup = servers.emplace(port, ConfigurationHandler(temp));
 			if (dup.second == false)
-				webservLog.webservLog(ERROR, "Duplicate port detected, running valid ones" , true);
+				webservLog.webservLog(WARNING, "Duplicate port detected, running valid ones" , true);
 				// throw std::runtime_error("Duplicate port found");
 			if (servers.size() > 5)
 				throw std::runtime_error("Configuration file is too big"); // figure out later - now when this is in its own try catch. we would need to limit it somehow

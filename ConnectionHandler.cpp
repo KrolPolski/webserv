@@ -382,30 +382,28 @@ void		ConnectionHandler::acceptNewClient(const unsigned int serverFd)
 	{
 		std::cerr << RED << "\naccept() failed:\n" << RESET << std::strerror(errno) << "\n\n";
 		// Error handling...?
+		return ;
 	}
 	else
 	{
 		if (fcntl(newClientFd, F_SETFL, O_NONBLOCK) == -1)
 		{
-			std::cerr << RED << "\nfcntl() failed:\n" << RESET << std::strerror(errno) << "\n\n";
+			std::cerr << RED << "\nfcntl() in acceptNewClient() failed:\n" << RESET << std::strerror(errno) << "\n\n";
 			// Error handling...?
 			close (newClientFd);
-			return ; // What should happen here...?
+			return ;
 		}
 
 		serverInfo *relatedServerPTR = getServerByFd(serverFd);
 		if (relatedServerPTR == nullptr)
 		{
 			std::cerr << RED << "\nacceptNewClient() failed:\n" << RESET << "server not found" << "\n\n";
+			close (newClientFd);
 			return ;
 		}
 		addNewPollfd(newClientFd);
-		// std::cout << GREEN << "Creating new client\n" << RESET;
 		m_clientVec.push_back({newClientFd, relatedServerPTR});
 	}
-
-//	std::cout << GREEN << "NEW CLIENT Accepted with FD: " << newClientFd << "\n" << RESET;
-//	std::cout << GREEN << "client vec size: " << m_clientVec.size() << "\n" << RESET;
 
 
 }
@@ -792,6 +790,8 @@ void		ConnectionHandler::sendDataToClient(clientInfo *clientPTR)
 	size_t	sendDataLen = clientPTR->responseString.size();
 	if (sendDataLen > sendLenMax)
 		sendDataLen = sendLenMax;
+
+	std::cout << "RESPONSE:\n" << clientPTR->responseString << "\n";
 
 	// Send response to client
 	int sendBytes = send(clientPTR->clientFd, clientPTR->responseString.c_str(), sendDataLen, 0);

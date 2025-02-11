@@ -232,22 +232,25 @@ int	CgiHandler::buildCgiResponse(clientInfo *clientPTR)
 	{
 			std::cout << GREEN << "\nBuilding final response\n" << RESET;
 
-		if (clientPTR->parsedRequest.cgiType == PHP)
+	/*	if (clientPTR->parsedRequest.cgiType == PHP)
 		{
 			// Remove extra headers created by php-cgi
 			size_t index = m_responseBody.find_first_of('\n');
 			index = m_responseBody.find_first_of('\n', index + 1);
 			m_responseBody = m_responseBody.substr(index + 1, m_responseBody.length() - index);	
-		}
+		} */
 		
 		// FIX THIS: Scripts handle the headers, NOT the server
 		m_responseHeaders = "HTTP/1.1 200 OK\r\n";
-		m_responseHeaders += "Content-Type: text/html\r\n";
+		m_responseHeaders += "Server: " + clientPTR->relatedServer->serverConfig->getNames() + "\r\n"; // Testing this
+	//	m_responseHeaders += "Content-Type: text/html\r\n";
 		m_responseHeaders += "Content-Length: ";
 		m_responseHeaders += std::to_string(m_responseBody.length());
-		m_responseHeaders += "\r\n\r\n";
+		m_responseHeaders += "\r\n"; // or "\r\n\r\n" ...?
 		clientPTR->responseString = m_responseHeaders + m_responseBody;
 		clientPTR->status = SEND_RESPONSE;
+
+		std::cout << RED << "RESPONSE:\n" << RESET << clientPTR->responseString << "\n";
 
 		close(clientPTR->pipeFromCgi[0]); // Do we need to check close() return value...?
 	}

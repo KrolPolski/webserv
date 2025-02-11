@@ -16,9 +16,9 @@ CgiHandler::CgiHandler(clientInfo &client) : m_client(client)
 	CgiTypes 	type = m_client.parsedRequest.cgiType;
 
 	if (type == PHP)
-		m_pathToInterpreter = m_client.relatedServer->serverConfig->getCgiPath(m_client.parsedRequest.filePath) + "/php-cgi"; // NOTE: These might be in different locations with each other
+		m_pathToInterpreter = m_client.relatedServer->serverConfig->getCgiPathPHP(m_client.parsedRequest.filePath) + "/php-cgi"; // NOTE: These might be in different locations with each other
 	else if (type == PYTHON)
-		m_pathToInterpreter = m_client.relatedServer->serverConfig->getCgiPath(m_client.parsedRequest.filePath) + "/python3"; // NOTE: These might be in different locations with each other
+		m_pathToInterpreter = m_client.relatedServer->serverConfig->getCgiPathPython(m_client.parsedRequest.filePath) + "/python3"; // NOTE: These might be in different locations with each other
 
 	std::string currentDir = std::filesystem::current_path();
 	std::string root = m_client.relatedServer->serverConfig->getRoot("/");

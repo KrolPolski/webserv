@@ -20,7 +20,8 @@
 # include <map>
 # include <regex>
 
-# define G_CGI_PATH	"/usr/bin"
+# define G_CGI_PATH_PHP	"/usr/bin"
+# define G_CGI_PATH_PYTHON "/usr/bin"
 # define G_METHOD	"GET"
 
 enum dirListStates
@@ -32,10 +33,11 @@ enum dirListStates
 
 struct locationBlock
 {
-	std::string					m_root;
-	std::string					m_methods; 		// GET POST DELETE
-	std::string					m_cgiPath;		// path to cgi interpreter
-	enum dirListStates			m_dirListing; 	// directory listing ON or OFF
+	std::string					m_root;				// root of each location block in server configuration
+	std::string					m_methods; 			// e.g. GET POST DELETE
+	std::string					m_cgiPathPHP;		// path to cgi interpreter PHP, changes depending on system
+	std::string					m_cgiPathPython;	// path to cgi interpreter Python, changes depending on system
+	enum dirListStates			m_dirListing; 		// directory listing ON or OFF
 
 	locationBlock() : m_dirListing(UNSET)
 	{};
@@ -44,10 +46,11 @@ struct locationBlock
 class ConfigurationHandler
 {
 	private:
-		enum dirListStates						m_globalDirListing;
-		std::string								m_globalMethods;
-		std::string								m_globalCgiPath;
-		std::map<int, std::string>				m_defaultErrorPages;	// Default for the server if permissions are not in order for custom
+		enum dirListStates						m_globalDirListing;		// Default false
+		std::string								m_globalMethods;		// Default GET
+		std::string								m_globalCgiPathPHP;		// Default defined, changes depending on system
+		std::string								m_globalCgiPathPython;		// Default defined, changes depending on system
+		std::map<int, std::string>				m_defaultErrorPages;	// Default for the server if permissions are not in order for custom or not set
 
 		std::vector<std::string>				m_rawBlock;				// the whole server block as cleaned up text
 		std::string 							m_host;					// e.g. 127.0.0.1
@@ -74,15 +77,19 @@ class ConfigurationHandler
 		std::string				getNames() const;
 		std::string				getInheritedMethods(std::string) const;
 		enum dirListStates		getInheritedDirListing(std::string key) const;
-		std::string				getInheritedCgiPath(std::string) const;
+		std::string				getInheritedCgiPathPHP(std::string) const;
+		std::string				getInheritedCgiPathPython(std::string) const;
 		std::string				getRoot(std::string) const;
 		std::string				getMethods(std::string) const;
 		enum dirListStates		getDirListing(std::string) const;
-		std::string				getCgiPath(std::string key) const;
+		std::string				getCgiPathPHP(std::string key) const;
+		std::string				getCgiPathPython(std::string key) const;
+
 		std::string				getErrorPages(unsigned int) const;
 		std::string				getDefaultErrorPages(unsigned int) const;
 
 		bool					checkLocationBlocksRoot(locationBlock &);
+		// bool					checkForPostUploadDir(locationBlock &block);
 		bool					requiredSettings();
 
 		void					printSettings(); // remove this before we eval -- Patrik

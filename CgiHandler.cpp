@@ -83,7 +83,7 @@ void	CgiHandler::setExecveEnvArr()
 // Returns -1 on failure
 int	CgiHandler::executeCgi()
 {	
-	if (!m_pipeToCgiWriteDone || !m_pipeToCgiReadReady || !m_pipeFromCgiWriteReady)
+	if (!m_pipeToCgiReadReady || !m_pipeFromCgiWriteReady)
 		return (1);
 
 	if (m_childProcRunning == false)
@@ -102,13 +102,22 @@ int	CgiHandler::executeCgi()
 
 			close(m_client.pipeFromCgi[1]); // Do we need to check close() return value here...?
 			close(m_client.pipeToCgi[0]);
-			close(m_client.pipeToCgi[1]);
+
+			std::cout << RED << "BYTES TO CGI in parent:\n" << RESET << m_client.bytesToWriteInCgi << "\n";
+
+
+			if (m_client.bytesToWriteInCgi == 0)
+				close(m_client.pipeToCgi[1]); // Do we need to check close() return value here...?
 
 			return (checkWaitStatus());
 		}
 	}
 	else
+	{
+		if (m_client.bytesToWriteInCgi == 0)
+			close(m_client.pipeToCgi[1]); // Do we need to check close() return value here...?
 		return (checkWaitStatus());
+	}
 }
 
 int		CgiHandler::writeToCgiPipe()
@@ -118,16 +127,28 @@ int		CgiHandler::writeToCgiPipe()
 
 	if (m_client.parsedRequest.method == "POST")
 	{
-		const char *buf = m_client.parsedRequest.rawContent.c_str();
-		size_t len = m_client.parsedRequest.rawContent.length();
+		if (m_client.bytesToWriteInCgi == -1)
+			m_client.bytesToWriteInCgi = m_client.reqBodyLen;
 
-		if (write(m_client.pipeToCgi[1], buf, len + 1) == -1) // This might not work with large file sizes!! Then we do multiple calls, like with send()
-			return (errorExit("Write() failed", false));
+		std::cout << RED << "BYTES TO CGI before:\n" << RESET << m_client.bytesToWriteInCgi << "\n";
 
+
+		int bytesWritten = write(m_client.pipeToCgi[1], m_client.parsedRequest.rawContent.c_str(), m_client.bytesToWriteInCgi);
+			
+		if (bytesWritten == -1)
+			return (errorExit("Write() in CGI failed", false));
+
+		m_client.bytesToWriteInCgi -= bytesWritten;
+		m_client.parsedRequest.rawContent.erase(0, bytesWritten);
+
+		std::cout << RED << "BYTES TO CGI after:\n" << RESET << m_client.bytesToWriteInCgi << "\n";
+
+//		if (m_client.bytesToWriteInCgi == 0)
+//			m_pipeToCgiWriteDone = true;
+		
 	}
 	else if (m_client.parsedRequest.method == "GET")
-		m_client.respHandler->m_cgiHandler->setPipeToCgiReadReady();
-	m_pipeToCgiWriteDone = true;
+		m_client.respHandler->m_cgiHandler->setPipeToCgiReadReady(); // this makes no sence, right..? I'm accessing CGIhandler within CGIhandler :D
 	return (0);
 }
 
@@ -191,9 +212,9 @@ int	CgiHandler::checkWaitStatus()
 
 int	CgiHandler::buildCgiResponse(clientInfo *clientPTR)
 {
-	char 	buffer[1024];
+	char 	buffer[10001]; // should this be bigger...?
 	int		bytesRead;
-	int		readPerCall = 1023;
+	int		readPerCall = 10000; // should this be bigger...?
 
 	bytesRead = read(clientPTR->pipeFromCgi[0], buffer, readPerCall);
 	if (bytesRead == -1)
@@ -203,8 +224,11 @@ int	CgiHandler::buildCgiResponse(clientInfo *clientPTR)
 
 	std::string bufStr = buffer;
 	m_responseBody += bufStr;
+	m_client.bytesReceivedFromCgi += bytesRead;
 
-	if (bytesRead < readPerCall)
+	std::cout << RED << "Bytes received from CGI:\n" << RESET << m_client.bytesReceivedFromCgi << "\n";
+
+	if (bytesRead == 0)
 	{
 			std::cout << GREEN << "\nBuilding final response\n" << RESET;
 

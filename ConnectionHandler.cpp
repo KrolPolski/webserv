@@ -286,10 +286,14 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			{
 				removeFromPollfdVec(clientPTR->pipeToCgi[0]);
 				clientPTR->pipeToCgi[0] = -1;
-				removeFromPollfdVec(clientPTR->pipeToCgi[1]);
-				clientPTR->pipeToCgi[1] = -1;
 				removeFromPollfdVec(clientPTR->pipeFromCgi[1]);
 				clientPTR->pipeFromCgi[1] = -1;
+
+				if (clientPTR->bytesToWriteInCgi == 0)
+				{
+					removeFromPollfdVec(clientPTR->pipeToCgi[1]);
+					clientPTR->pipeToCgi[1] = -1;
+				}
 
 				if (executeStatus == 0)
 					clientPTR->status = BUILD_CGI_RESPONSE;

@@ -65,6 +65,7 @@ class ConnectionHandler
 
 	// request receiveing & parsing
 	int		parseRequest(clientInfo *clientPTR);
+	int 	splitStartLine(clientInfo *clientPTR, requestParseInfo	&parseInfo);
 	clientRequestType	checkRequestType(clientInfo *clientPTR);
 	bool	checkChunkedEnd(clientInfo *clientPTR);
 	int		getBodyLength(clientInfo *clientPTR);

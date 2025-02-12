@@ -22,6 +22,7 @@ class CgiHandler
 	int	executeCgi();
 	int	checkWaitStatus();
 	int	buildCgiResponse(clientInfo *clientPTR);
+	void finishCgiResponse(clientInfo *clientPTR);
 
 	void setPipeToCgiReadReady(void);
 	void setPipeFromCgiWriteReady(void);

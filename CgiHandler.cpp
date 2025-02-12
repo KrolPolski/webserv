@@ -114,7 +114,7 @@ int	CgiHandler::executeCgi()
 	}
 	else
 	{
-		if (m_client.bytesToWriteInCgi == 0)
+		if (m_client.bytesToWriteInCgi == 0) 
 			close(m_client.pipeToCgi[1]); // Do we need to check close() return value here...?
 		return (checkWaitStatus());
 	}
@@ -132,7 +132,6 @@ int		CgiHandler::writeToCgiPipe()
 
 		std::cout << RED << "BYTES TO CGI before:\n" << RESET << m_client.bytesToWriteInCgi << "\n";
 
-
 		int bytesWritten = write(m_client.pipeToCgi[1], m_client.parsedRequest.rawContent.c_str(), m_client.bytesToWriteInCgi);
 			
 		if (bytesWritten == -1)
@@ -148,7 +147,10 @@ int		CgiHandler::writeToCgiPipe()
 		
 	}
 	else if (m_client.parsedRequest.method == "GET")
+	{
 		m_client.respHandler->m_cgiHandler->setPipeToCgiReadReady(); // this makes no sence, right..? I'm accessing CGIhandler within CGIhandler :D
+		m_client.bytesToWriteInCgi = 0;
+	}
 	return (0);
 }
 
@@ -210,6 +212,22 @@ int	CgiHandler::checkWaitStatus()
 	return (0);
 }
 
+void CgiHandler::finishCgiResponse(clientInfo *clientPTR)
+{
+	m_responseHeaders = "HTTP/1.1 200 OK\r\n";
+	m_responseHeaders += "Server: " + clientPTR->relatedServer->serverConfig->getNames() + "\r\n"; // CHECK THIS!!
+	if (m_responseBody.find("Content-Length: ") == std::string::npos)
+	{
+		m_responseHeaders += "Content-Length: ";
+		m_responseHeaders += std::to_string(m_responseBody.length());
+		m_responseHeaders += "\r\n";
+	}
+	clientPTR->responseString = m_responseHeaders + m_responseBody;
+	clientPTR->status = SEND_RESPONSE;
+
+	close(clientPTR->pipeFromCgi[0]); // Do we need to check close() return value...?
+}
+
 int	CgiHandler::buildCgiResponse(clientInfo *clientPTR)
 {
 	char 	buffer[10001]; // should this be bigger...?
@@ -228,33 +246,6 @@ int	CgiHandler::buildCgiResponse(clientInfo *clientPTR)
 
 	std::cout << RED << "Bytes received from CGI:\n" << RESET << m_client.bytesReceivedFromCgi << "\n";
 
-	if (bytesRead == 0)
-	{
-			std::cout << GREEN << "\nBuilding final response\n" << RESET;
-
-	/*	if (clientPTR->parsedRequest.cgiType == PHP)
-		{
-			// Remove extra headers created by php-cgi
-			size_t index = m_responseBody.find_first_of('\n');
-			index = m_responseBody.find_first_of('\n', index + 1);
-			m_responseBody = m_responseBody.substr(index + 1, m_responseBody.length() - index);	
-		} */
-		
-		// FIX THIS: Scripts handle the headers, NOT the server
-		m_responseHeaders = "HTTP/1.1 200 OK\r\n";
-		m_responseHeaders += "Server: " + clientPTR->relatedServer->serverConfig->getNames() + "\r\n"; // Testing this
-	//	m_responseHeaders += "Content-Type: text/html\r\n";
-		m_responseHeaders += "Content-Length: ";
-		m_responseHeaders += std::to_string(m_responseBody.length());
-		m_responseHeaders += "\r\n"; // or "\r\n\r\n" ...?
-		clientPTR->responseString = m_responseHeaders + m_responseBody;
-		clientPTR->status = SEND_RESPONSE;
-
-		std::cout << RED << "RESPONSE:\n" << RESET << clientPTR->responseString << "\n";
-
-		close(clientPTR->pipeFromCgi[0]); // Do we need to check close() return value...?
-	}
-	
 	return (0);
 }
 

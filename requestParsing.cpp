@@ -2,12 +2,8 @@
 #include "URLhandler.hpp"
 
 
-/*
-	ERROR HANDLING AND VALID REQUEST CHECKING...?
-*/
-
 // A helper function to split the start line
-int	splitStartLine(requestParseInfo	&parseInfo)
+int	ConnectionHandler::splitStartLine(clientInfo *clientPTR, requestParseInfo	&parseInfo)
 {
 	URLhandler	urlHandler;
 	size_t		startIndex = 0;
@@ -17,7 +13,10 @@ int	splitStartLine(requestParseInfo	&parseInfo)
 	endIndex = parseInfo.startLine.find_first_of(' ');
 	if (endIndex == parseInfo.startLine.npos)
 	{
-		std::cerr << RED << "\nInvalid request: first line is missing target file\n\n" << RESET;
+		std::cerr << RED << "\nInvalid request:\n" << RESET << "first line is missing URI\n\n" << RESET;
+		clientPTR->respHandler->setResponseCode(400);
+		clientPTR->respHandler->openErrorResponseFile(clientPTR);
+		addNewPollfd(clientPTR->errorFileFd);
 		return (-1);
 	}
 
@@ -30,11 +29,23 @@ int	splitStartLine(requestParseInfo	&parseInfo)
 	endIndex = parseInfo.startLine.find_first_of(' ', startIndex);
 	if (endIndex == parseInfo.startLine.npos)
 	{
-		std::cerr << RED << "\nInvalid request: first line is missing HTTP protocol\n\n" << RESET;
+		std::cerr << RED << "\nInvalid request:\n" << RESET << "first line is missing HTTP protocol\n\n" << RESET;
+		clientPTR->respHandler->setResponseCode(400);
+		clientPTR->respHandler->openErrorResponseFile(clientPTR);
+		addNewPollfd(clientPTR->errorFileFd);
 		return (-1);
 	}
 	tempStr = parseInfo.startLine.substr(startIndex, endIndex - startIndex);
 	startIndex = endIndex + 1;
+
+	if (tempStr.size() > 4096) // From ChatGPT: "NGINX: The default maximum URI length is 4,096 characters (4 KB)"
+	{
+		std::cerr << RED << "\nInvalid request:\n" << RESET << "URI too long\n\n" << RESET;
+		clientPTR->respHandler->setResponseCode(414);
+		clientPTR->respHandler->openErrorResponseFile(clientPTR);
+		addNewPollfd(clientPTR->errorFileFd);
+		return (-1);
+	}
 
 	if (tempStr.find_first_of('?') == tempStr.npos)
 		parseInfo.filePath = tempStr;
@@ -68,7 +79,10 @@ int	splitStartLine(requestParseInfo	&parseInfo)
 	startIndex = parseInfo.startLine.find_last_of(' ') + 1;
 	if (parseInfo.startLine.compare(startIndex, 8, "HTTP/1.1") != 0)
 	{
-		std::cerr << RED << "\nInvalid request: invalid HTTP protocol. Only HTTP/1.1 is supported\n\n" << RESET;
+		std::cerr << RED << "\nInvalid request:\n" << RESET << "Bad HTTP protocol. Only HTTP/1.1 is supported\n\n" << RESET;
+		clientPTR->respHandler->setResponseCode(505);
+		clientPTR->respHandler->openErrorResponseFile(clientPTR);
+		addNewPollfd(clientPTR->errorFileFd);
 		return (-1);
 	}
 
@@ -97,12 +111,15 @@ int		ConnectionHandler::parseRequest(clientInfo *clientPTR)
 	endIndex = reqStr.find_first_of("\r\n");
 	if (endIndex == reqStr.npos)
 	{
-		std::cerr << RED << "\nInvalid request: no new line found\n\n" << RESET;
+		std::cerr << RED << "\nInvalid request:\n" << RESET << "no new line found\n\n" << RESET;
+		clientPTR->respHandler->setResponseCode(400);
+		clientPTR->respHandler->openErrorResponseFile(clientPTR);
+		addNewPollfd(clientPTR->errorFileFd);
 		return (-1);
 	}
 	parseInfo.startLine = reqStr.substr(0, endIndex - startIndex);
 	startIndex = endIndex + 2;
-	if (splitStartLine(parseInfo) == -1)
+	if (splitStartLine(clientPTR, parseInfo) == -1)
 		return (-1);
 
 	// Set header map
@@ -117,14 +134,20 @@ int		ConnectionHandler::parseRequest(clientInfo *clientPTR)
 		endIndex = reqStr.find_first_of("\r\n", startIndex);
 		if (endIndex == reqStr.npos) // check this later
 		{
-			std::cerr << RED << "\nInvalid request: no new line found after header\n\n" << RESET;
+			std::cerr << RED << "\nInvalid request:\n" << RESET << "no new line found after header\n\n" << RESET;
+			clientPTR->respHandler->setResponseCode(400);
+			clientPTR->respHandler->openErrorResponseFile(clientPTR);
+			addNewPollfd(clientPTR->errorFileFd);
 			return (-1);
 		}
 		headerLine = reqStr.substr(startIndex, endIndex - startIndex);
 		headerIndex = headerLine.find_first_of(':');
 		if (headerIndex == headerLine.npos)
 		{
-			std::cerr << RED << "\nInvalid request: header is missing ':' character\n\n" << RESET;
+			std::cerr << RED << "\nInvalid request:\n" << RESET << "header is missing ':' character\n\n" << RESET;
+			clientPTR->respHandler->setResponseCode(400);
+			clientPTR->respHandler->openErrorResponseFile(clientPTR);
+			addNewPollfd(clientPTR->errorFileFd);
 			return (-1);
 		}
 		key = headerLine.substr(0, headerIndex);
@@ -142,10 +165,24 @@ int		ConnectionHandler::parseRequest(clientInfo *clientPTR)
 	if (it != headerMap.end())
 	{
 		int	contenLen = std::stoi(it->second);
+		if (contenLen < 0)
+		{
+			std::cerr << RED << "\nInvalid request:\n" << RESET << "Content-Length is negative\n\n" << RESET;
+			clientPTR->respHandler->setResponseCode(400);
+			clientPTR->respHandler->openErrorResponseFile(clientPTR);
+			addNewPollfd(clientPTR->errorFileFd);
+			return (-1);
+		}
 		startIndex += 2; // 2 because we first move to the '\n' and then over it
 		parseInfo.rawContent = reqStr.substr(startIndex, contenLen);
-
-//		std::cout << RED << "RAW CONTENT:\n" << RESET << parseInfo.rawContent << "\n";
+	}
+	else if (it == headerMap.end() && parseInfo.method == "POST")
+	{
+		std::cerr << RED << "\nInvalid request:\n" << RESET << "POST request without Content-Length header\n\n" << RESET;
+		clientPTR->respHandler->setResponseCode(400);
+		clientPTR->respHandler->openErrorResponseFile(clientPTR);
+		addNewPollfd(clientPTR->errorFileFd);
+		return (-1);
 	}
 
 	return (0);

@@ -222,6 +222,8 @@ void CgiHandler::finishCgiResponse(clientInfo *clientPTR)
 		m_responseHeaders += std::to_string(m_responseBody.length());
 		m_responseHeaders += "\r\n";
 	}
+	if (m_responseBody.find("Content-Type: ") == std::string::npos)
+		m_responseHeaders += "Content-Type: text/html\r\n"; // either this or just plain text...?
 	clientPTR->responseString = m_responseHeaders + m_responseBody;
 	clientPTR->status = SEND_RESPONSE;
 

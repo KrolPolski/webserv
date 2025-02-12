@@ -15,7 +15,6 @@
 
 #include "ConfigurationHandler.hpp"
 #include "Logger.hpp"
-#include "Types.hpp"
 #include <fcntl.h>
 #include <iostream>
 
@@ -43,6 +42,8 @@ void	ConfigurationHandler::printSettings()
 		<< "\n" << x.first;
 		if (!x.second.m_root.empty())
 			std::cout << "\n  " << x.second.m_root;
+		if (x.second.m_reDirectStatusCode && !x.second.m_reDirectLocation.empty())
+			std::cout << "\n  " << x.second.m_reDirectStatusCode << " " << x.second.m_reDirectLocation;
 		if (!x.second.m_methods.empty())
 			std::cout << "\n  " << x.second.m_methods;
 		if (!x.second.m_cgiPathPHP.empty())
@@ -52,9 +53,6 @@ void	ConfigurationHandler::printSettings()
 		std::cout << "\n  " << x.second.m_dirListing;
 		std::cout << std::endl;
 	}
-	std::cout << "\n--------- Redirects ------------------------------\n\n";
-	for (auto &x : m_redirect)
-		std::cout << x.first << " : " << x.second << std::endl;
 	std::cout << "\n--------- Error pages ----------------------------\n\n";
 	for (auto &x : m_errorPages)
 		std::cout << x.first << " : " << x.second << std::endl;
@@ -116,84 +114,51 @@ bool	ConfigurationHandler::checkLocationBlocksRoot(locationBlock &block)
 	return true;
 }
 
-// bool	ConfigurationHandler::checkForPostUploadDir(locationBlock &block)
-// {
-// 	(void)block;
-// 	return true;
-// }
-
 bool	ConfigurationHandler::requiredSettings()
 {
 	std::regex	portRegex(R"(^(80|443|8000|8[0-9]{3}|9[0-9]{3})$)");
 	std::regex	ipRegex(R"(^([1-9][0-9]{0,2}|1[0-9]{2}|2[0-4][0-9]|25[0-4])\.([0-9]{1,2}|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.([0-9]{1,2}|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.([0-9]{1,2}|1[0-9]{2}|2[0-4][0-9]|25[0-5])$)");
 	std::regex	serverNameRegex(R"(^([a-zA-Z0-9-]+)\.([a-zA-Z]{2,})(\s+)(www\.)?([a-zA-Z0-9-]+)\.\2$)");
-	std::regex	redirectRegex(R"(^https://\$host\$request_uri$)");
 	std::regex	indexHtmlRegex(R"(^[^.]+\.(html)$)");
 
 	if (m_port.empty())
 	{
 		webservLog.webservLog(ERROR, "Port missing", false);
-		// std::cerr << "Error: Port missing!" << std::endl;
 		return false;
 	}
 	if (m_host.empty())
 	{
 		webservLog.webservLog(ERROR, "IP address missing", false);
-		// std::cerr << "Error: IP address missing!" << std::endl;
 		return false;
 	}
 	if (m_names.empty())
 	{
 		webservLog.webservLog(ERROR, "Server names missing", false);
-		// std::cerr << "Error: Server names missing!" << std::endl;
 		return false;
 	}
 	if (!m_routes.contains("/"))
 	{
 		webservLog.webservLog(ERROR, "Home location missing", false);
-		// std::cerr << "Error: Home location missing!" << std::endl;
 		return false;
 	}
-	if (!m_redirect.empty())
-	{
-		if (m_redirect.find(301) == m_redirect.end())
-		{
-			webservLog.webservLog(ERROR, "Redirect is not valid", false);
-			// std::cerr << "Error: Redirect is not valid!" << std::endl;
-				return false;
-		}
-		if (m_redirect.find(301) != m_redirect.end())
-		{
-			if (std::regex_match(m_redirect.find(301)->second, redirectRegex) == false)
-			{
-				webservLog.webservLog(ERROR, "Redirect is not valid", false);
-				// std::cerr << "Error: Redirect is not valid" << std::endl;
-				return false;
-			}
-		}
-	}
-	if (std::regex_match(m_port, portRegex) == false)
+	if (regex_match(m_port, portRegex) == false)
 	{
 		webservLog.webservLog(ERROR, "Port is not a valid port number", false);
-		// std::cerr << "Error: Port is not a valid port number" << std::endl;
 		return false;
 	}
-	if (std::regex_match(m_host, ipRegex) == false)
+	if (regex_match(m_host, ipRegex) == false)
 	{
 		webservLog.webservLog(ERROR, "IP is not a valid IP address", false);
-		// std::cerr << "Error: IP is not a valid IP number" << std::endl;
 		return false;
 	}
-	if (std::regex_match(m_names, serverNameRegex) == false)
+	if (regex_match(m_names, serverNameRegex) == false)
 	{
 		webservLog.webservLog(ERROR, "Server name is not valid", false);
-		// std::cerr << "Error: Server name is not valid" << std::endl;
 		return false;
 	}
-	if (std::regex_match(m_index, indexHtmlRegex) == false)
+	if (regex_match(m_index, indexHtmlRegex) == false)
 	{
 		webservLog.webservLog(ERROR, "The index file is not valid", false);
-		// std::cerr << "Error: The index file is not valid" << std::endl;
 		return false;
 	}
 	if (m_routes.contains("/"))
@@ -233,12 +198,12 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : 
 	std::regex	listenRegex(R"(^listen\s+(\d+)\s*;\s*$)");
 	std::regex	hostRegex(R"(^\s*host\s+([^\s]+)\s*;\s*$)");
 	std::regex	serverNameRegex(R"(^\s*server_name\s+([^\s;]+(?:\s+[^\s;]+)*)\s*;\s*$)");
-	std::regex	returnRegex(R"(^\s*return\s+(\d{3})\s+([^\s]+)\s*;\s*$)");
 	std::regex	maxClientBodyRegex(R"(^\s*max_client_body_size\s+(\d+)\s*;\s*$)");
-	std::regex	errorPageRegex(R"(^\s*error_page\s+(\d{3})\s+([^\s]+\.html)\s*;\s*$)");
+	std::regex	errorPageRegex(R"(^\s*error_page\s+(400|403|404|405|408|411|413|414|431|500|501|505)\s+([^\s]+\.html)\s*;\s*$)");
 	std::regex	indexRegex(R"(^\s*index\s+([^\s]+)\s*;\s*$)");
 	std::regex	locationRegex(R"(^\s*location\s+([^\s]+)\s*\s*$)");
 	std::regex	rootRegex(R"(^\s*root\s+/?([^/][^;]*[^/])?/?\s*;\s*$)");
+	std::regex	returnRegex(R"(^\s*return\s+(301)\s+(/[\S]+)\s*;\s*$)");
 	std::regex	methodsRegex(R"(^\s*methods\s+([^\s;]+(?:\s+[^\s;]+)*)\s*;\s*$)"); // could restrict GET|POST|DELETE as the valid ones
 	std::regex	dirListingRegex(R"(^\s*dir_listing\s+(on|off)\s*;\s*$)");
 	std::regex	cgiPathRegexPHP(R"(^\s*cgi_path_php\s+(\/[^/][^;]*[^/])?/?\s*;\s*$)");
@@ -249,30 +214,28 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : 
 		std::smatch	match;
 		try
 		{
-			if (std::regex_search(*iter, match, maxClientBodyRegex) == true)
+			if (regex_search(*iter, match, maxClientBodyRegex) == true)
 				m_maxClientBodySize = std::stoul(match[1]);
 		}
 		catch(const std::exception& e)
 		{
 			webservLog.webservLog(INFO, "Max client body size conversion failed, using default", true);
 		}
-		if (std::regex_search(*iter, match, listenRegex) == true)
+		if (regex_search(*iter, match, listenRegex) == true)
 			m_port = match[1];
-		else if (std::regex_search(*iter, match, hostRegex) == true)
+		else if (regex_search(*iter, match, hostRegex) == true)
 			m_host = match[1];
-		else if (std::regex_search(*iter, match, serverNameRegex) == true)
+		else if (regex_search(*iter, match, serverNameRegex) == true)
 			m_names = match[1];
-		else if (std::regex_search(*iter, match, returnRegex) == true)
-			m_redirect.emplace(std::stoi(match[1]), match[2]);
-		else if (std::regex_search(*iter, match, errorPageRegex) == true)
+		else if (regex_search(*iter, match, errorPageRegex) == true)
 		{
 			if (m_errorPages.contains(std::stoi(match[1])))
 				m_errorPages.erase(std::stoi(match[1]));
 			m_errorPages.emplace(std::stoi(match[1]), match[2]);
 		}
-		else if (std::regex_search(*iter, match, indexRegex) == true)
+		else if (regex_search(*iter, match, indexRegex) == true)
 			m_index = match[1];
-		else if (std::regex_search(*iter, match, locationRegex) == true)
+		else if (regex_search(*iter, match, locationRegex) == true)
 		{
 			// std::cout << "Processing line: " << *iter << std::endl;
 			int openBraces = 0;
@@ -294,6 +257,11 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : 
 					std::smatch subMatch;
 					if (regex_search(*iter, subMatch, rootRegex) == true)
 						loc.m_root = subMatch[1];
+					else if (regex_search(*iter, subMatch, returnRegex) == true)
+					{
+						loc.m_reDirectStatusCode = std::stoi(subMatch[1]);
+						loc.m_reDirectLocation = subMatch[2];
+					}
 					else if (regex_search(*iter, subMatch, methodsRegex) == true)
 						loc.m_methods = subMatch[1];
 					else if (regex_search(*iter, subMatch, cgiPathRegexPHP) == true)
@@ -318,14 +286,12 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : 
 				{
 					if (checkLocationBlocksRoot(loc) == false)
 						webservLog.webservLog(WARNING, "Location block not complete, discarding block", true);
-						// throw std::runtime_error("Location block not complete"); // test this <---
 					else
 					{
 						auto duplicate = m_routes.emplace(key, loc);
 						if (duplicate.second == false)
 							webservLog.webservLog(WARNING, "Duplicate location block found, discarding duplicate", true);
 					}
-						// throw std::runtime_error("Duplicate location block found"); // test this <---
 					loc = locationBlock();
 				}
 			}
@@ -461,20 +427,37 @@ std::string	ConfigurationHandler::getRoot(std::string key) const
 	if (map_key == m_routes.end())
 	{
 		webservLog.webservLog(ERROR, "Could not find route for root", false);
-		return ""; // What if no location block is given!? We should serve only the index.html file, right?
-		// PAtrik Patrik PATRIK ----- !!!!!, ASK you team!
+		return "";
 	}
 	return map_key->second.m_root;
 }
 
+bool	ConfigurationHandler::isRedirectSet(std::string	key)
+{
+	auto map_key = m_routes.find(key);
+	if (map_key != m_routes.end())
+	{
+		if (map_key->second.m_reDirectStatusCode && !map_key->second.m_reDirectLocation.empty())
+			return true;
+	}
+	webservLog.webservLog(INFO, std::string("Redirect is not set in location: " + key + ", moving on"), true);
+	return false;
+}
+
+int	ConfigurationHandler::getRedirectStatusCode(std::string key) const
+{
+	auto map_key = m_routes.find(key);
+	return map_key->second.m_reDirectStatusCode;
+}
+
+std::string	ConfigurationHandler::getRedirectLocation(std::string key) const
+{
+	auto map_key = m_routes.find(key);
+	return map_key->second.m_reDirectLocation;
+}
+
 std::string	ConfigurationHandler::getMethods(std::string key) const
 {
-	// std::cout << "In get methods with key: " << key << "\n";
-	// std::cerr << "Available keys:\n";
-    // for (auto &route : m_routes)
-	// {
-    //     std::cerr << " - " << route.first << "\n";
-	// }
 	auto map_key = m_routes.find(key);
 	if (map_key == m_routes.end())
 	{
@@ -483,18 +466,11 @@ std::string	ConfigurationHandler::getMethods(std::string key) const
 	}
 	if (map_key->second.m_methods.empty())
 		return getInheritedMethods(key);
-	// std::cout << "Leaving get methods with " << map_key->second.m_methods << "\n";
 	return map_key->second.m_methods;
 }
 
 enum dirListStates	ConfigurationHandler::getDirListing(std::string key) const
 {
-	// std::cout << "In get dirlist with key: " << key << "\n";
-	// std::cerr << "Available keys:\n";
-    // for (auto &route : m_routes)
-	// {
-    //     std::cerr << " - " << route.first << "\n";
-	// }
 	auto map_key = m_routes.find(key);
 	if (map_key == m_routes.end())
 	{
@@ -573,7 +549,7 @@ std::string	fileNameCheck(char *argv)
 {
 	std::string	file = argv;
 
-	if (std::regex_match(file, std::regex(".*\\.conf$")) == false)
+	if (regex_match(file, std::regex(".*\\.conf$")) == false)
 		throw std::runtime_error("Configuration file could not be found");
 	return file;
 }
@@ -599,11 +575,11 @@ void	readFile(const std::string &fileName, std::vector<std::string> &rawFile)
 			curlyBrace++;
 		if (line.find('}') != line.npos)
 			curlyBrace--;
-		line = std::regex_replace(line, std::regex("^\\s+|\\s+$"), "");
+		line = regex_replace(line, std::regex("^\\s+|\\s+$"), "");
 		size_t comment = line.find('#');
 		if (comment != std::string::npos)
 			line = line.substr(0, comment);
-		line = std::regex_replace(line, std::regex("^\\s+|\\s+$"), "");
+		line = regex_replace(line, std::regex("^\\s+|\\s+$"), "");
 		if (!line.empty())
 			rawFile.push_back(line);
 	}
@@ -629,12 +605,12 @@ void	extractServerBlocks(std::map<std::string, ConfigurationHandler> &servers, s
 	for (std::vector<std::string>::iterator iter = rawFile.begin(); iter != rawFile.end(); iter++)
 	{
 		std::smatch	match;
-		if (std::regex_search(*iter, match, std::regex("^server$")) == true)
+		if (regex_search(*iter, match, std::regex("^server$")) == true)
 		{
 			temp.push_back(*iter);
 			iter++;
 		}
-		if (std::regex_search(*iter, match, std::regex(R"(^listen\s+(\d+)\s*;\s*$)")) == true)
+		if (regex_search(*iter, match, std::regex(R"(^listen\s+(\d+)\s*;\s*$)")) == true)
 			port = match[1];
 		if (iter->find('{') != std::string::npos)
 			openBraces++;

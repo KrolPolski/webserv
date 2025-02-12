@@ -1,7 +1,6 @@
 #include "ConnectionHandler.hpp"
 #include "Logger.hpp"
 
-
 ConnectionHandler::ConnectionHandler()
 {
 }
@@ -41,7 +40,7 @@ int		ConnectionHandler::initServers(char *configFile)
 			return -1;
 		}
 		
-		int socketfd = initServerSocket(portNum);
+		int socketfd = initServerSocket(portNum, iter->second);
 		if (socketfd == -1)
 			return (-1);
 		
@@ -56,7 +55,7 @@ int		ConnectionHandler::initServers(char *configFile)
 	SOCKET INITIALIZATION
 */
 
-int		ConnectionHandler::initServerSocket(const unsigned int portNum)
+int		ConnectionHandler::initServerSocket(const unsigned int portNum, ConfigurationHandler &config)
 {
 	int socketFd = socket(AF_INET, SOCK_STREAM, 0);
 	
@@ -77,7 +76,7 @@ int		ConnectionHandler::initServerSocket(const unsigned int portNum)
 		return (-1);
 	}
 
-	// make socket non-blocking, CHECK THAT THIS IS ACTUALLY WORKING!
+	// make socket non-blocking
 	if (fcntl(socketFd, F_SETFL, O_NONBLOCK) == -1)
 	{
 		std::cerr << RED << "\nfcntl() failed:\n" << RESET << std::strerror(errno) << "\n\n";
@@ -90,7 +89,8 @@ int		ConnectionHandler::initServerSocket(const unsigned int portNum)
 	sockaddr_in	serverAddress;
 	serverAddress.sin_family = AF_INET;
 	serverAddress.sin_port = htons(portNum);
-    serverAddress.sin_addr.s_addr = INADDR_ANY;
+	serverAddress.sin_addr.s_addr = convertIP(config.getHost());
+
 
 	if (bind(socketFd, (sockaddr *)&serverAddress, sizeof(serverAddress)) == -1)
 	{
@@ -110,6 +110,47 @@ int		ConnectionHandler::initServerSocket(const unsigned int portNum)
 	}
 
 	return (socketFd);
+}
+
+unsigned int ConnectionHandler::convertIP(std::string IPaddress)
+{
+	std::string ipBlockStr;
+	int ipBlockNum = 0;
+	unsigned int result = 0;
+	size_t startIdx = 0;
+	size_t endIdx = 0;
+	std::vector<int> blockVec;
+
+	for (int i = 0; i < 4; ++i)
+	{
+		endIdx = IPaddress.find('.', startIdx);
+
+		if (endIdx == std::string::npos)
+			ipBlockStr = IPaddress.substr(startIdx);
+		else
+			ipBlockStr = IPaddress.substr(startIdx, endIdx - startIdx);
+
+		ipBlockNum = std::stoi(ipBlockStr);
+		blockVec.push_back(ipBlockNum);
+		startIdx = endIdx + 1;
+	}
+
+	for (int i = 3; i >= 0; --i)
+	{
+		ipBlockNum = blockVec[i];
+
+		for (int j = 128; j > 0; (j >>= 1))
+		{
+			if ((ipBlockNum & j) != 0)
+				result = (result | j);
+		}
+
+		if (i != 0)
+			result <<= 8;
+	}
+
+	return result;
+	
 }
 
 /*

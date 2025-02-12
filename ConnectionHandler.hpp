@@ -41,7 +41,8 @@ class ConnectionHandler
 	std::vector<pollfd>		m_pollfdVec;
 
 	// socket functions
-	int		initServerSocket(const unsigned int portNum);
+	int		initServerSocket(const unsigned int portNum, ConfigurationHandler &config);
+	unsigned int convertIP(std::string IPaddress);
 	void	closeAllSockets();
 	bool	checkForServerSocket(const int socketFd);
 

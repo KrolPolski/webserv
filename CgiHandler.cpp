@@ -83,7 +83,7 @@ void	CgiHandler::setExecveEnvArr()
 // Returns -1 on failure
 int	CgiHandler::executeCgi()
 {	
-	if (!m_pipeToCgiWriteDone || !m_pipeToCgiReadReady || !m_pipeFromCgiWriteReady)
+	if (!m_pipeToCgiReadReady || !m_pipeFromCgiWriteReady)
 		return (1);
 
 	if (m_childProcRunning == false)
@@ -102,13 +102,22 @@ int	CgiHandler::executeCgi()
 
 			close(m_client.pipeFromCgi[1]); // Do we need to check close() return value here...?
 			close(m_client.pipeToCgi[0]);
-			close(m_client.pipeToCgi[1]);
+
+			std::cout << RED << "BYTES TO CGI in parent:\n" << RESET << m_client.bytesToWriteInCgi << "\n";
+
+
+			if (m_client.bytesToWriteInCgi == 0)
+				close(m_client.pipeToCgi[1]); // Do we need to check close() return value here...?
 
 			return (checkWaitStatus());
 		}
 	}
 	else
+	{
+		if (m_client.bytesToWriteInCgi == 0) 
+			close(m_client.pipeToCgi[1]); // Do we need to check close() return value here...?
 		return (checkWaitStatus());
+	}
 }
 
 int		CgiHandler::writeToCgiPipe()
@@ -118,16 +127,30 @@ int		CgiHandler::writeToCgiPipe()
 
 	if (m_client.parsedRequest.method == "POST")
 	{
-		const char *buf = m_client.parsedRequest.rawContent.c_str();
-		size_t len = m_client.parsedRequest.rawContent.length();
+		if (m_client.bytesToWriteInCgi == -1)
+			m_client.bytesToWriteInCgi = m_client.reqBodyLen;
 
-		if (write(m_client.pipeToCgi[1], buf, len + 1) == -1) // This might not work with large file sizes!! Then we do multiple calls, like with send()
-			return (errorExit("Write() failed", false));
+		std::cout << RED << "BYTES TO CGI before:\n" << RESET << m_client.bytesToWriteInCgi << "\n";
 
+		int bytesWritten = write(m_client.pipeToCgi[1], m_client.parsedRequest.rawContent.c_str(), m_client.bytesToWriteInCgi);
+			
+		if (bytesWritten == -1)
+			return (errorExit("Write() in CGI failed", false));
+
+		m_client.bytesToWriteInCgi -= bytesWritten;
+		m_client.parsedRequest.rawContent.erase(0, bytesWritten);
+
+		std::cout << RED << "BYTES TO CGI after:\n" << RESET << m_client.bytesToWriteInCgi << "\n";
+
+//		if (m_client.bytesToWriteInCgi == 0)
+//			m_pipeToCgiWriteDone = true;
+		
 	}
 	else if (m_client.parsedRequest.method == "GET")
-		m_client.respHandler->m_cgiHandler->setPipeToCgiReadReady();
-	m_pipeToCgiWriteDone = true;
+	{
+		m_client.respHandler->m_cgiHandler->setPipeToCgiReadReady(); // this makes no sence, right..? I'm accessing CGIhandler within CGIhandler :D
+		m_client.bytesToWriteInCgi = 0;
+	}
 	return (0);
 }
 
@@ -189,11 +212,29 @@ int	CgiHandler::checkWaitStatus()
 	return (0);
 }
 
+void CgiHandler::finishCgiResponse(clientInfo *clientPTR)
+{
+	m_responseHeaders = "HTTP/1.1 200 OK\r\n";
+	m_responseHeaders += "Server: " + clientPTR->relatedServer->serverConfig->getNames() + "\r\n"; // CHECK THIS!!
+	if (m_responseBody.find("Content-Length: ") == std::string::npos)
+	{
+		m_responseHeaders += "Content-Length: ";
+		m_responseHeaders += std::to_string(m_responseBody.length());
+		m_responseHeaders += "\r\n";
+	}
+	if (m_responseBody.find("Content-Type: ") == std::string::npos)
+		m_responseHeaders += "Content-Type: text/html\r\n"; // either this or just plain text...?
+	clientPTR->responseString = m_responseHeaders + m_responseBody;
+	clientPTR->status = SEND_RESPONSE;
+
+	close(clientPTR->pipeFromCgi[0]); // Do we need to check close() return value...?
+}
+
 int	CgiHandler::buildCgiResponse(clientInfo *clientPTR)
 {
-	char 	buffer[1024];
+	char 	buffer[10001]; // should this be bigger...?
 	int		bytesRead;
-	int		readPerCall = 1023;
+	int		readPerCall = 10000; // should this be bigger...?
 
 	bytesRead = read(clientPTR->pipeFromCgi[0], buffer, readPerCall);
 	if (bytesRead == -1)
@@ -203,31 +244,8 @@ int	CgiHandler::buildCgiResponse(clientInfo *clientPTR)
 
 	std::string bufStr = buffer;
 	m_responseBody += bufStr;
+	m_client.bytesReceivedFromCgi += bytesRead;
 
-	if (bytesRead < readPerCall)
-	{
-			webservLog.webservLog(INFO, "\nBuilding final response\n", false);
-
-		if (clientPTR->parsedRequest.cgiType == PHP)
-		{
-			// Remove extra headers created by php-cgi
-			size_t index = m_responseBody.find_first_of('\n');
-			index = m_responseBody.find_first_of('\n', index + 1);
-			m_responseBody = m_responseBody.substr(index + 1, m_responseBody.length() - index);	
-		}
-		
-		// FIX THIS: Scripts handle the headers, NOT the server
-		m_responseHeaders = "HTTP/1.1 200 OK\r\n";
-		m_responseHeaders += "Content-Type: text/html\r\n";
-		m_responseHeaders += "Content-Length: ";
-		m_responseHeaders += std::to_string(m_responseBody.length());
-		m_responseHeaders += "\r\n\r\n";
-		clientPTR->responseString = m_responseHeaders + m_responseBody;
-		clientPTR->status = SEND_RESPONSE;
-
-		close(clientPTR->pipeFromCgi[0]); // Do we need to check close() return value...?
-	}
-	
 	return (0);
 }
 
@@ -281,29 +299,3 @@ pid_t &CgiHandler::getCgiChildPid()
 	return (m_childProcPid);
 }
 
-
-
-
-/*
-	DEBUG PRINTING:
-
-
-	std::cerr << RED << "CHILD m_pathToInterpreter: \n" << RESET << m_pathToInterpreter.c_str() << "\n\n";
-
-	std::cerr << RED << "CHILD m_argsForExecve 0: \n" << RESET << m_argsForExecve[0] << "\n";
-	std::cerr << RED << "CHILD m_argsForExecve 1: \n" << RESET << m_argsForExecve[1] << "\n\n";
-
-	std::cerr << RED << "CHILD m_envArrExecve 0: \n" << RESET << m_envArrExecve[0] << "\n";
-	std::cerr << RED << "CHILD m_envArrExecve 1: \n" << RESET << m_envArrExecve[1] << "\n";
-	std::cerr << RED << "CHILD m_envArrExecve 2: \n" << RESET << m_envArrExecve[2] << "\n";
-	std::cerr << RED << "CHILD m_envArrExecve 3: \n" << RESET << m_envArrExecve[3] << "\n";
-	std::cerr << RED << "CHILD m_envArrExecve 4: \n" << RESET << m_envArrExecve[4] << "\n";
-	std::cerr << RED << "CHILD m_envArrExecve 5: \n" << RESET << m_envArrExecve[5] << "\n";
-	std::cerr << RED << "CHILD m_envArrExecve 6: \n" << RESET << m_envArrExecve[6] << "\n";
-	std::cerr << RED << "CHILD m_envArrExecve 7: \n" << RESET << m_envArrExecve[7] << "\n";
-	std::cerr << RED << "CHILD m_envArrExecve 8: \n" << RESET << m_envArrExecve[8] << "\n";
-	std::cerr << RED << "CHILD m_envArrExecve 9: \n" << RESET << m_envArrExecve[9] << "\n";
-	std::cerr << RED << "CHILD m_envArrExecve 10: \n" << RESET << m_envArrExecve[10] << "\n";
-	std::cerr << RED << "CHILD m_envArrExecve 11: \n" << RESET << m_envArrExecve[11] << "\n";
-	std::cerr << RED << "CHILD m_envArrExecve 12: \n" << RESET << m_envArrExecve[12] << "\n";
-*/

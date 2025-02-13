@@ -44,6 +44,8 @@ struct clientInfo
 
 	int		reqBodyLen = -1;
 	int		reqBodyDataRead = 0;
+	int		bytesToWriteInCgi = -1;
+	int		bytesReceivedFromCgi = 0;
 	bool 	bodyOK = false;
 	bool	chunkedOK = false;
 
@@ -54,7 +56,7 @@ struct clientInfo
 	int		pipeFromCgi[2] = {-1, -1};
 	int		bytesSent = 0;
 
-	int		clientTimeOutLimit = 3;
+	int		clientTimeOutLimit = 3; // we need to check this!
 
 	bool	stateFlags[9] = {}; // JUST FOR DEBUG
 

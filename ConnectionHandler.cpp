@@ -1,7 +1,6 @@
 #include "ConnectionHandler.hpp"
 #include "Logger.hpp"
 
-
 ConnectionHandler::ConnectionHandler()
 {
 }
@@ -47,7 +46,7 @@ int		ConnectionHandler::initServers(char *configFile)
 			return -1;
 		}
 		
-		int socketfd = initServerSocket(portNum);
+		int socketfd = initServerSocket(portNum, iter->second);
 		if (socketfd == -1)
 			return (-1);
 		
@@ -63,7 +62,7 @@ int		ConnectionHandler::initServers(char *configFile)
 	SOCKET INITIALIZATION
 */
 
-int		ConnectionHandler::initServerSocket(const unsigned int portNum)
+int		ConnectionHandler::initServerSocket(const unsigned int portNum, ConfigurationHandler &config)
 {
 	int socketFd = socket(AF_INET, SOCK_STREAM, 0);
 	
@@ -84,7 +83,7 @@ int		ConnectionHandler::initServerSocket(const unsigned int portNum)
 		return (-1);
 	}
 
-	// make socket non-blocking, CHECK THAT THIS IS ACTUALLY WORKING!
+	// make socket non-blocking
 	if (fcntl(socketFd, F_SETFL, O_NONBLOCK) == -1)
 	{
 		std::cerr << RED << "\nfcntl() failed:\n" << RESET << std::strerror(errno) << "\n\n";
@@ -97,7 +96,7 @@ int		ConnectionHandler::initServerSocket(const unsigned int portNum)
 	sockaddr_in	serverAddress;
 	serverAddress.sin_family = AF_INET;
 	serverAddress.sin_port = htons(portNum);
-    serverAddress.sin_addr.s_addr = INADDR_ANY;
+	serverAddress.sin_addr.s_addr = convertIP(config.getHost());
 
 	if (bind(socketFd, (sockaddr *)&serverAddress, sizeof(serverAddress)) == -1)
 	{
@@ -117,6 +116,47 @@ int		ConnectionHandler::initServerSocket(const unsigned int portNum)
 	}
 
 	return (socketFd);
+}
+
+unsigned int ConnectionHandler::convertIP(std::string IPaddress)
+{
+	std::string ipBlockStr;
+	int ipBlockNum = 0;
+	unsigned int result = 0;
+	size_t startIdx = 0;
+	size_t endIdx = 0;
+	std::vector<int> blockVec;
+
+	for (int i = 0; i < 4; ++i)
+	{
+		endIdx = IPaddress.find('.', startIdx);
+
+		if (endIdx == std::string::npos)
+			ipBlockStr = IPaddress.substr(startIdx);
+		else
+			ipBlockStr = IPaddress.substr(startIdx, endIdx - startIdx);
+
+		ipBlockNum = std::stoi(ipBlockStr);
+		blockVec.push_back(ipBlockNum);
+		startIdx = endIdx + 1;
+	}
+
+	for (int i = 3; i >= 0; --i)
+	{
+		ipBlockNum = blockVec[i];
+
+		for (int j = 128; j > 0; (j >>= 1))
+		{
+			if ((ipBlockNum & j) != 0)
+				result = (result | j);
+		}
+
+		if (i != 0)
+			result <<= 8;
+	}
+
+	return result;
+	
 }
 
 /*
@@ -270,6 +310,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 				webservLog.webservLog(INFO, "\nCLIENT EXECUTE_CGI!\n", false);
 			}
 
+			// Write the request body to CGI script & check that pipe FDs are ready
 			if (clientPTR->pipeToCgi[1] == pollFdStuct.fd && pollFdStuct.revents & POLLOUT)
 			{
 				if (clientPTR->respHandler->m_cgiHandler->writeToCgiPipe() == -1)
@@ -286,20 +327,40 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			else if (clientPTR->pipeFromCgi[1] == pollFdStuct.fd && pollFdStuct.revents & POLLOUT)
 				clientPTR->respHandler->m_cgiHandler->setPipeFromCgiWriteReady();
 
+			// Execute CGI child process
 			int executeStatus = clientPTR->respHandler->m_cgiHandler->executeCgi();
 
+			// Wait for the CGI child process to finish && read the output from child process
 			// 0 = CGI child process successful, 2 = still waiting for child process, -1 = error
 			if (executeStatus == 0 || executeStatus == 2 || executeStatus == -1)
 			{
 				removeFromPollfdVec(clientPTR->pipeToCgi[0]);
 				clientPTR->pipeToCgi[0] = -1;
-				removeFromPollfdVec(clientPTR->pipeToCgi[1]);
-				clientPTR->pipeToCgi[1] = -1;
 				removeFromPollfdVec(clientPTR->pipeFromCgi[1]);
 				clientPTR->pipeFromCgi[1] = -1;
 
+				if (clientPTR->bytesToWriteInCgi == 0)
+				{
+					removeFromPollfdVec(clientPTR->pipeToCgi[1]);
+					clientPTR->pipeToCgi[1] = -1;
+				}
+
 				if (executeStatus == 0)
-					clientPTR->status = BUILD_CGI_RESPONSE;
+				{
+					clientPTR->respHandler->m_cgiHandler->finishCgiResponse(clientPTR);
+					resetClientTimeOut(clientPTR);
+				}
+				else if (executeStatus == 2 && clientPTR->pipeFromCgi[0] == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
+				{
+					if (clientPTR->respHandler->m_cgiHandler->buildCgiResponse(clientPTR) == -1)
+					{
+						clientPTR->respHandler->setResponseCode(500);
+						clientPTR->respHandler->openErrorResponseFile(clientPTR);
+						addNewPollfd(clientPTR->errorFileFd);
+						return ;
+					}
+					resetClientTimeOut(clientPTR);
+				} 
 				else if (executeStatus == -1)
 				{
 					clientPTR->respHandler->setResponseCode(500);
@@ -307,9 +368,6 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 					addNewPollfd(clientPTR->errorFileFd);
 					return ;
 				}
-
-				if (executeStatus != 2)
-					resetClientTimeOut(clientPTR);
 			}
 
 			break ;
@@ -386,27 +444,30 @@ void		ConnectionHandler::acceptNewClient(const unsigned int serverFd)
 		std::string errorString = std::strerror(errno);
 		webservLog.webservLog(ERROR, "\naccept() failed:\n" + errorString, false);
 		// Error handling...?
+		return ;
 	}
 	else
 	{
 		if (fcntl(newClientFd, F_SETFL, O_NONBLOCK) == -1)
 		{
+      close (newClientFd);
 			std::string errorString = std::strerror(errno);
 			webservLog.webservLog(ERROR, "\nfcntl() failed:\n" + errorString, true);
 			// Error handling...?
-			close (newClientFd);
-			return ; // What should happen here...?
+			return ;
 		}
 
 		serverInfo *relatedServerPTR = getServerByFd(serverFd);
 		if (relatedServerPTR == nullptr)
 		{
+			close (newClientFd);
 			webservLog.webservLog(ERROR, "\nacceptNewClient() failed:\n server not found\n\n", true);
 			return ;
 		}
 		addNewPollfd(newClientFd);
 		m_clientVec.push_back({newClientFd, relatedServerPTR});
 	}
+
 }
 
 /*
@@ -541,8 +602,8 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 	{
 		clientPTR->reqType = checkRequestType(clientPTR);
 
-		// if we have more than 10000 characters of only headers, we say it's a bad request
-		if (clientPTR->reqType == UNDEFINED && clientPTR->requestString.size() > 10000)
+		// if we have more than 8KB characters of only headers, we say it's a bad request
+		if (clientPTR->reqType == UNDEFINED && clientPTR->requestString.size() > 8192)
 		{
 			webservLog.webservLog(ERROR, "\nBad request:\nRequest headers too long", true);
 			clientPTR->respHandler->setResponseCode(400);
@@ -738,12 +799,7 @@ void	ConnectionHandler::parseClientRequest(clientInfo *clientPTR)
 {
 
 	if (parseRequest(clientPTR) == -1) // this code is in separate file ('requestParsing.cpp')
-	{
-		clientPTR->respHandler->setResponseCode(400);
-		clientPTR->respHandler->openErrorResponseFile(clientPTR);
-		addNewPollfd(clientPTR->errorFileFd);
 		return ;
-	}
 
 	clientPTR->respHandler->setRequestType(clientPTR);
 
@@ -790,6 +846,8 @@ void		ConnectionHandler::sendDataToClient(clientInfo *clientPTR)
 	size_t	sendDataLen = clientPTR->responseString.size();
 	if (sendDataLen > sendLenMax)
 		sendDataLen = sendLenMax;
+
+	std::cout << "RESPONSE:\n" << clientPTR->responseString << "\n";
 
 	// Send response to client
 	int sendBytes = send(clientPTR->clientFd, clientPTR->responseString.c_str(), sendDataLen, 0);

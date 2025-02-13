@@ -1,6 +1,6 @@
 #include "CgiHandler.hpp"
 #include "Structs.hpp"
-
+#include "Logger.hpp"
 
 CgiHandler::CgiHandler(clientInfo &client) : m_client(client)
 {
@@ -180,9 +180,9 @@ int	CgiHandler::checkWaitStatus()
 	else if (WIFSIGNALED(statloc) == 1)
 	{
 		if (WTERMSIG(statloc) == 2)
-			std::cout << RED << "Cgi child process got interrupted by SIGINT" << "\n" << RESET;
+			webservLog.webservLog(ERROR, "Cgi child process got interrupted by SIGINT", true);
 		else if (WTERMSIG(statloc) == 3)
-			std::cout << RED << "Cgi child process got interrupted by SIGQUIT" << "\n" << RESET;
+			webservLog.webservLog(ERROR, "Cgi child process got interrupted by SIGQUIT", true);
 		return (-1);
 	}
 
@@ -206,7 +206,7 @@ int	CgiHandler::buildCgiResponse(clientInfo *clientPTR)
 
 	if (bytesRead < readPerCall)
 	{
-			std::cout << GREEN << "\nBuilding final response\n" << RESET;
+			webservLog.webservLog(INFO, "\nBuilding final response\n", false);
 
 		if (clientPTR->parsedRequest.cgiType == PHP)
 		{

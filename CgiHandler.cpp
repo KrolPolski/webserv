@@ -1,6 +1,6 @@
 #include "CgiHandler.hpp"
 #include "Structs.hpp"
-
+#include "Logger.hpp"
 
 CgiHandler::CgiHandler(clientInfo &client) : m_client(client)
 {
@@ -16,9 +16,9 @@ CgiHandler::CgiHandler(clientInfo &client) : m_client(client)
 	CgiTypes 	type = m_client.parsedRequest.cgiType;
 
 	if (type == PHP)
-		m_pathToInterpreter = m_client.relatedServer->serverConfig->getCgiPath(m_client.parsedRequest.filePath) + "/php-cgi"; // NOTE: These might be in different locations with each other
+		m_pathToInterpreter = m_client.relatedServer->serverConfig->getCgiPathPHP(m_client.parsedRequest.filePath) + "/php-cgi"; // NOTE: These might be in different locations with each other
 	else if (type == PYTHON)
-		m_pathToInterpreter = m_client.relatedServer->serverConfig->getCgiPath(m_client.parsedRequest.filePath) + "/python3"; // NOTE: These might be in different locations with each other
+		m_pathToInterpreter = m_client.relatedServer->serverConfig->getCgiPathPython(m_client.parsedRequest.filePath) + "/python3"; // NOTE: These might be in different locations with each other
 
 	std::string currentDir = std::filesystem::current_path();
 	std::string root = m_client.relatedServer->serverConfig->getRoot("/");
@@ -203,9 +203,9 @@ int	CgiHandler::checkWaitStatus()
 	else if (WIFSIGNALED(statloc) == 1)
 	{
 		if (WTERMSIG(statloc) == 2)
-			std::cout << RED << "Cgi child process got interrupted by SIGINT" << "\n" << RESET;
+			webservLog.webservLog(ERROR, "Cgi child process got interrupted by SIGINT", true);
 		else if (WTERMSIG(statloc) == 3)
-			std::cout << RED << "Cgi child process got interrupted by SIGQUIT" << "\n" << RESET;
+			webservLog.webservLog(ERROR, "Cgi child process got interrupted by SIGQUIT", true);
 		return (-1);
 	}
 
@@ -245,8 +245,6 @@ int	CgiHandler::buildCgiResponse(clientInfo *clientPTR)
 	std::string bufStr = buffer;
 	m_responseBody += bufStr;
 	m_client.bytesReceivedFromCgi += bytesRead;
-
-	std::cout << RED << "Bytes received from CGI:\n" << RESET << m_client.bytesReceivedFromCgi << "\n";
 
 	return (0);
 }
@@ -301,29 +299,3 @@ pid_t &CgiHandler::getCgiChildPid()
 	return (m_childProcPid);
 }
 
-
-
-
-/*
-	DEBUG PRINTING:
-
-
-	std::cerr << RED << "CHILD m_pathToInterpreter: \n" << RESET << m_pathToInterpreter.c_str() << "\n\n";
-
-	std::cerr << RED << "CHILD m_argsForExecve 0: \n" << RESET << m_argsForExecve[0] << "\n";
-	std::cerr << RED << "CHILD m_argsForExecve 1: \n" << RESET << m_argsForExecve[1] << "\n\n";
-
-	std::cerr << RED << "CHILD m_envArrExecve 0: \n" << RESET << m_envArrExecve[0] << "\n";
-	std::cerr << RED << "CHILD m_envArrExecve 1: \n" << RESET << m_envArrExecve[1] << "\n";
-	std::cerr << RED << "CHILD m_envArrExecve 2: \n" << RESET << m_envArrExecve[2] << "\n";
-	std::cerr << RED << "CHILD m_envArrExecve 3: \n" << RESET << m_envArrExecve[3] << "\n";
-	std::cerr << RED << "CHILD m_envArrExecve 4: \n" << RESET << m_envArrExecve[4] << "\n";
-	std::cerr << RED << "CHILD m_envArrExecve 5: \n" << RESET << m_envArrExecve[5] << "\n";
-	std::cerr << RED << "CHILD m_envArrExecve 6: \n" << RESET << m_envArrExecve[6] << "\n";
-	std::cerr << RED << "CHILD m_envArrExecve 7: \n" << RESET << m_envArrExecve[7] << "\n";
-	std::cerr << RED << "CHILD m_envArrExecve 8: \n" << RESET << m_envArrExecve[8] << "\n";
-	std::cerr << RED << "CHILD m_envArrExecve 9: \n" << RESET << m_envArrExecve[9] << "\n";
-	std::cerr << RED << "CHILD m_envArrExecve 10: \n" << RESET << m_envArrExecve[10] << "\n";
-	std::cerr << RED << "CHILD m_envArrExecve 11: \n" << RESET << m_envArrExecve[11] << "\n";
-	std::cerr << RED << "CHILD m_envArrExecve 12: \n" << RESET << m_envArrExecve[12] << "\n";
-*/

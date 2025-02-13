@@ -105,8 +105,6 @@ int		ConnectionHandler::parseRequest(clientInfo *clientPTR)
 	std::string 	&reqStr = clientPTR->requestString;
 	requestParseInfo	&parseInfo = clientPTR->parsedRequest;
 
-//	std::cout << "REQUEST:\n" << reqStr << "\n";
-
 	// Separate start line from client's request
 	endIndex = reqStr.find_first_of("\r\n");
 	if (endIndex == reqStr.npos)

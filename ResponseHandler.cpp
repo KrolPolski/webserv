@@ -299,7 +299,7 @@ void ResponseHandler::handleRequest(clientInfo *clientPTR)
 			
 		}
 		default:
-			std::cout << "unhandled parseRequest" << std::endl;
+			webservLog.webservLog(ERROR, "unhandled parseRequest", true);
 	}
 
 }
@@ -476,7 +476,7 @@ int ResponseHandler::buildResponse(clientInfo *clientPTR)
 {
 	if (clientPTR->responseFileFd == -1)
 	{
-		std::cout << RED << "\nERROR! buildResponse called before response file was opened\n" << RESET;
+		webservLog.webservLog(ERROR, "BuildResponse called before response file was opened", true);
 		return (-1); // Check this later
 	}
 
@@ -487,7 +487,8 @@ int ResponseHandler::buildResponse(clientInfo *clientPTR)
 	bytesRead = read(clientPTR->responseFileFd, buffer, readPerCall);
 	if (bytesRead == -1)
 	{
-		std::cerr << RED << "\nread() of error page file failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		std::string errorInfo = std::strerror(errno);
+		webservLog.webservLog(ERROR, "\nread() of error page file failed:\n" + errorInfo, true);
 		setResponseCode(500); // is this ok?
 		openErrorResponseFile(clientPTR);
 		return (-1);
@@ -551,7 +552,7 @@ void ResponseHandler::build500Response(clientInfo *clientPTR)
 	headers += std::to_string(content.length());
 	headers += "\r\n\r\n";
 	clientPTR->responseString = headers + content;
-	std::cout << "responseString: " << clientPTR->responseString << std::endl;
+	webservLog.webservLog(INFO, "responseString: " + clientPTR->responseString, false);
 }
 
 
@@ -643,8 +644,7 @@ void ResponseHandler::buildErrorResponse(clientInfo *clientPTR)
 		headers += std::to_string(clientPTR->responseBody.length());
 		headers += "\r\n\r\n";
 		clientPTR->responseString = headers + clientPTR->responseBody;
-		std::cout << "responseString: " << clientPTR->responseString << std::endl;
-
+		webservLog.webservLog(INFO, "responseString: " + clientPTR->responseString, false);
 		clientPTR->status = SEND_RESPONSE;
 	}
 

@@ -1,5 +1,5 @@
 #include "ResponseHandler.hpp"
-#include "CgiHandler.hpp"
+#include "ConnectionHandler.hpp"
 #include "Structs.hpp"
 #include "Logger.hpp"
 
@@ -212,7 +212,7 @@ void ResponseHandler::checkFile(clientInfo *clientPTR)
 	// CGI check & handling	
 	if (clientPTR->parsedRequest.isCgi)
 	{
-		m_cgiHandler = new CgiHandler(*clientPTR);
+		m_cgiHandler = new CgiHandler(clientPTR);
 
 		openCgiPipes(clientPTR);
 		
@@ -480,9 +480,9 @@ int ResponseHandler::buildResponse(clientInfo *clientPTR)
 		return (-1); // Check this later
 	}
 
-	char 	buffer[1024];
+	char 	buffer[100024];
 	int		bytesRead;
-	int		readPerCall = 1023;
+	int		readPerCall = 100023;
 
 	bytesRead = read(clientPTR->responseFileFd, buffer, readPerCall);
 	if (bytesRead == -1)
@@ -617,9 +617,9 @@ void ResponseHandler::buildErrorResponse(clientInfo *clientPTR)
 	//need to update this based on config file path to error pages
 	//tested with this and it works. now just fetch this from the configuration data. --- Patrik
 
-	char 	buffer[1024];
+	char 	buffer[100024];
 	int		bytesRead;
-	int		readPerCall = 1023;
+	int		readPerCall = 100023;
 
 	bytesRead = read(clientPTR->errorFileFd, buffer, readPerCall);
 	if (bytesRead == -1)

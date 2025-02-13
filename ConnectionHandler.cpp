@@ -232,7 +232,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 	clientInfo *clientPTR = getClientPTR(pollFdStuct.fd);
 	if (clientPTR == nullptr)
 	{
-		std::cerr << RED << "Client data could not be recieved; client not found\n" << RESET;
+		std::cerr << RED << "Client data could not be recieved; client not found for FD: " << pollFdStuct.fd << "\n" << RESET;
 		return ;
 	}
 
@@ -311,9 +311,9 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			}
 
 			// Write the request body to CGI script & check that pipe FDs are ready
-			if (clientPTR->pipeToCgi[1] == pollFdStuct.fd && pollFdStuct.revents & POLLOUT)
+			if (clientPTR->bytesToWriteInCgi != 0 && clientPTR->pipeToCgi[1] == pollFdStuct.fd && pollFdStuct.revents & POLLOUT)
 			{
-				if (clientPTR->respHandler->m_cgiHandler->writeToCgiPipe() == -1)
+				if (clientPTR->respHandler->m_cgiHandler->writeToCgiPipe(clientPTR) == -1)
 				{
 					clientPTR->respHandler->setResponseCode(500);
 					clientPTR->respHandler->openErrorResponseFile(clientPTR);
@@ -328,7 +328,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 				clientPTR->respHandler->m_cgiHandler->setPipeFromCgiWriteReady();
 
 			// Execute CGI child process
-			int executeStatus = clientPTR->respHandler->m_cgiHandler->executeCgi();
+			int executeStatus = clientPTR->respHandler->m_cgiHandler->executeCgi(clientPTR, m_serverVec, m_clientVec);
 
 			// Wait for the CGI child process to finish && read the output from child process
 			// 0 = CGI child process successful, 2 = still waiting for child process, -1 = error
@@ -572,8 +572,8 @@ bool	ConnectionHandler::unChunkRequest(clientInfo *clientPTR)
 
 void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clientInfo *clientPTR)
 {
-	char	buf[1024] = {0};
-	int		bufLen = 1023; // what is the correct size for recv() buffer...?
+	char	buf[100024] = {0};
+	int		bufLen = 100023; // what is the correct size for recv() buffer...?
 
 	int recievedBytes = recv(clientFd, buf, bufLen, 0);
 	if (recievedBytes <= 0)
@@ -847,8 +847,6 @@ void		ConnectionHandler::sendDataToClient(clientInfo *clientPTR)
 	if (sendDataLen > sendLenMax)
 		sendDataLen = sendLenMax;
 
-	std::cout << "RESPONSE:\n" << clientPTR->responseString << "\n";
-
 	// Send response to client
 	int sendBytes = send(clientPTR->clientFd, clientPTR->responseString.c_str(), sendDataLen, 0);
 
@@ -1058,6 +1056,16 @@ int		ConnectionHandler::sigIntExit()
 		clientCleanUp(&obj);
 
 	return (-1);
+}
+
+
+std::vector<serverInfo> &ConnectionHandler::getServerVec()
+{
+	return m_serverVec;
+}
+std::vector<clientInfo> &ConnectionHandler::getClientVec()
+{
+	return m_clientVec;
 }
 
 

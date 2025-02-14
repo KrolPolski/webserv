@@ -95,12 +95,28 @@ void ResponseHandler::setExtension(clientInfo *clientPTR)
 }
 
 /* Builds a 301 response header when required for redirects*/
-void ResponseHandler::buildRedirectResponse(std::string webFilePath, clientInfo *clientPTR)
+void ResponseHandler::buildRedirectResponse301(std::string webFilePath, clientInfo *clientPTR)
 {
 	setResponseCode(301);
 	std::string headers;
 	headers = "HTTP/1.1 301 Moved Permanently\r\n";
 	headers += "Location: "	+ webFilePath + "\r\n";
+	headers += "Content-Type: text/html;\r\n";
+	headers += "Content-Length: 0\r\n";
+	headers += "Connection: close";
+	headers += "\r\n\r\n";
+	clientPTR->responseString = headers;
+
+	clientPTR->status = SEND_RESPONSE;
+}
+
+/* Builds a 307 response header when required for redirects in locations*/
+void ResponseHandler::buildRedirectResponse307(std::string webFilePath, clientInfo *clientPTR)
+{
+	setResponseCode(clientPTR->relatedServer->serverConfig->getRedirectStatusCode(webFilePath));
+	std::string headers;
+	headers = "HTTP/1.1 307 Temporary Redirect\r\n";
+	headers += "Location: "	+ clientPTR->relatedServer->serverConfig->getRedirectLocation(webFilePath) + "\r\n";
 	headers += "Content-Type: text/html;\r\n";
 	headers += "Content-Length: 0\r\n";
 	headers += "Connection: close";
@@ -166,10 +182,16 @@ void ResponseHandler::checkFile(clientInfo *clientPTR)
 	std::string defaultFilePath;
 	std::string webFilePath = filePath;
 	enum dirListStates dirListing {UNSET};
-	std::string port = clientPTR->relatedServer->serverConfig->getPort();
+	// std::string port = clientPTR->relatedServer->serverConfig->getPort();
 	filePath = clientPTR->relatedServer->serverConfig->getRoot("/") + filePath;
-	
-	std::string content;
+
+	if (std::filesystem::exists(filePath) && checkRightsOfDirectory(filePath, clientPTR) == false)
+		return ;
+	if (clientPTR->relatedServer->serverConfig->isRedirectSet(webFilePath) == true)
+	{
+		buildRedirectResponse307(webFilePath, clientPTR);
+		return ;
+	}
 	if (std::filesystem::is_directory(filePath))
 	{
 		if (filePath.back() == '/')
@@ -177,7 +199,7 @@ void ResponseHandler::checkFile(clientInfo *clientPTR)
 		else
 		{
 			webFilePath += "/";
-			buildRedirectResponse(webFilePath, clientPTR);
+			buildRedirectResponse301(webFilePath, clientPTR);
 			return ;
 		}
 		if (std::filesystem::exists(defaultFilePath))
@@ -195,7 +217,6 @@ void ResponseHandler::checkFile(clientInfo *clientPTR)
 			return ;
 		}
 	}
-
 	std::ifstream ourFile(filePath);
 	if (!ourFile)
 	{
@@ -236,6 +257,52 @@ bool ResponseHandler::checkRequestAllowed(clientInfo *clientPTR)
 		return false;
 }
 
+bool ResponseHandler::checkRightsOfDirectory(std::string directoryPath, clientInfo *clientPTR)
+{
+	struct stat info;
+
+	std::cout << "Before stat() call" << std::endl;
+	if (stat(directoryPath.c_str(), &info) == 0 && S_ISDIR(info.st_mode))
+	{
+		std::cout << directoryPath << " is a directory" << std::endl;
+		if (!(info.st_mode & S_IRUSR) || !(info.st_mode & S_IWUSR) || !(info.st_mode & S_IXUSR))
+		{
+			setResponseCode(403);
+			openErrorResponseFile(clientPTR);
+			return false ;
+		}
+		if (!(info.st_mode & S_IROTH) || !(info.st_mode & S_IXOTH))
+		{
+			setResponseCode(403);
+			openErrorResponseFile(clientPTR);
+			return false ;
+		}
+		if (!(info.st_mode & S_IRGRP) || !(info.st_mode & S_IXGRP))
+		{
+			setResponseCode(403);
+			openErrorResponseFile(clientPTR);
+			return false ;
+		}
+		return true;
+	}
+	else if (stat(directoryPath.c_str(), &info) == 0 && S_ISREG(info.st_mode))
+		return true;
+	else
+	{
+		webservLog.webservLog(ERROR, strerror(errno), true);
+		if (errno == 2) // file missing
+			setResponseCode(404);
+		else if (errno == 13) // bad permissions
+			setResponseCode(403);
+		else if (errno == 20) // not a directory
+			setResponseCode(400);
+		else
+			setResponseCode(500);
+		openErrorResponseFile(clientPTR);
+		return false;
+	}
+}
+
 void ResponseHandler::handleRequest(clientInfo *clientPTR)
 {
 	
@@ -274,7 +341,7 @@ void ResponseHandler::handleRequest(clientInfo *clientPTR)
 					prepareUploadFile(clientPTR);
 				else
 				{
-					setResponseCode(400); // is this code ok...?
+					setResponseCode(400); // is this code ok...?// this will be set in the checkForMultipartFileData function
 					openErrorResponseFile(clientPTR);
 				}
 
@@ -361,7 +428,30 @@ bool	ResponseHandler::checkForMultipartFileData(clientInfo *clientPTR)
 			size_t nameStart = tokensVec[2].find_first_of('"') + 1;
 			size_t nameEnd = tokensVec[2].find_last_of('"');
 
-			clientPTR->uploadFileName = "home/images/uploads/" + tokensVec[2].substr(nameStart, nameEnd - nameStart); // HARD CODED for now
+			std::string	uploadDirPath;
+			if (clientPTR->relatedServer->serverConfig->isUploadDirSet(clientPTR->parsedRequest.filePath) == true)
+			{
+				std::cout << "Upload file specified: " << clientPTR->relatedServer->serverConfig->getUploadDir(clientPTR->parsedRequest.filePath) << std::endl;
+				std::cout << "FilePath: " << clientPTR->parsedRequest.filePath << std::endl;
+
+				uploadDirPath = clientPTR->relatedServer->serverConfig->getUploadDir(clientPTR->parsedRequest.filePath);
+				struct stat info;
+
+				std::cout << "Before stat() call" << std::endl;
+				if (stat(uploadDirPath.c_str(), &info) == 0 && S_ISDIR(info.st_mode))
+				{
+					if (!(info.st_mode & S_IRUSR) || !(info.st_mode & S_IWUSR)
+					|| !(info.st_mode & S_IXUSR) || !(info.st_mode & S_IROTH)
+					|| !(info.st_mode & S_IXOTH) || !(info.st_mode & S_IRGRP)
+					|| !(info.st_mode & S_IXGRP))
+					{
+						uploadDirPath = clientPTR->relatedServer->serverConfig->getRoot(clientPTR->parsedRequest.filePath) + "/";
+					}
+				}
+			}
+			else
+				uploadDirPath = clientPTR->relatedServer->serverConfig->getRoot(clientPTR->parsedRequest.filePath) + "/";
+			clientPTR->uploadFileName = uploadDirPath + tokensVec[2].substr(nameStart, nameEnd - nameStart); // HARD CODED for now
 			clientPTR->multipartFileDataStartIdx = clientPTR->requestString.find("\r\n\r\n", endIdx) + 4;
 			return (true);
 		}

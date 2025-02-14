@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CGI Test Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(to right, #2f4f4f, #006400); /* Dark green gradient */
+            color: white;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+        
+        h1 {
+            font-size: 3em;
+            margin-top: 50px;
+        }
+
+        /* Container for the buttons */
+        .button-container {
+            background-color: rgba(0, 0, 0, 0.5);
+            border-radius: 15px;
+            padding: 40px;
+            width: 80%;
+            max-width: 500px;
+            margin: 50px auto;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn {
+            display: block; /* Ensures the buttons are stacked vertically */
+            width: 350px;   /* Adjusted width */
+            margin: 15px auto; /* Center the buttons and add spacing */
+            padding: 15px 30px;
+            font-size: 1.2em;
+            text-decoration: none;
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+            text-align: center;
+        }
+
+        .btn:hover {
+            background-color: #45a049;
+        }
+
+        .return-button {
+            background-color: #228b22; /* Forest green button */
+            color: white;
+            font-size: 1.2em;
+            padding: 12px 24px;
+            border: 2px solid black; /* Black border around the button */
+            border-radius: 30px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.3s ease;
+            text-decoration: none;
+            position: absolute;
+            top: 20px;
+            left: 20px;
+        }
+
+        .return-button:hover {
+            background-color: #006400; /* Darker green on hover */
+            transform: scale(1.05);
+        }
+
+        .footer {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            text-align: center;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Welcome to CGI Test Page</h1>
+
+    <div class="button-container">
+        <!-- Six buttons for different CGI tests or actions -->
+        <a href="/cgi/phpGet.php" class="btn">PHP test for GET method</a>
+        <a href="/cgi/phpPost.php" class="btn">PHP test for POST method</a>
+        <a href="/cgi/phpPostRaw.php" class="btn">PHP test for POST method (huge data sets)</a>
+        <a href="/cgi/pythonGet.html" class="btn">Python test for GET method</a>
+        <a href="/cgi/pythonPost.html" class="btn">Python test for POST method</a>
+		<a href="/cgi/cgiTimeOut.php" class="btn">CGI time out tester (infinite loop)</a>
+    </div>
+
+    <!-- Return button to navigate back to the homepage -->
+    <a href="/" class="return-button">Return to Homepage</a>
+
+    <div class="footer">
+        <p>&copy; 2024 Panu, Ryan, and Patrik. All rights reserved.</p>
+    </div>
+
+</body>
+</html>

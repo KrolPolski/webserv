@@ -58,7 +58,7 @@ struct clientInfo
 	int		pipeFromCgi[2] = {-1, -1};
 	int		bytesSent = 0;
 
-	int		clientTimeOutLimit = 30; // we need to check this!
+	int		clientTimeOutLimit = 10; // we need to check this!
 
 	bool	stateFlags[9] = {}; // JUST FOR DEBUG
 

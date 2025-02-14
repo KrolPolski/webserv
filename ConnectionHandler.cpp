@@ -211,7 +211,7 @@ void	ConnectionHandler::checkClientTimeOut()
 			{
 				pid_t cgiChildPid = client.respHandler->m_cgiHandler->getCgiChildPid();
 				if (cgiChildPid != -1)
-					kill(cgiChildPid, SIGKILL); // Or sigint...? And errorhandling?
+					kill(cgiChildPid, SIGKILL); // Most likely an infinity loop or I/O problem in CGI, in order to avoid zombies we use SIGINT
 			}	
 			client.respHandler->setResponseCode(408);
 			client.respHandler->openErrorResponseFile(getClientPTR(client.clientFd));
@@ -347,7 +347,13 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 
 				if (executeStatus == 0)
 				{
-					clientPTR->respHandler->m_cgiHandler->finishCgiResponse(clientPTR);
+					if (clientPTR->respHandler->m_cgiHandler->finishCgiResponse(clientPTR) == -1)
+					{
+						clientPTR->respHandler->setResponseCode(500);
+						clientPTR->respHandler->openErrorResponseFile(clientPTR);
+						addNewPollfd(clientPTR->errorFileFd);
+						return ;
+					}
 					resetClientTimeOut(clientPTR);
 				}
 				else if (executeStatus == 2 && clientPTR->pipeFromCgi[0] == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
@@ -605,13 +611,26 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 		// if we have more than 8KB characters of only headers, we say it's a bad request
 		if (clientPTR->reqType == UNDEFINED && clientPTR->requestString.size() > 8192)
 		{
-			webservLog.webservLog(ERROR, "\nBad request:\nRequest headers too long", true);
+			webservLog.webservLog(ERROR, "Bad request: Request headers too long", true);
+			clientPTR->respHandler->setResponseCode(400);
+			clientPTR->respHandler->openErrorResponseFile(clientPTR);
+			addNewPollfd(clientPTR->errorFileFd);
+			return ;
+		}
+
+		size_t headerEndIdx = clientPTR->requestString.find("\r\n\r\n");
+		if (headerEndIdx != std::string::npos && headerEndIdx > 8192)
+		{
+			webservLog.webservLog(ERROR, "Bad request: Request headers too long", true);
 			clientPTR->respHandler->setResponseCode(400);
 			clientPTR->respHandler->openErrorResponseFile(clientPTR);
 			addNewPollfd(clientPTR->errorFileFd);
 			return ;
 		}
 	}
+
+//	std::cout << "Recv bytes: " << clientPTR->requestString.size() << "\n";
+
 
 	if (clientPTR->reqType == CHUNKED)
 	{
@@ -626,15 +645,6 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 		{		
 			clientPTR->status = PARSE_REQUEST;
 			parseClientRequest(clientPTR);
-			if (clientPTR->status == BUILD_REPONSE)
-				addNewPollfd(clientPTR->responseFileFd);
-			else if (clientPTR->status == EXECUTE_CGI)
-			{
-				addNewPollfd(clientPTR->pipeToCgi[0]);
-				addNewPollfd(clientPTR->pipeToCgi[1]);
-				addNewPollfd(clientPTR->pipeFromCgi[0]);
-				addNewPollfd(clientPTR->pipeFromCgi[1]);
-			}
 		}
 
 	}
@@ -654,22 +664,12 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 		if (!clientPTR->bodyOK)
 			clientPTR->reqBodyDataRead += recievedBytes;
 
+
 		if (clientPTR->bodyOK || clientPTR->reqBodyDataRead == clientPTR->reqBodyLen)
 		{
 
 			clientPTR->status = PARSE_REQUEST;
 			parseClientRequest(clientPTR);
-			if (clientPTR->status == BUILD_REPONSE)
-				addNewPollfd(clientPTR->responseFileFd);
-			else if (clientPTR->status == SAVE_FILE)
-				addNewPollfd(clientPTR->uploadFileFd);
-			else if (clientPTR->status == EXECUTE_CGI)
-			{
-				addNewPollfd(clientPTR->pipeToCgi[0]);
-				addNewPollfd(clientPTR->pipeToCgi[1]);
-				addNewPollfd(clientPTR->pipeFromCgi[0]);
-				addNewPollfd(clientPTR->pipeFromCgi[1]);
-			} 
 		}
 
 	}
@@ -694,16 +694,6 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 		{
 			clientPTR->status = PARSE_REQUEST;
 			parseClientRequest(clientPTR);
-			if (clientPTR->status == BUILD_REPONSE)
-				addNewPollfd(clientPTR->responseFileFd);
-			else if (clientPTR->status == EXECUTE_CGI)
-			{
-				addNewPollfd(clientPTR->pipeToCgi[0]);
-				addNewPollfd(clientPTR->pipeToCgi[1]);
-				addNewPollfd(clientPTR->pipeFromCgi[0]);
-				addNewPollfd(clientPTR->pipeFromCgi[1]);
-			}
-
 		}
 
 	}
@@ -799,17 +789,35 @@ void	ConnectionHandler::parseClientRequest(clientInfo *clientPTR)
 {
 
 	if (parseRequest(clientPTR) == -1) // this code is in separate file ('requestParsing.cpp')
+	{
+		addNewPollfd(clientPTR->errorFileFd);
 		return ;
+	}
 
 	clientPTR->respHandler->setRequestType(clientPTR);
-
 	if (clientPTR->status == BUILD_ERRORPAGE)
-		addNewPollfd(clientPTR->errorFileFd);
-	else
 	{
-		clientPTR->respHandler->handleRequest(clientPTR);
-		if (clientPTR->status == BUILD_ERRORPAGE)
-			addNewPollfd(clientPTR->errorFileFd);
+		addNewPollfd(clientPTR->errorFileFd);
+		return ;
+	}
+
+	clientPTR->respHandler->handleRequest(clientPTR);
+	if (clientPTR->status == BUILD_ERRORPAGE)
+	{
+		addNewPollfd(clientPTR->errorFileFd);
+		return ;
+	}
+
+	if (clientPTR->status == BUILD_REPONSE)
+		addNewPollfd(clientPTR->responseFileFd);
+	else if (clientPTR->status == SAVE_FILE)
+		addNewPollfd(clientPTR->uploadFileFd);
+	else if (clientPTR->status == EXECUTE_CGI)
+	{
+		addNewPollfd(clientPTR->pipeToCgi[0]);
+		addNewPollfd(clientPTR->pipeToCgi[1]);
+		addNewPollfd(clientPTR->pipeFromCgi[0]);
+		addNewPollfd(clientPTR->pipeFromCgi[1]);
 	}
 }
 

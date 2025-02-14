@@ -1,10 +1,11 @@
 import cgi
 
 # Output the headers
-print("Content-Type: text/html")  # Content-Type header
-print()  # Blank line indicating the end of headers
+print("Content-Type: text/html", end="")  # Content-Type header
+print("\r\n\r\n", end="")  # Blank line indicating the end of headers
 
 # Start the HTML structure
+print("<!DOCTYPE html>")
 print("<html lang='en'>")
 print("<head>")
 print("<meta charset='UTF-8'>")

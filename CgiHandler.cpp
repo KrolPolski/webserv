@@ -90,7 +90,7 @@ int	CgiHandler::executeCgi(clientInfo *clientPTR, std::vector<serverInfo> &serve
 	{
 		m_childProcRunning = true;
 
-		std::cout << RED << "Client FD in parent before:\n" << RESET << clientPTR->clientFd << "\n";
+		//std::cout << RED << "Client FD in parent before:\n" << RESET << clientPTR->clientFd << "\n";
 
 		m_childProcPid = fork();
 		if (m_childProcPid == -1)
@@ -98,7 +98,7 @@ int	CgiHandler::executeCgi(clientInfo *clientPTR, std::vector<serverInfo> &serve
 
 		if (m_childProcPid == 0)
 		{
-			std::cout << RED << "Client FD in child:\n" << RESET << clientPTR->clientFd << "\n";
+			//std::cout << RED << "Client FD in child:\n" << RESET << clientPTR->clientFd << "\n";
 			return (cgiChildProcess(clientPTR, serverVec, clientVec));
 		}
 		else
@@ -157,31 +157,25 @@ int		CgiHandler::writeToCgiPipe(clientInfo *clientPTR)
 // Closing other client related FDs and server FDs. They are not needed by CGI child process.
 void	CgiHandler::closeExtraFD(clientInfo *clientPTR, std::vector<serverInfo> &serverVec, std::vector<clientInfo> &clientVec)
 {
-
-	if (serverVec.empty() || clientVec.empty() || clientPTR == nullptr) // TEST
-		std::cerr << "Error\n";
-
-/*	for (auto client : clientVec)
+	for (auto &client : clientVec)
 	{
 		if (client.clientFd != clientPTR->clientFd)
-			closeAndDeleteClient(clientPTR);
+			closeAndDeleteClient(&client);
 		else
 			close(client.clientFd);
-	}  */
+	}
 
 	for (auto server : serverVec)
 		close(server.fd);
 }
 
-int		CgiHandler::cgiChildProcess(clientInfo *clientPTR, std::vector<serverInfo> &serverVec, std::vector<clientInfo> &clientVec)
+int		CgiHandler::cgiChildProcess(clientInfo *clientPTR, std::vector<serverInfo> serverVec, std::vector<clientInfo> clientVec)
 {
 	size_t 		index = m_pathToScript.find_last_of('/');
 	int			len = m_pathToScript.length() - (m_pathToScript.length() - index);
 	std::string scriptDirectoryPath = m_pathToScript.substr(0, len);
 
-	std::cout << RED << "Client FD in child after function call:\n" << RESET << clientPTR->clientFd << "\n\n";
-
-	closeExtraFD(clientPTR, serverVec, clientVec);
+	//std::cout << RED << "Client FD in child after function call:\n" << RESET << clientPTR->clientFd << "\n\n";
 
 	if (close(clientPTR->pipeFromCgi[0]) == -1 || close(clientPTR->pipeToCgi[1]) == -1)
 		return (errorExit(clientPTR, "Close() failed in CGI child process: ", true)); // is this needed...?
@@ -203,6 +197,7 @@ int		CgiHandler::cgiChildProcess(clientInfo *clientPTR, std::vector<serverInfo> 
 		- Is this ok...?
 	*/
 	webservLog.closeLogFileStream();
+	closeExtraFD(clientPTR, serverVec, clientVec);
 
 	if (execve(m_pathToInterpreter.c_str(), m_argsForExecve, m_envArrExecve) == -1)
 	{
@@ -247,19 +242,27 @@ int	CgiHandler::checkWaitStatus(clientInfo *clientPTR)
 int CgiHandler::getCgiResponseBodyLen()
 {
 	size_t bodyStartIdx = m_responseBody.find("\r\n\r\n");
+	if (bodyStartIdx == std::string::npos)
+	{
+		webservLog.webservLog(ERROR, "CGI script has wrong response format", true);
+		return -1;
+	}
 	bodyStartIdx += 4;
 
 	return (m_responseBody.size() - bodyStartIdx);
 }
 
-void CgiHandler::finishCgiResponse(clientInfo *clientPTR)
+int CgiHandler::finishCgiResponse(clientInfo *clientPTR)
 {
 	m_responseHeaders = "HTTP/1.1 200 OK\r\n";
 	m_responseHeaders += "Server: " + clientPTR->relatedServer->serverConfig->getNames() + "\r\n"; // CHECK THIS!!
 	if (m_responseBody.find("Content-Length: ") == std::string::npos)
 	{
 		m_responseHeaders += "Content-Length: ";
-		m_responseHeaders += std::to_string(getCgiResponseBodyLen());
+		int contentLen = getCgiResponseBodyLen();
+		if (contentLen == -1)
+			return -1;
+		m_responseHeaders += std::to_string(contentLen);
 		m_responseHeaders += "\r\n";
 	}
 	if (m_responseBody.find("Content-Type: ") == std::string::npos)
@@ -268,6 +271,8 @@ void CgiHandler::finishCgiResponse(clientInfo *clientPTR)
 	clientPTR->status = SEND_RESPONSE;
 
 	close(clientPTR->pipeFromCgi[0]); // Do we need to check close() return value...?
+
+	return (0);
 }
 
 int	CgiHandler::buildCgiResponse(clientInfo *clientPTR)

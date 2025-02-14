@@ -25,7 +25,7 @@ class CgiHandler
 	int	executeCgi(clientInfo *clientPTR, std::vector<serverInfo> &serverVec, std::vector<clientInfo> &clientVec);
 	int	checkWaitStatus(clientInfo *clientPTR);
 	int	buildCgiResponse(clientInfo *clientPTR);
-	void finishCgiResponse(clientInfo *clientPTR);
+	int finishCgiResponse(clientInfo *clientPTR);
 
 	void setPipeToCgiReadReady(void);
 	void setPipeFromCgiWriteReady(void);
@@ -73,7 +73,7 @@ class CgiHandler
 	void	setExecveArgs();
 	void	setExecveEnvArr(clientInfo *clientPTR);
 
-	int		cgiChildProcess(clientInfo *clientPTR, std::vector<serverInfo> &serverVec, std::vector<clientInfo> &clientVec);
+	int		cgiChildProcess(clientInfo *clientPTR, std::vector<serverInfo> serverVec, std::vector<clientInfo> clientVec);
 
 	int		errorExit(clientInfo *clientPTR, std::string errStr, bool isChildProc);
 	void	closeAndInitFd(int &fd);

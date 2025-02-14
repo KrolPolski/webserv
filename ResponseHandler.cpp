@@ -167,7 +167,6 @@ void ResponseHandler::checkFile(clientInfo *clientPTR)
 	std::string port = clientPTR->relatedServer->serverConfig->getPort();
 	filePath = clientPTR->relatedServer->serverConfig->getRoot("/") + filePath;
 	
-	std::string content;
 	if (std::filesystem::is_directory(filePath))
 	{
 		if (filePath.back() == '/')
@@ -218,6 +217,7 @@ void ResponseHandler::checkFile(clientInfo *clientPTR)
 		
 		return ;
 	}
+
 	// If everything went well, we start to build a aappropriate response
 	openResponseFile(clientPTR, filePath);
 
@@ -271,10 +271,7 @@ void ResponseHandler::handleRequest(clientInfo *clientPTR)
 				if (checkForMultipartFileData(clientPTR)) // Can you upload files some other way than using a HTML form...?
 					prepareUploadFile(clientPTR);
 				else
-				{
-					setResponseCode(400); // is this code ok...?
 					openErrorResponseFile(clientPTR);
-				}
 
 				break ;
 			}
@@ -312,6 +309,7 @@ bool	ResponseHandler::checkForMultipartFileData(clientInfo *clientPTR)
 	if (boundaryStartIdx == std::string::npos)
 	{
 		std::cerr << RED << "\ncheckForMultipartFileData() failed:\n" << RESET << "Boundary not found\n\n";
+		setResponseCode(400);
 		return false;
 	}
 	boundaryStartIdx += temp.length();
@@ -319,6 +317,7 @@ bool	ResponseHandler::checkForMultipartFileData(clientInfo *clientPTR)
 	if (boundaryEndIdx == std::string::npos)
 	{
 		std::cerr << RED << "\ncheckForMultipartFileData() failed:\n" << RESET << "Boundary header has no ending\n\n";
+		setResponseCode(400);
 		return false;
 	}
 	std::string boundaryStr = clientPTR->requestString.substr(boundaryStartIdx, boundaryEndIdx - boundaryStartIdx);
@@ -332,6 +331,7 @@ bool	ResponseHandler::checkForMultipartFileData(clientInfo *clientPTR)
 		if (startIdx == std::string::npos)
 		{
 			std::cerr << RED << "\ncheckForMultipartFileData() failed:\n" << RESET << "Boundary not found\n\n";
+			setResponseCode(400);
 			return false;
 		}
 		std::string lineStr = clientPTR->requestString.substr(startIdx, endBoundary.size());
@@ -343,6 +343,7 @@ bool	ResponseHandler::checkForMultipartFileData(clientInfo *clientPTR)
 		if (endIdx == std::string::npos)
 		{
 			std::cerr << RED << "\ncheckForMultipartFileData() failed:\n" << RESET << "Boundary line has no ending\n\n";
+			setResponseCode(400);
 			return false;
 		}
 		lineStr = clientPTR->requestString.substr(startIdx, endIdx - startIdx);
@@ -366,6 +367,7 @@ bool	ResponseHandler::checkForMultipartFileData(clientInfo *clientPTR)
 	}
 
 	std::cerr << RED << "\ncheckForMultipartFileData() failed:\n" << RESET << "No files found in the form upload request body\n\n";
+	setResponseCode(400);
 	return (false);
 }
 
@@ -488,7 +490,7 @@ int ResponseHandler::buildResponse(clientInfo *clientPTR)
 	if (bytesRead == -1)
 	{
 		std::string errorInfo = std::strerror(errno);
-		webservLog.webservLog(ERROR, "\nread() of error page file failed:\n" + errorInfo, true);
+		webservLog.webservLog(ERROR, "read() of response page file failed: " + errorInfo, true);
 		setResponseCode(500); // is this ok?
 		openErrorResponseFile(clientPTR);
 		return (-1);
@@ -583,7 +585,7 @@ void ResponseHandler::openErrorResponseFile(clientInfo *clientPTR)
 		errorFileName = clientPTR->relatedServer->serverConfig->getDefaultErrorPages(responseCode);
 		if (!isValidErrorFile(errorFileName))
 		{
-			webservLog.webservLog(ERROR, "\nopenErrorResponseFile() failed:\nCould not locate proper error response file\n\n", false);
+			webservLog.webservLog(ERROR, "openErrorResponseFile() failed: Could not locate proper error response file", false);
 			build500Response(clientPTR);
 			clientPTR->status = SEND_RESPONSE;
 			return ;
@@ -638,7 +640,7 @@ void ResponseHandler::buildErrorResponse(clientInfo *clientPTR)
 		contentType = "text/html";
 		std::string	headers;
 
-		headers = "HTTP/1.1 " + std::to_string(getResponseCode()) + " " + errorCodes.at(getResponseCode()) + "\r\n";
+		headers = "HTTP/1.1 " + std::to_string(getResponseCode()) + " " + errorCodes.at(getResponseCode()) + "\r\n"; // Error handling fot .at() method!
 		headers += "Content-Type: " + contentType + "\r\n";
 		headers += "Content-Length: ";
 		headers += std::to_string(clientPTR->responseBody.length());

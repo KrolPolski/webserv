@@ -50,6 +50,8 @@ void	ConfigurationHandler::printSettings()
 			std::cout << "\n  " << x.second.m_cgiPathPHP;
 		if (!x.second.m_cgiPathPython.empty())
 			std::cout << "\n  " << x.second.m_cgiPathPython;
+		if (!x.second.m_uploadDir.empty())
+			std::cout << "\n  " << x.second.m_uploadDir;
 		std::cout << "\n  " << x.second.m_dirListing;
 		std::cout << std::endl;
 	}
@@ -203,8 +205,9 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : 
 	std::regex	indexRegex(R"(^\s*index\s+([^\s]+)\s*;\s*$)");
 	std::regex	locationRegex(R"(^\s*location\s+([^\s]+)\s*\s*$)");
 	std::regex	rootRegex(R"(^\s*root\s+/?([^/][^;]*[^/])?/?\s*;\s*$)");
-	std::regex	returnRegex(R"(^\s*return\s+(301)\s+(/[\S]+)\s*;\s*$)");
+	std::regex	returnRegex(R"(^\s*return\s+(307)\s+(/[\S]+/)\s*;\s*$)");
 	std::regex	methodsRegex(R"(^\s*methods\s+([^\s;]+(?:\s+[^\s;]+)*)\s*;\s*$)"); // could restrict GET|POST|DELETE as the valid ones
+	std::regex	uploadDirRegex(R"(^\s*upload_dir\s+(home/[\S]+/)\s*;\s*$)");
 	std::regex	dirListingRegex(R"(^\s*dir_listing\s+(on|off)\s*;\s*$)");
 	std::regex	cgiPathRegexPHP(R"(^\s*cgi_path_php\s+(\/[^/][^;]*[^/])?/?\s*;\s*$)");
 	std::regex	cgiPathRegexPython(R"(^\s*cgi_path_python\s+(\/[^/][^;]*[^/])?/?\s*;\s*$)");
@@ -264,6 +267,8 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : 
 					}
 					else if (regex_search(*iter, subMatch, methodsRegex) == true)
 						loc.m_methods = subMatch[1];
+					else if (regex_search(*iter, subMatch, uploadDirRegex) == true)
+						loc.m_uploadDir = subMatch[1];
 					else if (regex_search(*iter, subMatch, cgiPathRegexPHP) == true)
 						loc.m_cgiPathPHP = subMatch[1];
 					else if (regex_search(*iter, subMatch, cgiPathRegexPython) == true)
@@ -438,9 +443,26 @@ bool	ConfigurationHandler::isRedirectSet(std::string	key)
 	if (map_key != m_routes.end())
 	{
 		if (map_key->second.m_reDirectStatusCode && !map_key->second.m_reDirectLocation.empty())
+		{
+			webservLog.webservLog(INFO, std::string("Redirect is set in location: " + key + std::string(", redirecting")), true);
 			return true;
+		}
 	}
-	webservLog.webservLog(INFO, std::string("Redirect is not set in location: " + key + ", moving on"), true);
+	webservLog.webservLog(INFO, std::string("Redirect is not set in location: ") + key, true);
+	return false;
+}
+
+bool	ConfigurationHandler::isUploadDirSet(std::string key)
+{
+	auto map_key = m_routes.find(key);
+	if (map_key != m_routes.end())
+	{
+		if (!map_key->second.m_uploadDir.empty())
+		{
+			webservLog.webservLog(INFO, std::string("Upload directory is set in location: " + key), true);
+			return true;
+		}
+	}
 	return false;
 }
 
@@ -454,6 +476,12 @@ std::string	ConfigurationHandler::getRedirectLocation(std::string key) const
 {
 	auto map_key = m_routes.find(key);
 	return map_key->second.m_reDirectLocation;
+}
+
+std::string	ConfigurationHandler::getUploadDir(std::string key) const
+{
+	auto map_key = m_routes.find(key);
+	return map_key->second.m_uploadDir;
 }
 
 std::string	ConfigurationHandler::getMethods(std::string key) const
@@ -570,7 +598,7 @@ void	readFile(const std::string &fileName, std::vector<std::string> &rawFile)
 	while (getline(file, line))
 	{
 		if (file.fail())
-			throw std::runtime_error("Readeing the file failed");
+			throw std::runtime_error("Reading the file failed");
 		if (line.find('{') != line.npos)
 			curlyBrace++;
 		if (line.find('}') != line.npos)
@@ -584,7 +612,7 @@ void	readFile(const std::string &fileName, std::vector<std::string> &rawFile)
 			rawFile.push_back(line);
 	}
 	if (file.fail() && !file.eof())
-		throw std::runtime_error("Readeing the file failed");
+		throw std::runtime_error("Reading the file failed");
 	file.close();
 	if (curlyBrace != 0)
 		throw std::runtime_error("Open curly braces in the configuration file");

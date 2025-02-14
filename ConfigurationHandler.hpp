@@ -37,6 +37,7 @@ struct locationBlock
 	int							m_reDirectStatusCode;	// redirect, status code
 	std::string					m_reDirectLocation;		// redirect, /new_location
 	std::string					m_methods; 				// e.g. GET POST DELETE
+	std::string					m_uploadDir;			// specified upload directory
 	std::string					m_cgiPathPHP;			// path to cgi interpreter PHP, changes depending on system
 	std::string					m_cgiPathPython;		// path to cgi interpreter Python, changes depending on system
 	enum dirListStates			m_dirListing; 			// directory listing ON or OFF
@@ -53,12 +54,10 @@ class ConfigurationHandler
 		std::string								m_globalCgiPathPHP;		// Default defined, changes depending on system
 		std::string								m_globalCgiPathPython;		// Default defined, changes depending on system
 		std::map<int, std::string>				m_defaultErrorPages;	// Default for the server if permissions are not in order for custom or not set
-
 		std::vector<std::string>				m_rawBlock;				// the whole server block as cleaned up text
 		std::string 							m_host;					// e.g. 127.0.0.1
 		std::string 							m_port;					// listen e.g. 8080
 		std::string								m_names;				// server names (www.bla.com & bla.com)
-		// std::map<int, std::string>				m_redirect;				// HTTP to HTTPS redirection, not much knowledge on this yet
 		std::string								m_index;				// e.g. index.html
 		unsigned int 							m_maxClientBodySize;	// max client body size
 		std::map<std::string, locationBlock>	m_routes;				// root of that location as key & struct for each block info
@@ -85,6 +84,7 @@ class ConfigurationHandler
 
 		int						getRedirectStatusCode(std::string) const;
 		std::string				getRedirectLocation(std::string) const;
+		std::string				getUploadDir(std::string) const;
 
 		std::string				getMethods(std::string) const;
 		enum dirListStates		getDirListing(std::string) const;
@@ -99,6 +99,7 @@ class ConfigurationHandler
 		void					printSettings(); // remove this before we eval -- Patrik
 
 		bool					isRedirectSet(std::string);
+		bool					isUploadDirSet(std::string);
 };
 
 std::string	fileNameCheck(char *);

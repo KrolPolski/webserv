@@ -5,6 +5,7 @@
 #include <cstring> // for errno
 #include <unistd.h> // fork()
 #include <sys/wait.h> // waitpid()
+#include <sys/stat.h> // stat()
 #include <poll.h> // poll()
 #include <vector>
 

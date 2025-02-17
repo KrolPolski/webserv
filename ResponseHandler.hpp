@@ -50,7 +50,12 @@ class ResponseHandler
 		const enum requestTypes& getRequestType() const;
 		unsigned int getResponseCode() const;
 		bool checkRequestAllowed(clientInfo *clientPTR);
-		void buildRedirectResponse(std::string filePath, clientInfo *clientPTR);
+
+		bool checkRightsOfDirectory(std::string directoryPath, clientInfo *clientPTR);
+
+		void buildRedirectResponse301(std::string filePath, clientInfo *clientPTR);
+		void buildRedirectResponse307(std::string filePath, clientInfo *clientPTR);
+
 		void buildErrorResponse(clientInfo *ClientPTR); // is this ok in public...? used to be in private! - Panu
 		void openErrorResponseFile(clientInfo *clientPTR);
 		int buildResponse(clientInfo *clientPTR);
@@ -58,4 +63,3 @@ class ResponseHandler
 		int	openResponseFile(clientInfo *clientPTR, std::string filePath);
 		void build201Response(clientInfo *clientPTR, std::string webPathToFile);
 };
-

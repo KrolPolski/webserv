@@ -680,7 +680,7 @@ void ResponseHandler::openErrorResponseFile(clientInfo *clientPTR)
 		errorFileName = clientPTR->relatedServer->serverConfig->getDefaultErrorPages(responseCode);
 		if (!isValidErrorFile(errorFileName))
 		{
-			webservLog.webservLog(ERROR, "\nopenErrorResponseFile() failed:\nCould not locate proper error response file\n\n", false);
+			webservLog.webservLog(ERROR, "openErrorResponseFile() failed: Could not locate proper error response file", false);
 			build500Response(clientPTR);
 			clientPTR->status = SEND_RESPONSE;
 			return ;
@@ -691,14 +691,14 @@ void ResponseHandler::openErrorResponseFile(clientInfo *clientPTR)
 	if (clientPTR->errorFileFd == -1)
 	{
 		std::string errorString = std::strerror(errno);
-		webservLog.webservLog(ERROR, "\nopen() of error page file failed:\n" + errorString + "\n\n", true);
+		webservLog.webservLog(ERROR, "open() of error page file failed: " + errorString, true);
 		build500Response(clientPTR);
 		clientPTR->status = SEND_RESPONSE;
 	}
 	else if (fcntl(clientPTR->errorFileFd, F_SETFL, O_NONBLOCK) == -1) // make file fd non-blocking
 	{
 		std::string errorString = std::strerror(errno);
-		webservLog.webservLog(ERROR, "\nfcntl() failed:\n" + errorString + "\n\n", true);
+		webservLog.webservLog(ERROR, "fcntl() failed: " + errorString, true);
 		build500Response(clientPTR);
 		clientPTR->status = SEND_RESPONSE;
 	}
@@ -710,7 +710,7 @@ void ResponseHandler::openErrorResponseFile(clientInfo *clientPTR)
 void ResponseHandler::buildErrorResponse(clientInfo *clientPTR)
 {
 	if (clientPTR->errorFileFd == -1)
-		webservLog.webservLog(ERROR, "\nbuildErrorResponse called before error file was opened\n", true);
+		webservLog.webservLog(ERROR, "buildErrorResponse called before error file was opened", true);
 	//need to update this based on config file path to error pages
 	//tested with this and it works. now just fetch this from the configuration data. --- Patrik
 

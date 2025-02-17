@@ -100,6 +100,7 @@ class ConfigurationHandler
 
 		bool					isRedirectSet(std::string);
 		bool					isUploadDirSet(std::string);
+		bool					isLocationConfigured(std::string);
 };
 
 std::string	fileNameCheck(char *);

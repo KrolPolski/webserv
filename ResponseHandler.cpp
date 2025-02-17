@@ -202,6 +202,12 @@ void ResponseHandler::checkFile(clientInfo *clientPTR)
 			buildRedirectResponse301(webFilePath, clientPTR);
 			return ;
 		}
+		if (clientPTR->relatedServer->serverConfig->isLocationConfigured(webFilePath) == false)
+		{
+			setResponseCode(404);
+			openErrorResponseFile(clientPTR);
+			return ;
+		}
 		if (std::filesystem::exists(defaultFilePath))
 			filePath = defaultFilePath;
 		else
@@ -261,10 +267,10 @@ bool ResponseHandler::checkRightsOfDirectory(std::string directoryPath, clientIn
 {
 	struct stat info;
 
-	std::cout << "Before stat() call" << std::endl;
+	// std::cout << "Before stat() call" << std::endl;
 	if (stat(directoryPath.c_str(), &info) == 0 && S_ISDIR(info.st_mode))
 	{
-		std::cout << directoryPath << " is a directory" << std::endl;
+		// std::cout << directoryPath << " is a directory" << std::endl;
 		if (!(info.st_mode & S_IRUSR) || !(info.st_mode & S_IWUSR) || !(info.st_mode & S_IXUSR))
 		{
 			setResponseCode(403);
@@ -431,13 +437,13 @@ bool	ResponseHandler::checkForMultipartFileData(clientInfo *clientPTR)
 			std::string	uploadDirPath;
 			if (clientPTR->relatedServer->serverConfig->isUploadDirSet(clientPTR->parsedRequest.filePath) == true)
 			{
-				std::cout << "Upload file specified: " << clientPTR->relatedServer->serverConfig->getUploadDir(clientPTR->parsedRequest.filePath) << std::endl;
-				std::cout << "FilePath: " << clientPTR->parsedRequest.filePath << std::endl;
+				// std::cout << "Upload file specified: " << clientPTR->relatedServer->serverConfig->getUploadDir(clientPTR->parsedRequest.filePath) << std::endl;
+				// std::cout << "FilePath: " << clientPTR->parsedRequest.filePath << std::endl;
 
 				uploadDirPath = clientPTR->relatedServer->serverConfig->getUploadDir(clientPTR->parsedRequest.filePath);
 				struct stat info;
 
-				std::cout << "Before stat() call" << std::endl;
+				// std::cout << "Before stat() call" << std::endl;
 				if (stat(uploadDirPath.c_str(), &info) == 0 && S_ISDIR(info.st_mode))
 				{
 					if (!(info.st_mode & S_IRUSR) || !(info.st_mode & S_IWUSR)

@@ -307,6 +307,49 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : 
 		throw std::runtime_error("Required settings not present");
 	printSettings(); //remove before the end of the project -- Patrik // std:::optional
 }
+/*
+VALIDATION FOR IF CERTAIN SPECIFICATIONS ARE SET
+*/
+bool	ConfigurationHandler::isRedirectSet(std::string	key)
+{
+	auto map_key = m_routes.find(key);
+	if (map_key != m_routes.end())
+	{
+		if (map_key->second.m_reDirectStatusCode && !map_key->second.m_reDirectLocation.empty())
+		{
+			webservLog.webservLog(INFO, std::string("Redirect is set in location: " + key + std::string(", redirecting")), true);
+			return true;
+		}
+	}
+	webservLog.webservLog(INFO, std::string("Redirect is not set in location: ") + key, true);
+	return false;
+}
+
+bool	ConfigurationHandler::isUploadDirSet(std::string key)
+{
+	auto map_key = m_routes.find(key);
+	if (map_key != m_routes.end())
+	{
+		if (!map_key->second.m_uploadDir.empty())
+		{
+			webservLog.webservLog(INFO, std::string("Upload directory is set in location: " + key), true);
+			return true;
+		}
+	}
+	return false;
+}
+
+bool	ConfigurationHandler::isLocationConfigured(std::string key)
+{
+	// std::cout << "Checking if configured: " + key << std::endl;
+	auto map_key = m_routes.find(key);
+	if (map_key == m_routes.end())
+	{
+			webservLog.webservLog(ERROR, std::string("Location: " + key + std::string(" is not configured")), true);
+			return false;
+	}
+	return true;
+}
 
 /*
 GETTERS
@@ -437,34 +480,6 @@ std::string	ConfigurationHandler::getRoot(std::string key) const
 	return map_key->second.m_root;
 }
 
-bool	ConfigurationHandler::isRedirectSet(std::string	key)
-{
-	auto map_key = m_routes.find(key);
-	if (map_key != m_routes.end())
-	{
-		if (map_key->second.m_reDirectStatusCode && !map_key->second.m_reDirectLocation.empty())
-		{
-			webservLog.webservLog(INFO, std::string("Redirect is set in location: " + key + std::string(", redirecting")), true);
-			return true;
-		}
-	}
-	webservLog.webservLog(INFO, std::string("Redirect is not set in location: ") + key, true);
-	return false;
-}
-
-bool	ConfigurationHandler::isUploadDirSet(std::string key)
-{
-	auto map_key = m_routes.find(key);
-	if (map_key != m_routes.end())
-	{
-		if (!map_key->second.m_uploadDir.empty())
-		{
-			webservLog.webservLog(INFO, std::string("Upload directory is set in location: " + key), true);
-			return true;
-		}
-	}
-	return false;
-}
 
 int	ConfigurationHandler::getRedirectStatusCode(std::string key) const
 {

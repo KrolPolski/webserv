@@ -535,6 +535,21 @@ void ResponseHandler::setResponseCode(unsigned int code)
 	responseCode = code;
 }
 
+void ResponseHandler::build201Response(clientInfo *clientPTR, std::string webPathToFile)
+{
+	std::string headers;
+	headers = "HTTP/1.1 201 Created\r\n";
+	headers += "Server: 42 webserv\r\n";
+	headers += "Location: " + webPathToFile + "\r\n";
+	headers += "Content-Type: application/json\r\n";
+	clientPTR->responseBody = R"({"message": "File uploaded successfully",
+	"url": )" + webPathToFile + "}";
+	headers += "Content-Length: " + std::to_string(clientPTR->responseBody.length()) + "\r\n\r\n";
+	std::cout << headers << clientPTR->responseBody << std::endl;
+	clientPTR->responseString = headers + clientPTR->responseBody;
+	clientPTR->status = SEND_RESPONSE;
+}
+
 /* Builds 500 responses directly so we don't have to use poll to read error file */
 void ResponseHandler::build500Response(clientInfo *clientPTR)
 {

@@ -836,7 +836,13 @@ void	ConnectionHandler::writeUploadData(clientInfo *clientPTR)
 		return ;
 	}
 
-	clientPTR->respHandler->openResponseFile(clientPTR, "home/images/uploadSuccessful.html"); // hard coded for now
+	//clientPTR->respHandler->openResponseFile(clientPTR, "home/images/uploadSuccessful.html"); // hard coded for now
+	else // successful upload
+	{
+		clientPTR->respHandler->setResponseCode(201);
+		clientPTR->respHandler->build201Response(clientPTR, clientPTR->uploadFileName);
+	}
+
 	if (clientPTR->status == BUILD_ERRORPAGE)
 		addNewPollfd(clientPTR->errorFileFd);
 	else

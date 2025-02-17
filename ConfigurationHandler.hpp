@@ -51,8 +51,8 @@ class ConfigurationHandler
 	private:
 		enum dirListStates						m_globalDirListing;		// Default false
 		std::string								m_globalMethods;		// Default GET
-		std::string								m_globalCgiPathPHP;		// Default defined, changes depending on system
-		std::string								m_globalCgiPathPython;		// Default defined, changes depending on system
+		std::string								m_globalCgiPathPHP;		// Default defined in hpp, changes depending on system
+		std::string								m_globalCgiPathPython;	// Default defined in hpp, changes depending on system
 		std::map<int, std::string>				m_defaultErrorPages;	// Default for the server if permissions are not in order for custom or not set
 		std::vector<std::string>				m_rawBlock;				// the whole server block as cleaned up text
 		std::string 							m_host;					// e.g. 127.0.0.1

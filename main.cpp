@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
 	signal(SIGINT, sigIntHandler); // is this needed...?
 
 	ConnectionHandler	handler;
-	char	configFileName[] = "configurations/test.conf"; // our default config file name here
+	char	configFileName[] = "configurations/new.conf"; // our default config file name here
 	char	*configPTR = configFileName;
 
 	if (argc == 2)

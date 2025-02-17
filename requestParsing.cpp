@@ -16,7 +16,6 @@ int	ConnectionHandler::splitStartLine(clientInfo *clientPTR, requestParseInfo	&p
 		std::cerr << RED << "\nInvalid request:\n" << RESET << "first line is missing URI\n\n" << RESET;
 		clientPTR->respHandler->setResponseCode(400);
 		clientPTR->respHandler->openErrorResponseFile(clientPTR);
-		addNewPollfd(clientPTR->errorFileFd);
 		return (-1);
 	}
 
@@ -32,7 +31,6 @@ int	ConnectionHandler::splitStartLine(clientInfo *clientPTR, requestParseInfo	&p
 		std::cerr << RED << "\nInvalid request:\n" << RESET << "first line is missing HTTP protocol\n\n" << RESET;
 		clientPTR->respHandler->setResponseCode(400);
 		clientPTR->respHandler->openErrorResponseFile(clientPTR);
-		addNewPollfd(clientPTR->errorFileFd);
 		return (-1);
 	}
 	tempStr = parseInfo.startLine.substr(startIndex, endIndex - startIndex);
@@ -43,7 +41,6 @@ int	ConnectionHandler::splitStartLine(clientInfo *clientPTR, requestParseInfo	&p
 		std::cerr << RED << "\nInvalid request:\n" << RESET << "URI too long\n\n" << RESET;
 		clientPTR->respHandler->setResponseCode(414);
 		clientPTR->respHandler->openErrorResponseFile(clientPTR);
-		addNewPollfd(clientPTR->errorFileFd);
 		return (-1);
 	}
 
@@ -82,7 +79,6 @@ int	ConnectionHandler::splitStartLine(clientInfo *clientPTR, requestParseInfo	&p
 		std::cerr << RED << "\nInvalid request:\n" << RESET << "Bad HTTP protocol. Only HTTP/1.1 is supported\n\n" << RESET;
 		clientPTR->respHandler->setResponseCode(505);
 		clientPTR->respHandler->openErrorResponseFile(clientPTR);
-		addNewPollfd(clientPTR->errorFileFd);
 		return (-1);
 	}
 
@@ -112,7 +108,6 @@ int		ConnectionHandler::parseRequest(clientInfo *clientPTR)
 		std::cerr << RED << "\nInvalid request:\n" << RESET << "no new line found\n\n" << RESET;
 		clientPTR->respHandler->setResponseCode(400);
 		clientPTR->respHandler->openErrorResponseFile(clientPTR);
-		addNewPollfd(clientPTR->errorFileFd);
 		return (-1);
 	}
 	parseInfo.startLine = reqStr.substr(0, endIndex - startIndex);
@@ -135,7 +130,6 @@ int		ConnectionHandler::parseRequest(clientInfo *clientPTR)
 			std::cerr << RED << "\nInvalid request:\n" << RESET << "no new line found after header\n\n" << RESET;
 			clientPTR->respHandler->setResponseCode(400);
 			clientPTR->respHandler->openErrorResponseFile(clientPTR);
-			addNewPollfd(clientPTR->errorFileFd);
 			return (-1);
 		}
 		headerLine = reqStr.substr(startIndex, endIndex - startIndex);
@@ -145,7 +139,6 @@ int		ConnectionHandler::parseRequest(clientInfo *clientPTR)
 			std::cerr << RED << "\nInvalid request:\n" << RESET << "header is missing ':' character\n\n" << RESET;
 			clientPTR->respHandler->setResponseCode(400);
 			clientPTR->respHandler->openErrorResponseFile(clientPTR);
-			addNewPollfd(clientPTR->errorFileFd);
 			return (-1);
 		}
 		key = headerLine.substr(0, headerIndex);
@@ -168,7 +161,6 @@ int		ConnectionHandler::parseRequest(clientInfo *clientPTR)
 			std::cerr << RED << "\nInvalid request:\n" << RESET << "Content-Length is negative\n\n" << RESET;
 			clientPTR->respHandler->setResponseCode(400);
 			clientPTR->respHandler->openErrorResponseFile(clientPTR);
-			addNewPollfd(clientPTR->errorFileFd);
 			return (-1);
 		}
 		startIndex += 2; // 2 because we first move to the '\n' and then over it
@@ -179,7 +171,6 @@ int		ConnectionHandler::parseRequest(clientInfo *clientPTR)
 		std::cerr << RED << "\nInvalid request:\n" << RESET << "POST request without Content-Length header\n\n" << RESET;
 		clientPTR->respHandler->setResponseCode(400);
 		clientPTR->respHandler->openErrorResponseFile(clientPTR);
-		addNewPollfd(clientPTR->errorFileFd);
 		return (-1);
 	}
 

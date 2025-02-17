@@ -9,11 +9,12 @@
 #include <map>
 #include "Types.hpp"
 #include <filesystem>
-#include "CgiHandler.hpp"
 #include <chrono>
 #include <iostream>
 #include <fcntl.h>
+#include "CgiHandler.hpp"
 
+class ConnectionHandler;
 struct clientInfo;
 
 class ResponseHandler

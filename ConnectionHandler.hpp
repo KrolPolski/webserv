@@ -30,6 +30,9 @@ class ConnectionHandler
 	int		initServers(char *configFile);
 	int		startServers();
 
+	std::vector<serverInfo> &getServerVec();
+	std::vector<clientInfo> &getClientVec();
+
 //////
 
 	private:

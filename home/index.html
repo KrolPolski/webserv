@@ -18,8 +18,8 @@
             padding: 50px 0;
         }
         main {
-			color: rgb(255, 255, 255);
-			background-color: rgb(0, 0, 0);
+            color: rgb(255, 255, 255);
+            background-color: rgb(0, 0, 0);
             padding: 50px;
         }
         h1 {
@@ -36,6 +36,32 @@
             color: white;
             font-size: 0.9em;
         }
+
+        /* Styling for buttons */
+        .btn {
+            display: block; /* Ensures the buttons are stacked vertically */
+            width: 250px;   /* Adjusted width */
+            margin: 15px auto; /* Center the buttons and add spacing */
+            padding: 15px 30px;
+            font-size: 1.2em;
+            text-decoration: none;
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+            text-align: center;
+        }
+
+        .btn:hover {
+            background-color: #45a049;
+        }
+
+        /* Styling for the extra info in smaller font */
+        .extra-info {
+            font-size: 0.8em;  /* Smaller font size for the extra info */
+            display: block;    /* Ensures it is displayed on a new line */
+            color: rgb(255, 255, 255);  /* White color for the text */
+        }
     </style>
 </head>
 <body>
@@ -51,13 +77,20 @@
             <li>Patrik</li>
         </ul>
         <p>Feel free to explore and enjoy your stay!</p>
-        <h1>Upload a File</h1>
-    <form method="POST" action="cgi/pythonUpload.py" enctype="multipart/form-data">
-        <input type="file" name="file">
-        <button type="submit">Upload</button>
+
+        <!-- Buttons with extra info -->
+        <div>
+            <a href="/images/" class="btn">Visit Images directory
+                <span class="extra-info">(upload & delete tester)</span>
+            </a>
+            <a href="/cgi/" class="btn">Visit CGI directory
+                <span class="extra-info">(tests for PHP and Python scripts)</span>
+            </a>
+        </div>
     </main>
     <footer>
         &copy; 2024 Panu, Ryan, and Patrik. All rights reserved.
     </footer>
 </body>
 </html>
+

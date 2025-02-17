@@ -5,24 +5,27 @@
 #include <cstring> // for errno
 #include <unistd.h> // fork()
 #include <sys/wait.h> // waitpid()
+#include <poll.h> // poll()
+#include <vector>
 
 // TEST
 #include <fcntl.h>
 
+struct serverInfo;
 struct clientInfo;
 
 class CgiHandler
 {
 	public:
 
-	CgiHandler(clientInfo &client);
+	CgiHandler(clientInfo *clientPTR);
 	~CgiHandler() {};
 
-	int	writeToCgiPipe();
-	int	executeCgi();
-	int	checkWaitStatus();
+	int	writeToCgiPipe(clientInfo *clientPTR);
+	int	executeCgi(clientInfo *clientPTR, std::vector<serverInfo> &serverVec, std::vector<clientInfo> &clientVec);
+	int	checkWaitStatus(clientInfo *clientPTR);
 	int	buildCgiResponse(clientInfo *clientPTR);
-	void finishCgiResponse(clientInfo *clientPTR);
+	int finishCgiResponse(clientInfo *clientPTR);
 
 	void setPipeToCgiReadReady(void);
 	void setPipeFromCgiWriteReady(void);
@@ -33,8 +36,6 @@ class CgiHandler
 //////
 
 	private:
-
-	clientInfo	&m_client;
 
 	std::string m_contenLen;
 	std::string m_contenType;
@@ -70,12 +71,15 @@ class CgiHandler
 	pid_t	m_childProcPid;
 
 	void	setExecveArgs();
-	void	setExecveEnvArr();
+	void	setExecveEnvArr(clientInfo *clientPTR);
 
-	int		cgiChildProcess();
+	int		cgiChildProcess(clientInfo *clientPTR, std::vector<serverInfo> serverVec, std::vector<clientInfo> clientVec);
 
-	int		errorExit(std::string errStr, bool isChildProc);
+	int		errorExit(clientInfo *clientPTR, std::string errStr, bool isChildProc);
 	void	closeAndInitFd(int &fd);
-	void	closeAndDeleteClient();
+	void	closeAndDeleteClient(clientInfo *clientPTR);
+
+	int 	getCgiResponseBodyLen();
+	void	closeExtraFD(clientInfo *clientPTR, std::vector<serverInfo> &serverVec, std::vector<clientInfo> &clientVec);
 
 };

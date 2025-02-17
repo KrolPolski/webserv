@@ -286,12 +286,12 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			break ;
 		}
 
-		case BUILD_REPONSE:
+		case BUILD_RESPONSE:
 		{
-			if (!clientPTR->stateFlags[BUILD_REPONSE])
+			if (!clientPTR->stateFlags[BUILD_RESPONSE])
 			{
-				clientPTR->stateFlags[BUILD_REPONSE] = true;
-				webservLog.webservLog(INFO, "\nCLIENT BUILD_REPONSE!\n", false);
+				clientPTR->stateFlags[BUILD_RESPONSE] = true;
+				webservLog.webservLog(INFO, "\nCLIENT BUILD_RESPONSE!\n", false);
 			}
 
 			if (clientPTR->responseFileFd == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
@@ -771,9 +771,6 @@ int		ConnectionHandler::getBodyLength(clientInfo *clientPTR)
 	}
 	else if (startIdx == endIdx)
 	{
-		std::cerr << RED << "\ngetBodyLength() failed:\n" << RESET << "Content-Length header is empty" << "\n\n";
-		clientPTR->respHandler->setResponseCode(400); // is this ok?
-		clientPTR->respHandler->openErrorResponseFile(clientPTR);
 		addNewPollfd(clientPTR->errorFileFd);
 		return -1;
 	}
@@ -808,7 +805,7 @@ void	ConnectionHandler::parseClientRequest(clientInfo *clientPTR)
 		return ;
 	}
 
-	if (clientPTR->status == BUILD_REPONSE)
+	if (clientPTR->status == BUILD_RESPONSE)
 		addNewPollfd(clientPTR->responseFileFd);
 	else if (clientPTR->status == SAVE_FILE)
 		addNewPollfd(clientPTR->uploadFileFd);
@@ -836,9 +833,15 @@ void	ConnectionHandler::writeUploadData(clientInfo *clientPTR)
 		return ;
 	}
 
-	clientPTR->respHandler->openResponseFile(clientPTR, "home/images/uploadSuccessful.html"); // hard coded for now
+	//clientPTR->respHandler->openResponseFile(clientPTR, "home/images/uploadSuccessful.html"); // hard coded for now
+	else // successful upload
+	{
+		clientPTR->respHandler->setResponseCode(201);
+		clientPTR->respHandler->build201Response(clientPTR, clientPTR->uploadWebPath);
+	}
+
 	if (clientPTR->status == BUILD_ERRORPAGE)
-		addNewPollfd(clientPTR->errorFileFd);
+		addNewPollfd(clientPTR->errorFileFd);		
 	else
 		addNewPollfd(clientPTR->responseFileFd);
 

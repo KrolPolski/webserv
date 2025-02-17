@@ -69,6 +69,7 @@ struct clientInfo
 
 	std::string multipartBoundaryStr;
 	std::string	uploadFileName;
+	std::string uploadWebPath;
 	size_t		multipartFileDataStartIdx;
 	int			uploadFileFd = -1;
 

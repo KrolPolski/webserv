@@ -56,5 +56,6 @@ class ResponseHandler
 		int buildResponse(clientInfo *clientPTR);
 		void setResponseCode(unsigned int code); // Added this to public, might be a problem
 		int	openResponseFile(clientInfo *clientPTR, std::string filePath);
+		void build201Response(clientInfo *clientPTR, std::string webPathToFile);
 };
 

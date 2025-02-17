@@ -128,7 +128,7 @@ int ResponseHandler::openResponseFile(clientInfo *clientPTR, std::string filePat
 		openErrorResponseFile(clientPTR);
 	}
 	else
-		clientPTR->status = BUILD_REPONSE;
+		clientPTR->status = BUILD_RESPONSE;
 
 	return (0);
 }
@@ -359,7 +359,7 @@ bool	ResponseHandler::checkForMultipartFileData(clientInfo *clientPTR)
 		{
 			size_t nameStart = tokensVec[2].find_first_of('"') + 1;
 			size_t nameEnd = tokensVec[2].find_last_of('"');
-
+			clientPTR->uploadWebPath = "http://localhost:8080/images/uploads/	" + tokensVec[2].substr(nameStart, nameEnd - nameStart);
 			clientPTR->uploadFileName = "home/images/uploads/" + tokensVec[2].substr(nameStart, nameEnd - nameStart); // HARD CODED for now
 			clientPTR->multipartFileDataStartIdx = clientPTR->requestString.find("\r\n\r\n", endIdx) + 4;
 			return (true);
@@ -533,6 +533,21 @@ void ResponseHandler::setRequestType(enum requestTypes reqType)
 void ResponseHandler::setResponseCode(unsigned int code)
 {
 	responseCode = code;
+}
+
+void ResponseHandler::build201Response(clientInfo *clientPTR, std::string webPathToFile)
+{
+	std::string headers;
+	headers = "HTTP/1.1 201 Created\r\n";
+	headers += "Server: 42 webserv\r\n";
+	headers += "Location: " + webPathToFile + "\r\n";
+	headers += "Content-Type: application/json\r\n";
+	clientPTR->responseBody = R"({"message": "File uploaded successfully",
+	"url": )" + webPathToFile + "}";
+	headers += "Content-Length: " + std::to_string(clientPTR->responseBody.length()) + "\r\n\r\n";
+	std::cout << headers << clientPTR->responseBody << std::endl;
+	clientPTR->responseString = headers + clientPTR->responseBody;
+	clientPTR->status = SEND_RESPONSE;
 }
 
 /* Builds 500 responses directly so we don't have to use poll to read error file */

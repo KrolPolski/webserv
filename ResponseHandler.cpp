@@ -359,7 +359,7 @@ bool	ResponseHandler::checkForMultipartFileData(clientInfo *clientPTR)
 		{
 			size_t nameStart = tokensVec[2].find_first_of('"') + 1;
 			size_t nameEnd = tokensVec[2].find_last_of('"');
-
+			clientPTR->uploadWebPath = "http://localhost:8080/images/uploads/	" + tokensVec[2].substr(nameStart, nameEnd - nameStart);
 			clientPTR->uploadFileName = "home/images/uploads/" + tokensVec[2].substr(nameStart, nameEnd - nameStart); // HARD CODED for now
 			clientPTR->multipartFileDataStartIdx = clientPTR->requestString.find("\r\n\r\n", endIdx) + 4;
 			return (true);

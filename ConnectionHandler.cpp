@@ -771,9 +771,6 @@ int		ConnectionHandler::getBodyLength(clientInfo *clientPTR)
 	}
 	else if (startIdx == endIdx)
 	{
-		std::cerr << RED << "\ngetBodyLength() failed:\n" << RESET << "Content-Length header is empty" << "\n\n";
-		clientPTR->respHandler->setResponseCode(400); // is this ok?
-		clientPTR->respHandler->openErrorResponseFile(clientPTR);
 		addNewPollfd(clientPTR->errorFileFd);
 		return -1;
 	}
@@ -840,11 +837,11 @@ void	ConnectionHandler::writeUploadData(clientInfo *clientPTR)
 	else // successful upload
 	{
 		clientPTR->respHandler->setResponseCode(201);
-		clientPTR->respHandler->build201Response(clientPTR, clientPTR->uploadFileName);
+		clientPTR->respHandler->build201Response(clientPTR, clientPTR->uploadWebPath);
 	}
 
 	if (clientPTR->status == BUILD_ERRORPAGE)
-		addNewPollfd(clientPTR->errorFileFd);
+		addNewPollfd(clientPTR->errorFileFd);		
 	else
 		addNewPollfd(clientPTR->responseFileFd);
 

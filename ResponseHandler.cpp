@@ -128,7 +128,7 @@ int ResponseHandler::openResponseFile(clientInfo *clientPTR, std::string filePat
 		openErrorResponseFile(clientPTR);
 	}
 	else
-		clientPTR->status = BUILD_REPONSE;
+		clientPTR->status = BUILD_RESPONSE;
 
 	return (0);
 }

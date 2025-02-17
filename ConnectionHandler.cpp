@@ -286,12 +286,12 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			break ;
 		}
 
-		case BUILD_REPONSE:
+		case BUILD_RESPONSE:
 		{
-			if (!clientPTR->stateFlags[BUILD_REPONSE])
+			if (!clientPTR->stateFlags[BUILD_RESPONSE])
 			{
-				clientPTR->stateFlags[BUILD_REPONSE] = true;
-				webservLog.webservLog(INFO, "\nCLIENT BUILD_REPONSE!\n", false);
+				clientPTR->stateFlags[BUILD_RESPONSE] = true;
+				webservLog.webservLog(INFO, "\nCLIENT BUILD_RESPONSE!\n", false);
 			}
 
 			if (clientPTR->responseFileFd == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
@@ -808,7 +808,7 @@ void	ConnectionHandler::parseClientRequest(clientInfo *clientPTR)
 		return ;
 	}
 
-	if (clientPTR->status == BUILD_REPONSE)
+	if (clientPTR->status == BUILD_RESPONSE)
 		addNewPollfd(clientPTR->responseFileFd);
 	else if (clientPTR->status == SAVE_FILE)
 		addNewPollfd(clientPTR->uploadFileFd);

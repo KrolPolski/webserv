@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Types.hpp"
 #include "ResponseHandler.hpp"
 #include "ConfigurationHandler.hpp"
@@ -23,7 +25,7 @@ struct requestParseInfo
 	std::map<std::string, std::string>	headerMap; // All headers as key value pairs
 	std::string		rawContent; // The body of request, if there is any
 
-	std::string	method; // GET POST etc
+	std::string	method = ""; // GET POST etc
 	std::string filePath; // Relative requested path
 	std::string	extension; // has the first . included (for example '.php')
 	std::string queryString; // Everything from the URI after '?' character
@@ -44,6 +46,8 @@ struct clientInfo
 
 	int		reqBodyLen = -1;
 	int		reqBodyDataRead = 0;
+	int		bytesToWriteInCgi = -1;
+	int		bytesReceivedFromCgi = 0;
 	bool 	bodyOK = false;
 	bool	chunkedOK = false;
 
@@ -54,7 +58,7 @@ struct clientInfo
 	int		pipeFromCgi[2] = {-1, -1};
 	int		bytesSent = 0;
 
-	int		clientTimeOutLimit = 3;
+	int		clientTimeOutLimit = 10; // we need to check this!
 
 	bool	stateFlags[9] = {}; // JUST FOR DEBUG
 
@@ -65,6 +69,7 @@ struct clientInfo
 
 	std::string multipartBoundaryStr;
 	std::string	uploadFileName;
+	std::string uploadWebPath;
 	size_t		multipartFileDataStartIdx;
 	int			uploadFileFd = -1;
 

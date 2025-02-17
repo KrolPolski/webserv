@@ -1,7 +1,6 @@
 #include "ConnectionHandler.hpp"
 #include "Logger.hpp"
 
-
 ConnectionHandler::ConnectionHandler()
 {
 }
@@ -47,7 +46,7 @@ int		ConnectionHandler::initServers(char *configFile)
 			return -1;
 		}
 		
-		int socketfd = initServerSocket(portNum);
+		int socketfd = initServerSocket(portNum, iter->second);
 		if (socketfd == -1)
 			return (-1);
 		
@@ -63,7 +62,7 @@ int		ConnectionHandler::initServers(char *configFile)
 	SOCKET INITIALIZATION
 */
 
-int		ConnectionHandler::initServerSocket(const unsigned int portNum)
+int		ConnectionHandler::initServerSocket(const unsigned int portNum, ConfigurationHandler &config)
 {
 	int socketFd = socket(AF_INET, SOCK_STREAM, 0);
 	
@@ -84,7 +83,7 @@ int		ConnectionHandler::initServerSocket(const unsigned int portNum)
 		return (-1);
 	}
 
-	// make socket non-blocking, CHECK THAT THIS IS ACTUALLY WORKING!
+	// make socket non-blocking
 	if (fcntl(socketFd, F_SETFL, O_NONBLOCK) == -1)
 	{
 		std::cerr << RED << "\nfcntl() failed:\n" << RESET << std::strerror(errno) << "\n\n";
@@ -97,7 +96,7 @@ int		ConnectionHandler::initServerSocket(const unsigned int portNum)
 	sockaddr_in	serverAddress;
 	serverAddress.sin_family = AF_INET;
 	serverAddress.sin_port = htons(portNum);
-    serverAddress.sin_addr.s_addr = INADDR_ANY;
+	serverAddress.sin_addr.s_addr = convertIP(config.getHost());
 
 	if (bind(socketFd, (sockaddr *)&serverAddress, sizeof(serverAddress)) == -1)
 	{
@@ -117,6 +116,47 @@ int		ConnectionHandler::initServerSocket(const unsigned int portNum)
 	}
 
 	return (socketFd);
+}
+
+unsigned int ConnectionHandler::convertIP(std::string IPaddress)
+{
+	std::string ipBlockStr;
+	int ipBlockNum = 0;
+	unsigned int result = 0;
+	size_t startIdx = 0;
+	size_t endIdx = 0;
+	std::vector<int> blockVec;
+
+	for (int i = 0; i < 4; ++i)
+	{
+		endIdx = IPaddress.find('.', startIdx);
+
+		if (endIdx == std::string::npos)
+			ipBlockStr = IPaddress.substr(startIdx);
+		else
+			ipBlockStr = IPaddress.substr(startIdx, endIdx - startIdx);
+
+		ipBlockNum = std::stoi(ipBlockStr);
+		blockVec.push_back(ipBlockNum);
+		startIdx = endIdx + 1;
+	}
+
+	for (int i = 3; i >= 0; --i)
+	{
+		ipBlockNum = blockVec[i];
+
+		for (int j = 128; j > 0; (j >>= 1))
+		{
+			if ((ipBlockNum & j) != 0)
+				result = (result | j);
+		}
+
+		if (i != 0)
+			result <<= 8;
+	}
+
+	return result;
+	
 }
 
 /*
@@ -171,7 +211,7 @@ void	ConnectionHandler::checkClientTimeOut()
 			{
 				pid_t cgiChildPid = client.respHandler->m_cgiHandler->getCgiChildPid();
 				if (cgiChildPid != -1)
-					kill(cgiChildPid, SIGKILL); // Or sigint...? And errorhandling?
+					kill(cgiChildPid, SIGKILL); // Most likely an infinity loop or I/O problem in CGI, in order to avoid zombies we use SIGINT
 			}	
 			client.respHandler->setResponseCode(408);
 			client.respHandler->openErrorResponseFile(getClientPTR(client.clientFd));
@@ -192,7 +232,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 	clientInfo *clientPTR = getClientPTR(pollFdStuct.fd);
 	if (clientPTR == nullptr)
 	{
-		std::cerr << RED << "Client data could not be recieved; client not found\n" << RESET;
+		std::cerr << RED << "Client data could not be recieved; client not found for FD: " << pollFdStuct.fd << "\n" << RESET;
 		return ;
 	}
 
@@ -203,7 +243,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[RECIEVE_REQUEST])
 			{
 				clientPTR->stateFlags[RECIEVE_REQUEST] = true;
-				std::cout << GREEN << "\nCLIENT RECIEVE_REQUEST!\n" << RESET;
+				webservLog.webservLog(INFO, "\nCLIENT RECIEVE_REQUEST!\n", false);
 			}
 
 			if (clientPTR->clientFd == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
@@ -219,7 +259,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[SAVE_FILE])
 			{
 				clientPTR->stateFlags[SAVE_FILE] = true;
-				std::cout << GREEN << "\nCLIENT SAVE_FILE!\n" << RESET;
+				webservLog.webservLog(INFO, "\nCLIENT SAVE_FILE!\n", false);
 			}
 
 			if (clientPTR->uploadFileFd == pollFdStuct.fd && pollFdStuct.revents & POLLOUT)
@@ -235,7 +275,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[BUILD_ERRORPAGE])
 			{
 				clientPTR->stateFlags[BUILD_ERRORPAGE] = true;
-				std::cout << GREEN << "\nCLIENT BUILD_ERRORPAGE!\n" << RESET;
+				webservLog.webservLog(INFO, "\nCLIENT BUILD_ERRORPAGE!\n", false);
 			}
 
 			if (clientPTR->errorFileFd == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
@@ -246,12 +286,12 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			break ;
 		}
 
-		case BUILD_REPONSE:
+		case BUILD_RESPONSE:
 		{
-			if (!clientPTR->stateFlags[BUILD_REPONSE])
+			if (!clientPTR->stateFlags[BUILD_RESPONSE])
 			{
-				clientPTR->stateFlags[BUILD_REPONSE] = true;
-				std::cout << GREEN << "\nCLIENT BUILD_REPONSE!\n" << RESET;
+				clientPTR->stateFlags[BUILD_RESPONSE] = true;
+				webservLog.webservLog(INFO, "\nCLIENT BUILD_RESPONSE!\n", false);
 			}
 
 			if (clientPTR->responseFileFd == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
@@ -267,12 +307,13 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[EXECUTE_CGI])
 			{
 				clientPTR->stateFlags[EXECUTE_CGI] = true;
-				std::cout << GREEN << "\nCLIENT EXECUTE_CGI!\n" << RESET;
+				webservLog.webservLog(INFO, "\nCLIENT EXECUTE_CGI!\n", false);
 			}
 
-			if (clientPTR->pipeToCgi[1] == pollFdStuct.fd && pollFdStuct.revents & POLLOUT)
+			// Write the request body to CGI script & check that pipe FDs are ready
+			if (clientPTR->bytesToWriteInCgi != 0 && clientPTR->pipeToCgi[1] == pollFdStuct.fd && pollFdStuct.revents & POLLOUT)
 			{
-				if (clientPTR->respHandler->m_cgiHandler->writeToCgiPipe() == -1)
+				if (clientPTR->respHandler->m_cgiHandler->writeToCgiPipe(clientPTR) == -1)
 				{
 					clientPTR->respHandler->setResponseCode(500);
 					clientPTR->respHandler->openErrorResponseFile(clientPTR);
@@ -286,20 +327,46 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			else if (clientPTR->pipeFromCgi[1] == pollFdStuct.fd && pollFdStuct.revents & POLLOUT)
 				clientPTR->respHandler->m_cgiHandler->setPipeFromCgiWriteReady();
 
-			int executeStatus = clientPTR->respHandler->m_cgiHandler->executeCgi();
+			// Execute CGI child process
+			int executeStatus = clientPTR->respHandler->m_cgiHandler->executeCgi(clientPTR, m_serverVec, m_clientVec);
 
+			// Wait for the CGI child process to finish && read the output from child process
 			// 0 = CGI child process successful, 2 = still waiting for child process, -1 = error
 			if (executeStatus == 0 || executeStatus == 2 || executeStatus == -1)
 			{
 				removeFromPollfdVec(clientPTR->pipeToCgi[0]);
 				clientPTR->pipeToCgi[0] = -1;
-				removeFromPollfdVec(clientPTR->pipeToCgi[1]);
-				clientPTR->pipeToCgi[1] = -1;
 				removeFromPollfdVec(clientPTR->pipeFromCgi[1]);
 				clientPTR->pipeFromCgi[1] = -1;
 
+				if (clientPTR->bytesToWriteInCgi == 0)
+				{
+					removeFromPollfdVec(clientPTR->pipeToCgi[1]);
+					clientPTR->pipeToCgi[1] = -1;
+				}
+
 				if (executeStatus == 0)
-					clientPTR->status = BUILD_CGI_RESPONSE;
+				{
+					if (clientPTR->respHandler->m_cgiHandler->finishCgiResponse(clientPTR) == -1)
+					{
+						clientPTR->respHandler->setResponseCode(500);
+						clientPTR->respHandler->openErrorResponseFile(clientPTR);
+						addNewPollfd(clientPTR->errorFileFd);
+						return ;
+					}
+					resetClientTimeOut(clientPTR);
+				}
+				else if (executeStatus == 2 && clientPTR->pipeFromCgi[0] == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
+				{
+					if (clientPTR->respHandler->m_cgiHandler->buildCgiResponse(clientPTR) == -1)
+					{
+						clientPTR->respHandler->setResponseCode(500);
+						clientPTR->respHandler->openErrorResponseFile(clientPTR);
+						addNewPollfd(clientPTR->errorFileFd);
+						return ;
+					}
+					resetClientTimeOut(clientPTR);
+				} 
 				else if (executeStatus == -1)
 				{
 					clientPTR->respHandler->setResponseCode(500);
@@ -307,9 +374,6 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 					addNewPollfd(clientPTR->errorFileFd);
 					return ;
 				}
-
-				if (executeStatus != 2)
-					resetClientTimeOut(clientPTR);
 			}
 
 			break ;
@@ -320,7 +384,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[BUILD_CGI_RESPONSE])
 			{
 				clientPTR->stateFlags[BUILD_CGI_RESPONSE] = true;
-				std::cout << GREEN << "\nCLIENT BUILD_CGI_RESPONSE!\n" << RESET;
+				webservLog.webservLog(INFO, "\nCLIENT BUILD_CGI_RESPONSE!\n", false);
 			}
 
 			if (clientPTR->pipeFromCgi[0] == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
@@ -342,7 +406,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[SEND_RESPONSE])
 			{
 				clientPTR->stateFlags[SEND_RESPONSE] = true;
-				std::cout << GREEN << "\nCLIENT SEND_RESPONSE!\n" << RESET;
+				webservLog.webservLog(INFO, "\nCLIENT SEND_RESPONSE!\n", false);
 			}
 
 			if (clientPTR->clientFd == pollFdStuct.fd && pollFdStuct.revents & POLLOUT)
@@ -358,7 +422,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[DISCONNECT])
 			{
 				clientPTR->stateFlags[DISCONNECT] = true;
-				std::cout << GREEN << "\nCLIENT DISCONNECT!\n" << RESET;
+				webservLog.webservLog(INFO, "\nCLIENT DISCONNECT!\n", false);
 			}
 
 			clientCleanUp(clientPTR);
@@ -383,33 +447,32 @@ void		ConnectionHandler::acceptNewClient(const unsigned int serverFd)
 	int newClientFd = accept(serverFd, nullptr, nullptr); // why are these nullptr...?	
 	if (newClientFd == -1)
 	{
-		std::cerr << RED << "\naccept() failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		std::string errorString = std::strerror(errno);
+		webservLog.webservLog(ERROR, "\naccept() failed:\n" + errorString, false);
 		// Error handling...?
+		return ;
 	}
 	else
 	{
 		if (fcntl(newClientFd, F_SETFL, O_NONBLOCK) == -1)
 		{
-			std::cerr << RED << "\nfcntl() failed:\n" << RESET << std::strerror(errno) << "\n\n";
+      close (newClientFd);
+			std::string errorString = std::strerror(errno);
+			webservLog.webservLog(ERROR, "\nfcntl() failed:\n" + errorString, true);
 			// Error handling...?
-			close (newClientFd);
-			return ; // What should happen here...?
+			return ;
 		}
 
 		serverInfo *relatedServerPTR = getServerByFd(serverFd);
 		if (relatedServerPTR == nullptr)
 		{
-			std::cerr << RED << "\nacceptNewClient() failed:\n" << RESET << "server not found" << "\n\n";
+			close (newClientFd);
+			webservLog.webservLog(ERROR, "\nacceptNewClient() failed:\n server not found\n\n", true);
 			return ;
 		}
 		addNewPollfd(newClientFd);
-		// std::cout << GREEN << "Creating new client\n" << RESET;
 		m_clientVec.push_back({newClientFd, relatedServerPTR});
 	}
-
-//	std::cout << GREEN << "NEW CLIENT Accepted with FD: " << newClientFd << "\n" << RESET;
-//	std::cout << GREEN << "client vec size: " << m_clientVec.size() << "\n" << RESET;
-
 
 }
 
@@ -487,13 +550,11 @@ bool	ConnectionHandler::unChunkRequest(clientInfo *clientPTR)
 
 		}
 		webservLog.webservLog(DEBUG, "Exiting while loop", true);
-		// webservLog.webservLog(DEBUG, "Reporting size", true);
-		// std::cout << contentLength << std::endl;
 		if (std::search(header.begin(), header.end(), conLenStr.begin(), conLenStr.end()) != header.end()) // here we need to get check for correct thing
 		{
 			header += std::to_string(contentLength) + "\r\n\r\n";
-			std::cout << "Header\n" << header << std::endl; // info
-			std::cout << "Body\n" << unChunked << std::endl; // info
+			webservLog.webservLog(INFO, "Header\n" + header, false);
+			webservLog.webservLog(INFO, "Body\n" + unChunked, false);
 			clientPTR->requestString.erase();
 			clientPTR->requestString += header + unChunked;
 			header.erase();
@@ -517,20 +578,21 @@ bool	ConnectionHandler::unChunkRequest(clientInfo *clientPTR)
 
 void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clientInfo *clientPTR)
 {
-	char	buf[1024] = {0};
-	int		bufLen = 1023; // what is the correct size for recv() buffer...?
+	char	buf[100024] = {0};
+	int		bufLen = 100023; // what is the correct size for recv() buffer...?
 
 	int recievedBytes = recv(clientFd, buf, bufLen, 0);
 	if (recievedBytes <= 0)
 	{
 		if (recievedBytes == 0)
 		{
-			std::cout << "Connection has been closed by the client during recv() operation\n";
+			webservLog.webservLog(ERROR, "Connection has been closed by the client during recv() operation\n", true);
 			clientPTR->status = DISCONNECT;
 		}
 		else
 		{
-			std::cerr << RED << "\nrecv() failed\n" << RESET << std::strerror(errno) << "\n\n";
+			std::string errorString = std::strerror(errno);
+			webservLog.webservLog(ERROR, "\nrecv() failed\n" + errorString + "\n\n", true);
 			clientPTR->respHandler->setResponseCode(500);
 			clientPTR->respHandler->openErrorResponseFile(clientPTR);
 			addNewPollfd(clientPTR->errorFileFd);
@@ -546,16 +608,29 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 	{
 		clientPTR->reqType = checkRequestType(clientPTR);
 
-		// if we have more than 10000 characters of only headers, we say it's a bad request
-		if (clientPTR->reqType == UNDEFINED && clientPTR->requestString.size() > 10000)
+		// if we have more than 8KB characters of only headers, we say it's a bad request
+		if (clientPTR->reqType == UNDEFINED && clientPTR->requestString.size() > 8192)
 		{
-			std::cerr << RED << "\nBad request:\n" << RESET << "Request headers too long" << "\n\n";
-			clientPTR->respHandler->setResponseCode(400); 
+			webservLog.webservLog(ERROR, "Bad request: Request headers too long", true);
+			clientPTR->respHandler->setResponseCode(400);
+			clientPTR->respHandler->openErrorResponseFile(clientPTR);
+			addNewPollfd(clientPTR->errorFileFd);
+			return ;
+		}
+
+		size_t headerEndIdx = clientPTR->requestString.find("\r\n\r\n");
+		if (headerEndIdx != std::string::npos && headerEndIdx > 8192)
+		{
+			webservLog.webservLog(ERROR, "Bad request: Request headers too long", true);
+			clientPTR->respHandler->setResponseCode(400);
 			clientPTR->respHandler->openErrorResponseFile(clientPTR);
 			addNewPollfd(clientPTR->errorFileFd);
 			return ;
 		}
 	}
+
+//	std::cout << "Recv bytes: " << clientPTR->requestString.size() << "\n";
+
 
 	if (clientPTR->reqType == CHUNKED)
 	{
@@ -570,15 +645,6 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 		{		
 			clientPTR->status = PARSE_REQUEST;
 			parseClientRequest(clientPTR);
-			if (clientPTR->status == BUILD_REPONSE)
-				addNewPollfd(clientPTR->responseFileFd);
-			else if (clientPTR->status == EXECUTE_CGI)
-			{
-				addNewPollfd(clientPTR->pipeToCgi[0]);
-				addNewPollfd(clientPTR->pipeToCgi[1]);
-				addNewPollfd(clientPTR->pipeFromCgi[0]);
-				addNewPollfd(clientPTR->pipeFromCgi[1]);
-			}
 		}
 
 	}
@@ -598,22 +664,12 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 		if (!clientPTR->bodyOK)
 			clientPTR->reqBodyDataRead += recievedBytes;
 
+
 		if (clientPTR->bodyOK || clientPTR->reqBodyDataRead == clientPTR->reqBodyLen)
 		{
 
 			clientPTR->status = PARSE_REQUEST;
 			parseClientRequest(clientPTR);
-			if (clientPTR->status == BUILD_REPONSE)
-				addNewPollfd(clientPTR->responseFileFd);
-			else if (clientPTR->status == SAVE_FILE)
-				addNewPollfd(clientPTR->uploadFileFd);
-			else if (clientPTR->status == EXECUTE_CGI)
-			{
-				addNewPollfd(clientPTR->pipeToCgi[0]);
-				addNewPollfd(clientPTR->pipeToCgi[1]);
-				addNewPollfd(clientPTR->pipeFromCgi[0]);
-				addNewPollfd(clientPTR->pipeFromCgi[1]);
-			} 
 		}
 
 	}
@@ -638,16 +694,6 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 		{
 			clientPTR->status = PARSE_REQUEST;
 			parseClientRequest(clientPTR);
-			if (clientPTR->status == BUILD_REPONSE)
-				addNewPollfd(clientPTR->responseFileFd);
-			else if (clientPTR->status == EXECUTE_CGI)
-			{
-				addNewPollfd(clientPTR->pipeToCgi[0]);
-				addNewPollfd(clientPTR->pipeToCgi[1]);
-				addNewPollfd(clientPTR->pipeFromCgi[0]);
-				addNewPollfd(clientPTR->pipeFromCgi[1]);
-			}
-
 		}
 
 	}
@@ -725,9 +771,6 @@ int		ConnectionHandler::getBodyLength(clientInfo *clientPTR)
 	}
 	else if (startIdx == endIdx)
 	{
-		std::cerr << RED << "\ngetBodyLength() failed:\n" << RESET << "Content-Length header is empty" << "\n\n";
-		clientPTR->respHandler->setResponseCode(400); // is this ok?
-		clientPTR->respHandler->openErrorResponseFile(clientPTR);
 		addNewPollfd(clientPTR->errorFileFd);
 		return -1;
 	}
@@ -744,21 +787,34 @@ void	ConnectionHandler::parseClientRequest(clientInfo *clientPTR)
 
 	if (parseRequest(clientPTR) == -1) // this code is in separate file ('requestParsing.cpp')
 	{
-		clientPTR->respHandler->setResponseCode(400);
-		clientPTR->respHandler->openErrorResponseFile(clientPTR);
 		addNewPollfd(clientPTR->errorFileFd);
 		return ;
 	}
 
 	clientPTR->respHandler->setRequestType(clientPTR);
-
 	if (clientPTR->status == BUILD_ERRORPAGE)
-		addNewPollfd(clientPTR->errorFileFd);
-	else
 	{
-		clientPTR->respHandler->handleRequest(clientPTR);
-		if (clientPTR->status == BUILD_ERRORPAGE)
-			addNewPollfd(clientPTR->errorFileFd);
+		addNewPollfd(clientPTR->errorFileFd);
+		return ;
+	}
+
+	clientPTR->respHandler->handleRequest(clientPTR);
+	if (clientPTR->status == BUILD_ERRORPAGE)
+	{
+		addNewPollfd(clientPTR->errorFileFd);
+		return ;
+	}
+
+	if (clientPTR->status == BUILD_RESPONSE)
+		addNewPollfd(clientPTR->responseFileFd);
+	else if (clientPTR->status == SAVE_FILE)
+		addNewPollfd(clientPTR->uploadFileFd);
+	else if (clientPTR->status == EXECUTE_CGI)
+	{
+		addNewPollfd(clientPTR->pipeToCgi[0]);
+		addNewPollfd(clientPTR->pipeToCgi[1]);
+		addNewPollfd(clientPTR->pipeFromCgi[0]);
+		addNewPollfd(clientPTR->pipeFromCgi[1]);
 	}
 }
 
@@ -777,9 +833,15 @@ void	ConnectionHandler::writeUploadData(clientInfo *clientPTR)
 		return ;
 	}
 
-	clientPTR->respHandler->openResponseFile(clientPTR, "home/images/uploadSuccessful.html"); // hard coded for now
+	//clientPTR->respHandler->openResponseFile(clientPTR, "home/images/uploadSuccessful.html"); // hard coded for now
+	else // successful upload
+	{
+		clientPTR->respHandler->setResponseCode(201);
+		clientPTR->respHandler->build201Response(clientPTR, clientPTR->uploadWebPath);
+	}
+
 	if (clientPTR->status == BUILD_ERRORPAGE)
-		addNewPollfd(clientPTR->errorFileFd);
+		addNewPollfd(clientPTR->errorFileFd);		
 	else
 		addNewPollfd(clientPTR->responseFileFd);
 
@@ -803,12 +865,13 @@ void		ConnectionHandler::sendDataToClient(clientInfo *clientPTR)
 	{
 		if (sendBytes == 0)
 		{
-			std::cout << "Connection closed by the client during send() operation\n";
+			webservLog.webservLog(INFO, "Connection closed by the client during send() operation\n", false);
 			clientPTR->status = DISCONNECT;
 		}
 		else
-		{
-			std::cerr << RED << "\nsend() failed\n" << RESET << std::strerror(errno) << "\n\n";
+		{	
+			std::string errorString = std::strerror(errno);
+			webservLog.webservLog(ERROR, "\nsend() failed\n" + errorString + "\n\n", true);
 			clientPTR->respHandler->setResponseCode(500);
 			clientPTR->respHandler->openErrorResponseFile(clientPTR);
 			addNewPollfd(clientPTR->errorFileFd);
@@ -998,12 +1061,22 @@ void	ConnectionHandler::clientCleanUp(clientInfo *clientPTR)
 // Returns -1 for error handling purposes
 int		ConnectionHandler::sigIntExit()
 {
-	std::cout << GREEN << "\nRecieved SIGINT signal, exiting program\n" << RESET;
+	webservLog.webservLog(INFO, "\nRecieved SIGINT signal, exiting program\n", true);
 
 	for (auto &obj : m_clientVec)
 		clientCleanUp(&obj);
 
 	return (-1);
+}
+
+
+std::vector<serverInfo> &ConnectionHandler::getServerVec()
+{
+	return m_serverVec;
+}
+std::vector<clientInfo> &ConnectionHandler::getClientVec()
+{
+	return m_clientVec;
 }
 
 

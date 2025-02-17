@@ -3,59 +3,43 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Message from User</title>
+	<title>PHP POST -test</title>
 	<style>
-		body {
-			font-family: Arial, sans-serif;
-			background-color: #ffebee; /* Light red background */
-			color: #b71c1c; /* Dark red text */
+		body{
 			text-align: center;
-			padding: 50px;
-			margin: 0;
-			display: flex;
-			flex-direction: column;
-			justify-content: center;
-			height: 100vh;
 		}
-		h1 {
-			color: #d32f2f; /* Medium red for heading */
-			font-size: 3em;
-		}
-		p {
-			font-size: 1.5em;
-			margin-top: 20px;
-		}
-		form {
-			margin-top: 30px;
-			padding: 20px;
-			background-color: #ffffff;
-			border-radius: 10px;
-			box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-		}
-		input, textarea {
-			font-size: 1em;
-			padding: 10px;
-			margin: 10px 0;
-			width: 100%;
-			max-width: 400px;
-			border-radius: 5px;
-			border: 1px solid #d32f2f;
-		}
-		textarea {
-			height: 150px;
-		}
-		button {
+		.text-box {
+			background-color: rgb(156, 232, 156);
+			color: black;
 			font-size: 1.2em;
-			padding: 10px 20px;
-			background-color: #d32f2f;
-			color: white;
-			border: none;
-			border-radius: 5px;
-			cursor: pointer;
+			width: 50%;
+			margin-left: auto;
+			margin-right: auto;
+			margin-top: 20px; /* Reduced margin-top */
+			padding: 12px 8px;
+			border: 2px solid black;
+			border-radius: 30px;
+			transition: background-color 0.3s ease, transform 0.3s ease;
+			text-decoration: none;
+			position: relative;
 		}
-		button:hover {
-			background-color: #c62828;
+
+		.test-form {
+			background-color: rgb(156, 232, 156);
+			color: black;
+			font-size: 1.2em;
+			width: 50%;
+			margin-left: auto;
+			margin-right: auto;
+			margin-top: 50px; /* Keep some space from top */
+			padding: 12px 8px;
+			border: 2px solid black;
+			border-radius: 30px;
+			transition: background-color 0.3s ease, transform 0.3s ease;
+			text-decoration: none;
+			position: relative;
 		}
+
 		.return-button {
             background-color: #228b22; /* Forest green button */
             color: white;
@@ -93,20 +77,34 @@
         .return-CGI-button:hover {
             background-color: #006400; /* Darker green on hover */
             transform: scale(1.05);
-        }
+        }	
 	</style>
 </head>
 <body>
-
-	<form action="pythonPost.py" method="POST">
+	
+	<form method="POST" class="test-form">
 		<label>Username:</label>
-		<input type="text" name="username">
+		<input type="text" name="username" id="username">
 		<br>
-		<label>Favourite food:</label>
-		<input type="text" name="favfood">
+		<label>Message:</label>
+		<input type="text" name="message" id="message">
 		<br>
 		<input type="submit">
 	</form>
+
+	<div class="text-box">
+		<?php
+
+		echo "<br>";
+
+		$user = isset($_POST['username']) ? $_POST['username'] : 'no_name';
+		$message = isset($_POST['message']) ? $_POST['message'] : 'no_message';
+
+		echo "A user called $user just sent us the following message: <br>";
+		echo "$message";
+
+		?>
+	</div>
 
 	<a href="/" class="return-button">Return to Home page</a>
 	<a href="/cgi/" class="return-CGI-button">Return to CGI page</a>

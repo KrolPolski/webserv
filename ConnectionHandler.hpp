@@ -30,6 +30,9 @@ class ConnectionHandler
 	int		initServers(char *configFile);
 	int		startServers();
 
+	std::vector<serverInfo> &getServerVec();
+	std::vector<clientInfo> &getClientVec();
+
 //////
 
 	private:
@@ -41,7 +44,8 @@ class ConnectionHandler
 	std::vector<pollfd>		m_pollfdVec;
 
 	// socket functions
-	int		initServerSocket(const unsigned int portNum);
+	int		initServerSocket(const unsigned int portNum, ConfigurationHandler &config);
+	unsigned int convertIP(std::string IPaddress);
 	void	closeAllSockets();
 	bool	checkForServerSocket(const int socketFd);
 
@@ -64,6 +68,7 @@ class ConnectionHandler
 
 	// request receiveing & parsing
 	int		parseRequest(clientInfo *clientPTR);
+	int 	splitStartLine(clientInfo *clientPTR, requestParseInfo	&parseInfo);
 	clientRequestType	checkRequestType(clientInfo *clientPTR);
 	bool	checkChunkedEnd(clientInfo *clientPTR);
 	int		getBodyLength(clientInfo *clientPTR);

@@ -1,5 +1,5 @@
 #include "ResponseHandler.hpp"
-#include "CgiHandler.hpp"
+#include "ConnectionHandler.hpp"
 #include "Structs.hpp"
 #include "Logger.hpp"
 
@@ -144,7 +144,7 @@ int ResponseHandler::openResponseFile(clientInfo *clientPTR, std::string filePat
 		openErrorResponseFile(clientPTR);
 	}
 	else
-		clientPTR->status = BUILD_REPONSE;
+		clientPTR->status = BUILD_RESPONSE;
 
 	return (0);
 }
@@ -158,10 +158,8 @@ int ResponseHandler::openCgiPipes(clientInfo *clientPTR)
 		openErrorResponseFile(clientPTR);
 		return (-1); // Might not be needed
 	}
-	else if (fcntl(clientPTR->pipeToCgi[0], F_SETFL, O_NONBLOCK) == -1
-	|| fcntl(clientPTR->pipeToCgi[1], F_SETFL, O_NONBLOCK) == -1
-	|| fcntl(clientPTR->pipeFromCgi[0], F_SETFL, O_NONBLOCK) == -1
-	|| fcntl(clientPTR->pipeFromCgi[1], F_SETFL, O_NONBLOCK) == -1)
+	else if (fcntl(clientPTR->pipeToCgi[1], F_SETFL, O_NONBLOCK) == -1
+	|| fcntl(clientPTR->pipeFromCgi[0], F_SETFL, O_NONBLOCK) == -1) // NOTE: We don't need to make the child process FDs non-blocking!
 	{
 		std::cerr << RED << "\nfcntl() in CGI failed:\n" << RESET << std::strerror(errno) << "\n\n";
 		setResponseCode(500);
@@ -184,7 +182,7 @@ void ResponseHandler::checkFile(clientInfo *clientPTR)
 	enum dirListStates dirListing {UNSET};
 	// std::string port = clientPTR->relatedServer->serverConfig->getPort();
 	filePath = clientPTR->relatedServer->serverConfig->getRoot("/") + filePath;
-
+  
 	if (std::filesystem::exists(filePath) && checkRightsOfDirectory(filePath, clientPTR) == false)
 		return ;
 	if (clientPTR->relatedServer->serverConfig->isRedirectSet(webFilePath) == true)
@@ -241,12 +239,13 @@ void ResponseHandler::checkFile(clientInfo *clientPTR)
 	// CGI check & handling	
 	if (clientPTR->parsedRequest.isCgi)
 	{
-		m_cgiHandler = new CgiHandler(*clientPTR);
+		m_cgiHandler = new CgiHandler(clientPTR);
 
 		openCgiPipes(clientPTR);
 		
 		return ;
 	}
+
 	// If everything went well, we start to build a aappropriate response
 	openResponseFile(clientPTR, filePath);
 
@@ -342,15 +341,10 @@ void ResponseHandler::handleRequest(clientInfo *clientPTR)
 					}
 					break ;
 				}
-
 				if (checkForMultipartFileData(clientPTR)) // Can you upload files some other way than using a HTML form...?
 					prepareUploadFile(clientPTR);
 				else
-				{
-					setResponseCode(400); // is this code ok...?// this will be set in the checkForMultipartFileData function
 					openErrorResponseFile(clientPTR);
-				}
-
 				break ;
 			}
 			else
@@ -374,7 +368,7 @@ void ResponseHandler::handleRequest(clientInfo *clientPTR)
 			
 		}
 		default:
-			std::cout << "unhandled parseRequest" << std::endl;
+			webservLog.webservLog(ERROR, "unhandled parseRequest", true);
 	}
 
 }
@@ -387,6 +381,7 @@ bool	ResponseHandler::checkForMultipartFileData(clientInfo *clientPTR)
 	if (boundaryStartIdx == std::string::npos)
 	{
 		std::cerr << RED << "\ncheckForMultipartFileData() failed:\n" << RESET << "Boundary not found\n\n";
+		setResponseCode(400);
 		return false;
 	}
 	boundaryStartIdx += temp.length();
@@ -394,6 +389,7 @@ bool	ResponseHandler::checkForMultipartFileData(clientInfo *clientPTR)
 	if (boundaryEndIdx == std::string::npos)
 	{
 		std::cerr << RED << "\ncheckForMultipartFileData() failed:\n" << RESET << "Boundary header has no ending\n\n";
+		setResponseCode(400);
 		return false;
 	}
 	std::string boundaryStr = clientPTR->requestString.substr(boundaryStartIdx, boundaryEndIdx - boundaryStartIdx);
@@ -407,6 +403,7 @@ bool	ResponseHandler::checkForMultipartFileData(clientInfo *clientPTR)
 		if (startIdx == std::string::npos)
 		{
 			std::cerr << RED << "\ncheckForMultipartFileData() failed:\n" << RESET << "Boundary not found\n\n";
+			setResponseCode(400);
 			return false;
 		}
 		std::string lineStr = clientPTR->requestString.substr(startIdx, endBoundary.size());
@@ -418,6 +415,7 @@ bool	ResponseHandler::checkForMultipartFileData(clientInfo *clientPTR)
 		if (endIdx == std::string::npos)
 		{
 			std::cerr << RED << "\ncheckForMultipartFileData() failed:\n" << RESET << "Boundary line has no ending\n\n";
+			setResponseCode(400);
 			return false;
 		}
 		lineStr = clientPTR->requestString.substr(startIdx, endIdx - startIdx);
@@ -457,13 +455,15 @@ bool	ResponseHandler::checkForMultipartFileData(clientInfo *clientPTR)
 			}
 			else
 				uploadDirPath = clientPTR->relatedServer->serverConfig->getRoot(clientPTR->parsedRequest.filePath) + "/";
-			clientPTR->uploadFileName = uploadDirPath + tokensVec[2].substr(nameStart, nameEnd - nameStart); // HARD CODED for now
+			clientPTR->uploadWebPath = "http://localhost:8080/images/uploads/	" + tokensVec[2].substr(nameStart, nameEnd - nameStart);// HARD CODED for now
+			clientPTR->uploadFileName = uploadDirPath + tokensVec[2].substr(nameStart, nameEnd - nameStart);
 			clientPTR->multipartFileDataStartIdx = clientPTR->requestString.find("\r\n\r\n", endIdx) + 4;
 			return (true);
 		}
 	}
 
 	std::cerr << RED << "\ncheckForMultipartFileData() failed:\n" << RESET << "No files found in the form upload request body\n\n";
+	setResponseCode(400);
 	return (false);
 }
 
@@ -574,18 +574,19 @@ int ResponseHandler::buildResponse(clientInfo *clientPTR)
 {
 	if (clientPTR->responseFileFd == -1)
 	{
-		std::cout << RED << "\nERROR! buildResponse called before response file was opened\n" << RESET;
+		webservLog.webservLog(ERROR, "BuildResponse called before response file was opened", true);
 		return (-1); // Check this later
 	}
 
-	char 	buffer[1024];
+	char 	buffer[100024];
 	int		bytesRead;
-	int		readPerCall = 1023;
+	int		readPerCall = 100023;
 
 	bytesRead = read(clientPTR->responseFileFd, buffer, readPerCall);
 	if (bytesRead == -1)
 	{
-		std::cerr << RED << "\nread() of error page file failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		std::string errorInfo = std::strerror(errno);
+		webservLog.webservLog(ERROR, "read() of response page file failed: " + errorInfo, true);
 		setResponseCode(500); // is this ok?
 		openErrorResponseFile(clientPTR);
 		return (-1);
@@ -630,6 +631,21 @@ void ResponseHandler::setResponseCode(unsigned int code)
 	responseCode = code;
 }
 
+void ResponseHandler::build201Response(clientInfo *clientPTR, std::string webPathToFile)
+{
+	std::string headers;
+	headers = "HTTP/1.1 201 Created\r\n";
+	headers += "Server: 42 webserv\r\n";
+	headers += "Location: " + webPathToFile + "\r\n";
+	headers += "Content-Type: application/json\r\n";
+	clientPTR->responseBody = R"({"message": "File uploaded successfully",
+	"url": )" + webPathToFile + "}";
+	headers += "Content-Length: " + std::to_string(clientPTR->responseBody.length()) + "\r\n\r\n";
+	std::cout << headers << clientPTR->responseBody << std::endl;
+	clientPTR->responseString = headers + clientPTR->responseBody;
+	clientPTR->status = SEND_RESPONSE;
+}
+
 /* Builds 500 responses directly so we don't have to use poll to read error file */
 void ResponseHandler::build500Response(clientInfo *clientPTR)
 {
@@ -649,7 +665,7 @@ void ResponseHandler::build500Response(clientInfo *clientPTR)
 	headers += std::to_string(content.length());
 	headers += "\r\n\r\n";
 	clientPTR->responseString = headers + content;
-	std::cout << "responseString: " << clientPTR->responseString << std::endl;
+	webservLog.webservLog(INFO, "responseString: " + clientPTR->responseString, false);
 }
 
 
@@ -714,9 +730,9 @@ void ResponseHandler::buildErrorResponse(clientInfo *clientPTR)
 	//need to update this based on config file path to error pages
 	//tested with this and it works. now just fetch this from the configuration data. --- Patrik
 
-	char 	buffer[1024];
+	char 	buffer[100024];
 	int		bytesRead;
-	int		readPerCall = 1023;
+	int		readPerCall = 100023;
 
 	bytesRead = read(clientPTR->errorFileFd, buffer, readPerCall);
 	if (bytesRead == -1)
@@ -735,14 +751,13 @@ void ResponseHandler::buildErrorResponse(clientInfo *clientPTR)
 		contentType = "text/html";
 		std::string	headers;
 
-		headers = "HTTP/1.1 " + std::to_string(getResponseCode()) + " " + errorCodes.at(getResponseCode()) + "\r\n";
+		headers = "HTTP/1.1 " + std::to_string(getResponseCode()) + " " + errorCodes.at(getResponseCode()) + "\r\n"; // Error handling fot .at() method!
 		headers += "Content-Type: " + contentType + "\r\n";
 		headers += "Content-Length: ";
 		headers += std::to_string(clientPTR->responseBody.length());
 		headers += "\r\n\r\n";
 		clientPTR->responseString = headers + clientPTR->responseBody;
-		std::cout << "responseString: " << clientPTR->responseString << std::endl;
-
+		webservLog.webservLog(INFO, "responseString: " + clientPTR->responseString, false);
 		clientPTR->status = SEND_RESPONSE;
 	}
 

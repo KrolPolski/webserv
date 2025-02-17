@@ -76,3 +76,9 @@ void	Logger::webservLog(LogStatus status, const std::string& message, bool toTer
 	logFile << logEntry.str();
 	logFile.flush();
 }
+
+void	Logger::closeLogFileStream()
+{
+	logFile.close();
+}
+

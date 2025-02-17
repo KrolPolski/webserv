@@ -1,5 +1,6 @@
 <?php
-// Set the directory where the files are located
+header('Content-Type: application/json');
+
 $directory = 'uploads';  // Assuming the "uploads" folder is in the same directory as this script
 
 // Check if the directory exists

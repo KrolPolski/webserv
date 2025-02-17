@@ -9,11 +9,12 @@
 #include <map>
 #include "Types.hpp"
 #include <filesystem>
-#include "CgiHandler.hpp"
 #include <chrono>
 #include <iostream>
 #include <fcntl.h>
+#include "CgiHandler.hpp"
 
+class ConnectionHandler;
 struct clientInfo;
 
 class ResponseHandler
@@ -60,4 +61,5 @@ class ResponseHandler
 		int buildResponse(clientInfo *clientPTR);
 		void setResponseCode(unsigned int code); // Added this to public, might be a problem
 		int	openResponseFile(clientInfo *clientPTR, std::string filePath);
+		void build201Response(clientInfo *clientPTR, std::string webPathToFile);
 };

@@ -38,6 +38,7 @@ class Logger
 		~Logger();
 
 		void	webservLog(LogStatus, const std::string &, bool);
+		void	closeLogFileStream();
 
 };
 

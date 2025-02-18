@@ -341,7 +341,7 @@ void ResponseHandler::handleRequest(clientInfo *clientPTR)
 					}
 					break ;
 				}
-				if (checkForMultipartFileData(clientPTR)) // Can you upload files some other way than using a HTML form...?
+				if (checkForMultipartFileData(clientPTR))
 					prepareUploadFile(clientPTR);
 				else
 					openErrorResponseFile(clientPTR);
@@ -373,7 +373,6 @@ void ResponseHandler::handleRequest(clientInfo *clientPTR)
 
 }
 
-/* Returns the end index of Content-Disposition -header line related to an uploaded file. (so returned index is in the "\r\n" sequence)*/
 bool	ResponseHandler::checkForMultipartFileData(clientInfo *clientPTR)
 {
 	std::string temp = "boundary=";
@@ -431,6 +430,13 @@ bool	ResponseHandler::checkForMultipartFileData(clientInfo *clientPTR)
 		{
 			size_t nameStart = tokensVec[2].find_first_of('"') + 1;
 			size_t nameEnd = tokensVec[2].find_last_of('"');
+
+			if (nameStart == std::string::npos || nameEnd == std::string::npos)
+			{
+				std::cerr << RED << "checkForMultipartFileData() failed: " << RESET << "filename format error\n\n";
+				setResponseCode(400);
+				return false;
+			}
 
 			std::string	uploadDirPath;
 			if (clientPTR->relatedServer->serverConfig->isUploadDirSet(clientPTR->parsedRequest.filePath) == true)

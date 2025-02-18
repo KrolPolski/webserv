@@ -51,7 +51,7 @@ class ConnectionHandler
 
 	// poll() helper functions
 	void	addNewPollfd(int newFd);
-	void	removeFromPollfdVec(int &fdToRemove);
+	void	removeFromPollfdVec(const int &fdToRemove);
 	void	removeClientFdsFromPollVec(clientInfo *clientPTR);
 
 	// client data functions

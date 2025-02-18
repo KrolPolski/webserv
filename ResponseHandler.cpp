@@ -455,6 +455,7 @@ bool	ResponseHandler::checkForMultipartFileData(clientInfo *clientPTR)
 			}
 			else
 				uploadDirPath = clientPTR->relatedServer->serverConfig->getRoot(clientPTR->parsedRequest.filePath) + "/";
+
 			clientPTR->uploadWebPath = "http://localhost:" + clientPTR->relatedServer->serverConfig->getPort() + "/" + uploadDirPath + tokensVec[2].substr(nameStart, nameEnd - nameStart);// HARD CODED for now
 			clientPTR->uploadFileName = uploadDirPath + tokensVec[2].substr(nameStart, nameEnd - nameStart);
 			clientPTR->multipartFileDataStartIdx = clientPTR->requestString.find("\r\n\r\n", endIdx) + 4;

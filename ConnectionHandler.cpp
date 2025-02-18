@@ -233,6 +233,8 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 	if (clientPTR == nullptr)
 	{
 		std::cerr << RED << "Client data could not be recieved; client not found for FD: " << pollFdStuct.fd << "\n" << RESET;
+		removeFromPollfdVec(pollFdStuct.fd);
+		close(pollFdStuct.fd);
 		return ;
 	}
 
@@ -901,7 +903,7 @@ void	ConnectionHandler::addNewPollfd(int newFd)
 	m_pollfdVec.push_back(tempPollfd);
 }
 
-void	ConnectionHandler::removeFromPollfdVec(int &fdToRemove)
+void	ConnectionHandler::removeFromPollfdVec(const int &fdToRemove)
 {
 	if (fdToRemove == -1)
 		return ;

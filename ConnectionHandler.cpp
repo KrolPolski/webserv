@@ -462,15 +462,8 @@ void		ConnectionHandler::acceptNewClient(const unsigned int serverFd)
 			return ;
 		}
 
-		serverInfo *relatedServerPTR = getServerByFd(serverFd);
-		if (relatedServerPTR == nullptr)
-		{
-			close(newClientFd);
-			webservLog.webservLog(ERROR, "acceptNewClient() failed: server not found", true);
-			return ;
-		}
 		addNewPollfd(newClientFd);
-		m_clientVec.push_back({newClientFd, relatedServerPTR});
+		m_clientVec.push_back({newClientFd});
 	}
 
 }
@@ -985,17 +978,6 @@ bool	ConnectionHandler::checkForServerSocket(const int fdToCheck)
 			return (true);
 	}
 	return (false);
-}
-
-// Returns nullptr if server is not found
-serverInfo *ConnectionHandler::getServerByFd(const int fd)
-{
-	for (auto &server : m_serverVec)
-	{
-		if (server.fd == fd)
-			return (&server);
-	}
-	return (nullptr);
 }
 
 // returns nullptr if (for some reason) the client is not found

@@ -68,6 +68,7 @@ class ConnectionHandler
 
 	// request receiveing & parsing
 	int		parseRequest(clientInfo *clientPTR);
+	int		getRelatedServer(clientInfo *clientPTR);
 	int 	splitStartLine(clientInfo *clientPTR, requestParseInfo	&parseInfo);
 	clientRequestType	checkRequestType(clientInfo *clientPTR);
 	bool	checkChunkedEnd(clientInfo *clientPTR);
@@ -77,9 +78,6 @@ class ConnectionHandler
 
 	// multipart data
 	void	writeUploadData(clientInfo *clientPTR);
-
-	// server helper functions
-	serverInfo *getServerByFd(const int fd);
 
 	// client helper functions
 	clientInfo	*getClientPTR(const int clientFd);

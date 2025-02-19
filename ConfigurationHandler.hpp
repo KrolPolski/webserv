@@ -96,7 +96,7 @@ class ConfigurationHandler
 		bool					checkLocationBlocksRoot(locationBlock &);
 		bool					requiredSettings();
 
-		void					printSettings(); // remove this before we eval -- Patrik
+		void					printSettings();
 
 		bool					isRedirectSet(std::string);
 		bool					isUploadDirSet(std::string);

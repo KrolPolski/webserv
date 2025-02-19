@@ -87,8 +87,8 @@ int	ConnectionHandler::splitStartLine(clientInfo *clientPTR, requestParseInfo	&p
 
 int ConnectionHandler::getRelatedServer(clientInfo *clientPTR)
 {
-	auto it = clientPTR->parsedRequest.headerMap.find("Host");
-	if (it == clientPTR->parsedRequest.headerMap.end())
+	size_t reqIdxStart = clientPTR->requestString.find("Host: ");
+	if (reqIdxStart == std::string::npos)
 	{
 		std::cerr << RED << "Invalid request: " << RESET << "Host header is missing" << RESET;
 		clientPTR->respHandler->setResponseCode(400);
@@ -96,10 +96,13 @@ int ConnectionHandler::getRelatedServer(clientInfo *clientPTR)
 		return (-1);
 	}
 
-	std::string requestHost = it->second;
-	size_t reqIdx = requestHost.find(':');
-	if (reqIdx != std::string::npos)
-		requestHost = requestHost.substr(0, reqIdx);
+	reqIdxStart += 6; // +6 to skip 'Host: '
+	size_t reqIdxEnd = clientPTR->requestString.find("\r\n", reqIdxStart);
+
+	std::string requestHost = clientPTR->requestString.substr(reqIdxStart, reqIdxEnd - reqIdxStart);
+	size_t columnIdx = requestHost.find(':');
+	if (columnIdx != std::string::npos)
+		requestHost = requestHost.substr(0, columnIdx);
 
 	std::cout << "ReqHost:\n" << requestHost << "\n";
 
@@ -238,9 +241,6 @@ int		ConnectionHandler::parseRequest(clientInfo *clientPTR)
 		clientPTR->respHandler->openErrorResponseFile(clientPTR);
 		return (-1);
 	}
-
-	if (getRelatedServer(clientPTR) == -1)
-		return -1;
 
 	return (0);
 }

@@ -595,12 +595,10 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 	buf[recievedBytes] = '\0';
 	clientPTR->requestString.append(buf, recievedBytes);
 
-	if (clientPTR->reqType == UNDEFINED)
+	if (clientPTR->requestString.find("\r\n\r\n") == std::string::npos)
 	{
-		clientPTR->reqType = checkRequestType(clientPTR);
-
 		// if we have more than 8KB characters of only headers, we say it's a bad request
-		if (clientPTR->reqType == UNDEFINED && clientPTR->requestString.size() > 8192)
+		if (clientPTR->requestString.size() > 8192)
 		{
 			webservLog.webservLog(ERROR, "Bad request: Request headers too long", true);
 			clientPTR->respHandler->setResponseCode(400);
@@ -608,6 +606,21 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 			addNewPollfd(clientPTR->errorFileFd);
 			return ;
 		}
+		else
+			return ;
+	}
+
+	// Once we have the headers, we can add relatedServer
+	if (getRelatedServer(clientPTR) == -1)
+	{
+		addNewPollfd(clientPTR->errorFileFd);
+		return ;
+	}
+
+	// Set request type
+	if (clientPTR->reqType == UNDEFINED)
+	{
+		clientPTR->reqType = checkRequestType(clientPTR);
 
 		size_t headerEndIdx = clientPTR->requestString.find("\r\n\r\n");
 		if (headerEndIdx != std::string::npos && headerEndIdx > 8192)
@@ -620,7 +633,7 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 		}
 	}
 
-
+	// Do appropriate actions
 	if (clientPTR->reqType == CHUNKED)
 	{
 		if (unChunkRequest(clientPTR) == false)

@@ -109,7 +109,6 @@ void	ConfigurationHandler::defaultSettings()
 	m_globalDirListing = FALSE;
 	m_globalCgiPathPHP = G_CGI_PATH_PHP;
 	m_globalCgiPathPython = G_CGI_PATH_PYTHON;
-	// printSettings(); //remove before end -- Patrik
 }
 
 bool	ConfigurationHandler::checkLocationBlocksRoot(locationBlock &block)
@@ -310,7 +309,7 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : 
 		m_errorStatus = 1;
 	}
 	else
-		printSettings(); //remove before the end of the project -- Patrik // std:::optional
+		printSettings();
 }
 /*
 VALIDATION FOR IF CERTAIN SPECIFICATIONS ARE SET
@@ -346,7 +345,6 @@ bool	ConfigurationHandler::isUploadDirSet(std::string key)
 
 bool	ConfigurationHandler::isLocationConfigured(std::string key)
 {
-	// std::cout << "Checking if configured: " + key << std::endl;
 	auto map_key = m_routes.find(key);
 	if (map_key == m_routes.end())
 	{
@@ -602,8 +600,6 @@ std::string	ConfigurationHandler::getDefaultErrorPages(uint key) const
 	return map_key->second;
 }
 
-// retuns on the 3 functions above need to be addressed!!! ---- Patrik!
-
 /*
 CHECK THE FILE NAME
 */
@@ -700,8 +696,6 @@ void	extractServerBlocks(std::multimap<std::string, ConfigurationHandler> &serve
 			auto last = std::prev(servers.end());
 			if (last->second.getErrorStatus() == 1)
 				servers.erase(last);
-			// if (servers.size() > 5)
-			// 	throw std::runtime_error("Configuration file is too big"); // figure out later - now when this is in its own try catch. we would need to limit it somehow
 			temp.clear();
 			port.clear();
 			duplicateIP = false;

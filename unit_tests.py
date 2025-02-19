@@ -67,6 +67,16 @@ class WebservResponseCodeTests(unittest.TestCase):
         nginx_response = requests.post(nginx_test, data=data, timeout = 5)
         self.assertEqual(response.status_code, 405)
         self.assertEqual(response.status_code, nginx_response.status_code)
+
+    def test_get_not_allowed(self):
+        test_url = self.webserv_url + "no_get/index.html"
+        response = requests.get(test_url, timeout = 5)
+        self.assertEqual(response.status_code, 405)
+
+    def test_get_not_allowed_nonexistent(self):
+        test_url = self.webserv_url + "no_get/nope.html"
+        response = requests.get(test_url, timeout = 5)
+        self.assertEqual(response.status_code, 404)
     
     def test_good_post(self):
         test_url = self.webserv_url + "cgi/pythonPost.py"
@@ -107,6 +117,20 @@ class WebservResponseCodeTests(unittest.TestCase):
         response = requests.delete(url, timeout = 5)
         self.assertEqual(response.status_code, 404)
 
+    def test_Delete_non_existent_bad_method(self):
+        url = "http://localhost:8080/no_del_dir/nope.html"
+        response = requests.delete(url, timeout = 5)
+        self.assertEqual(response.status_code, 404)
+
+    def test_delete_bad_method(self):
+        url = "http://localhost:8080/no_del_dir/deleteme.html"
+        deletable_file = 'home/no_del_dir/deleteme.html'
+        with open(deletable_file, "w") as f:
+            f.write("This is a test file.")
+        os.chmod(deletable_file, 0o664)
+        response = requests.delete(url, timeout = 5)
+        self.assertEqual(response.status_code, 405)
+        os.remove(deletable_file)
     def test_delete_full_directory(self):
         url = "http://localhost:8080/full/"
         response = requests.delete(url, timeout = 5)

@@ -310,17 +310,25 @@ bool ResponseHandler::checkRightsOfDirectory(std::string directoryPath, clientIn
 
 void ResponseHandler::handleRequest(clientInfo *clientPTR)
 {
-	
+	std::string filePath = clientPTR->relatedServer->serverConfig->getRoot("/") + clientPTR->parsedRequest.filePath;
 	switch (requestType)
 	{
 		case GET:
 		{
 			requestTypeAsString = "GET";
-			if (checkRequestAllowed(clientPTR))
-				checkFile(clientPTR);
+			if (std::filesystem::exists(filePath))
+			{
+				if (checkRequestAllowed(clientPTR))
+					checkFile(clientPTR);
+				else
+				{
+					setResponseCode(405);
+					openErrorResponseFile(clientPTR);
+				}
+			}
 			else
 			{
-				setResponseCode(405);
+				setResponseCode(404);
 				openErrorResponseFile(clientPTR);
 			}
 			break;
@@ -328,28 +336,36 @@ void ResponseHandler::handleRequest(clientInfo *clientPTR)
 		case POST:
 		{
 			requestTypeAsString = "POST";
-			if (checkRequestAllowed(clientPTR))
+			if (std::filesystem::exists(filePath))
 			{
-				if (clientPTR->reqType != MULTIPART) // DO we have to handle other types of file uploads...?
+				if (checkRequestAllowed(clientPTR))
 				{
-					if (clientPTR->parsedRequest.cgiType != NONE) // check for CGI
-						checkFile(clientPTR);
-					else
+					if (clientPTR->reqType != MULTIPART) // DO we have to handle other types of file uploads...?
 					{
-						setResponseCode(400); // Sort of a temp solution, what should we actually do if someone uses POST to do something else than CGI or File upload?
-						openErrorResponseFile(clientPTR);
+						if (clientPTR->parsedRequest.cgiType != NONE) // check for CGI
+							checkFile(clientPTR);
+						else
+						{
+							setResponseCode(400); // Sort of a temp solution, what should we actually do if someone uses POST to do something else than CGI or File upload?
+							openErrorResponseFile(clientPTR);
+						}
+						break ;
 					}
+					if (checkForMultipartFileData(clientPTR)) // Can you upload files some other way than using a HTML form...?
+						prepareUploadFile(clientPTR);
+					else
+						openErrorResponseFile(clientPTR);
 					break ;
 				}
-				if (checkForMultipartFileData(clientPTR)) // Can you upload files some other way than using a HTML form...?
-					prepareUploadFile(clientPTR);
 				else
+				{
+					setResponseCode(405);
 					openErrorResponseFile(clientPTR);
-				break ;
+				}
 			}
 			else
 			{
-				setResponseCode(405);
+				setResponseCode(404);
 				openErrorResponseFile(clientPTR);
 			}
 			break ;
@@ -357,11 +373,19 @@ void ResponseHandler::handleRequest(clientInfo *clientPTR)
 		case DELETE:
 		{
 			requestTypeAsString = "DELETE";
-			if (checkRequestAllowed(clientPTR))
-				deleteHandler(clientPTR, clientPTR->parsedRequest.filePath);
+			if (std::filesystem::exists(filePath))
+			{
+				if (checkRequestAllowed(clientPTR))
+					deleteHandler(clientPTR, clientPTR->parsedRequest.filePath);
+				else
+				{
+					setResponseCode(405);
+					openErrorResponseFile(clientPTR);
+				}
+			}
 			else
 			{
-				setResponseCode(405);
+				setResponseCode(404);
 				openErrorResponseFile(clientPTR);
 			}
 			break ;

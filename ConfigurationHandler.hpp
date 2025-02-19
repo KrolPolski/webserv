@@ -33,14 +33,14 @@ enum dirListStates
 
 struct locationBlock
 {
-	std::string					m_root;					// root of each location block in server configuration
-	int							m_reDirectStatusCode;	// redirect, status code
-	std::string					m_reDirectLocation;		// redirect, /new_location
-	std::string					m_methods; 				// e.g. GET POST DELETE
-	std::string					m_uploadDir;			// specified upload directory
-	std::string					m_cgiPathPHP;			// path to cgi interpreter PHP, changes depending on system
-	std::string					m_cgiPathPython;		// path to cgi interpreter Python, changes depending on system
-	enum dirListStates			m_dirListing; 			// directory listing ON or OFF
+	std::string					m_root;						// root of each location block in server configuration
+	int							m_reDirectStatusCode = 0;	// redirect, status code
+	std::string					m_reDirectLocation;			// redirect, /new_location
+	std::string					m_methods; 					// e.g. GET POST DELETE
+	std::string					m_uploadDir;				// specified upload directory
+	std::string					m_cgiPathPHP;				// path to cgi interpreter PHP, changes depending on system
+	std::string					m_cgiPathPython;			// path to cgi interpreter Python, changes depending on system
+	enum dirListStates			m_dirListing; 				// directory listing ON or OFF
 
 	locationBlock() : m_dirListing(UNSET)
 	{};
@@ -51,8 +51,8 @@ class ConfigurationHandler
 	private:
 		enum dirListStates						m_globalDirListing;		// Default false
 		std::string								m_globalMethods;		// Default GET
-		std::string								m_globalCgiPathPHP;		// Default defined, changes depending on system
-		std::string								m_globalCgiPathPython;		// Default defined, changes depending on system
+		std::string								m_globalCgiPathPHP;		// Default defined in hpp, changes depending on system
+		std::string								m_globalCgiPathPython;	// Default defined in hpp, changes depending on system
 		std::map<int, std::string>				m_defaultErrorPages;	// Default for the server if permissions are not in order for custom or not set
 		std::vector<std::string>				m_rawBlock;				// the whole server block as cleaned up text
 		std::string 							m_host;					// e.g. 127.0.0.1

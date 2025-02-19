@@ -45,7 +45,7 @@ class WebservResponseCodeTests(unittest.TestCase):
         self.assertEqual(response.status_code, nginx_response.status_code)
     
     def test_bad_permissions(self):
-        unreadable_file = 'home/cant_read.html'
+        unreadable_file = '../home/cant_read.html'
         with open(unreadable_file, "w") as f:
             f.write("This is a test file.")
         os.chmod(unreadable_file, 0o000)
@@ -89,7 +89,7 @@ class WebservResponseCodeTests(unittest.TestCase):
     def test_delete_successful(self):
         url = "http://localhost:8080/deleteme.html"
         try:
-            deletable_file = 'home/deleteme.html'
+            deletable_file = '../home/deleteme.html'
             with open(deletable_file, "w") as f:
                 f.write("This is a test file.")
             os.chmod(deletable_file, 0o664)
@@ -102,7 +102,7 @@ class WebservResponseCodeTests(unittest.TestCase):
             print("An error occurred:", e)
     
     def test_delete_no_perms(self):
-        undeletable_file = 'home/cantdelete.html'
+        undeletable_file = '../home/cantdelete.html'
         with open(undeletable_file, "w") as f:
             f.write("This is a test file.")
         os.chmod(undeletable_file, 0o000)
@@ -124,7 +124,7 @@ class WebservResponseCodeTests(unittest.TestCase):
 
     def test_delete_bad_method(self):
         url = "http://localhost:8080/no_del_dir/deleteme.html"
-        deletable_file = 'home/no_del_dir/deleteme.html'
+        deletable_file = '../home/no_del_dir/deleteme.html'
         with open(deletable_file, "w") as f:
             f.write("This is a test file.")
         os.chmod(deletable_file, 0o664)

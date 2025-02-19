@@ -1,137 +1,177 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Stylish Image Upload</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: linear-gradient(to right, #2f4f4f, #006400); /* Dark green gradient */
-            color: white;
-            text-align: center;
-            margin: 0;
-            padding: 0;
-        }
-        
-        h1 {
-            font-size: 3em;
-            margin-top: 50px;
-        }
-        
-        .upload-container {
-            background-color: rgba(0, 0, 0, 0.5);
-            border-radius: 15px;
-            padding: 40px;
-            width: 80%;
-            max-width: 500px;
-            margin: 50px auto;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-        }
+      body {
+        font-family: Arial, sans-serif;
+        background: linear-gradient(
+          to right,
+          #2f4f4f,
+          #006400
+        ); /* Dark green gradient */
+        color: white;
+        text-align: center;
+        margin: 0;
+        padding: 0;
+      }
 
-        label {
-            font-size: 1.2em;
-            display: block;
-            margin-bottom: 10px;
-        }
+      h1 {
+        font-size: 3em;
+        margin-top: 50px;
+      }
 
-        input[type="file"] {
-            margin: 20px 0;
-            padding: 10px;
-            border: none;
-            border-radius: 5px;
-            background-color: #fff;
-            color: #333;
-            font-size: 1em;
-            cursor: pointer;
-        }
+      .upload-container {
+        background-color: rgba(0, 0, 0, 0.5);
+        border-radius: 15px;
+        padding: 40px;
+        width: 80%;
+        max-width: 500px;
+        margin: 50px auto;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+      }
 
-        button {
-            background-color: #228b22; /* Forest green button */
-            color: white;
-            font-size: 1.1em;
-            padding: 15px 30px;
-            border: none;
-            border-radius: 30px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
+      label {
+        font-size: 1.2em;
+        display: block;
+        margin-bottom: 10px;
+      }
 
-        button:hover {
-            background-color: #006400; /* Darker forest green on hover */
-        }
+      input[type="file"] {
+        margin: 20px 0;
+        padding: 10px;
+        border: none;
+        border-radius: 5px;
+        background-color: #fff;
+        color: #333;
+        font-size: 1em;
+        cursor: pointer;
+      }
 
-		.view-button {
-            background-color: #228b22; /* Forest green button */
-            color: white;
-            font-size: 1.2em;
-            padding: 12px 24px;
-			border: 2px solid black; /* Black border around the button */
-            border-radius: 30px;
-            cursor: pointer;
-            transition: background-color 0.3s ease, transform 0.3s ease;
-			text-decoration: none;
-			position: absolute;
-			top: 30px;
-			right: 30px;
-        }
+      button {
+        background-color: #228b22; /* Forest green button */
+        color: white;
+        font-size: 1.1em;
+        padding: 15px 30px;
+        border: none;
+        border-radius: 30px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+      }
 
-        .view-button:hover {
-            background-color: #006400; /* Darker green on hover */
-            transform: scale(1.05);
-        }
+      button:hover {
+        background-color: #006400; /* Darker forest green on hover */
+      }
 
-		.return-button {
-            background-color: #228b22; /* Forest green button */
-            color: white;
-            font-size: 1.2em;
-            padding: 12px 24px;
-			border: 2px solid black; /* Black border around the button */
-            border-radius: 30px;
-            cursor: pointer;
-            transition: background-color 0.3s ease, transform 0.3s ease;
-			text-decoration: none;
-			position: absolute;
-			top: 30px;
-			left: 30px;
-        }
+      .view-button {
+        background-color: #228b22; /* Forest green button */
+        color: white;
+        font-size: 1.2em;
+        padding: 12px 24px;
+        border: 2px solid black; /* Black border around the button */
+        border-radius: 30px;
+        cursor: pointer;
+        transition: background-color 0.3s ease, transform 0.3s ease;
+        text-decoration: none;
+        position: absolute;
+        top: 30px;
+        right: 30px;
+      }
 
-        .return-button:hover {
-            background-color: #006400; /* Darker green on hover */
-            transform: scale(1.05);
-        }
+      .view-button:hover {
+        background-color: #006400; /* Darker green on hover */
+        transform: scale(1.05);
+      }
 
-        .footer {
-            position: fixed;
-            bottom: 0;
-            width: 100%;
-            background-color: rgba(0, 0, 0, 0.7);
-            padding: 10px;
-            text-align: center;
-            color: white;
-        }
+      .return-button {
+        background-color: #228b22; /* Forest green button */
+        color: white;
+        font-size: 1.2em;
+        padding: 12px 24px;
+        border: 2px solid black; /* Black border around the button */
+        border-radius: 30px;
+        cursor: pointer;
+        transition: background-color 0.3s ease, transform 0.3s ease;
+        text-decoration: none;
+        position: absolute;
+        top: 30px;
+        left: 30px;
+      }
+
+      .return-button:hover {
+        background-color: #006400; /* Darker green on hover */
+        transform: scale(1.05);
+      }
+
+      .footer {
+        position: fixed;
+        bottom: 0;
+        width: 100%;
+        background-color: rgba(0, 0, 0, 0.7);
+        padding: 10px;
+        text-align: center;
+        color: white;
+      }
     </style>
-</head>
-<body>
-
+  </head>
+  <body>
     <h1>Upload Your Image</h1>
 
     <div class="upload-container">
-        <form action="/images/" method="POST" enctype="multipart/form-data">
-            <label for="imageUpload">Choose an image file to upload:</label>
-            <input type="file" id="imageUpload" name="image" accept="image/*" required>
-            <br>
-            <button type="submit">Upload Image</button>
-        </form>
+      <form action="/images/" method="POST" enctype="multipart/form-data">
+        <label for="imageUpload">Choose an image file to upload:</label>
+        <input
+          type="file"
+          id="imageUpload"
+          name="image"
+          accept="image/uploads/*"
+          required
+        />
+        <br />
+        <button type="submit">Upload Image</button>
+      </form>
     </div>
 
-	<a href="/images/seeImages.html" class="view-button">View downloaded images</a>
-	<a href="/" class="return-button">Return to home page</a>
+    <a href="/images/seeImages.html" class="view-button"
+      >View downloaded images</a
+    >
+    <a href="/" class="return-button">Return to home page</a>
 
     <div class="footer">
-        <p>&copy; Webserv Image Upload</p>
+      <p>&copy; Webserv Image Upload</p>
     </div>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const form = document.querySelector("form");
 
-</body>
+        form.addEventListener("submit", async function (event) {
+          event.preventDefault(); // Prevent default form submission
+
+          const formData = new FormData(form);
+
+          try {
+            const response = await fetch(form.action, {
+              method: "POST",
+              body: formData,
+            });
+
+            if (response.status === 201) {
+              window.location.href = "uploadSuccessful.html"; // Change to your desired redirect page
+            } else if (response.status === 409) {
+              alert(
+                "Upload failed due to conflict. The file you are trying to upload already exists on the server."
+              );
+            } else {
+              alert("Upload failed! Please try again.");
+            }
+          } catch (error) {
+            console.error("Error uploading file:", error);
+            alert("An error occurred while uploading.");
+          }
+        });
+      });
+    </script>
+  </body>
 </html>
-

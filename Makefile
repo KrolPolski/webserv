@@ -24,5 +24,6 @@ clean:
 
 fclean: clean
 	rm -f $(NAME)
+	rm -f logfile.log
 
 re: fclean all

@@ -44,12 +44,12 @@ struct clientInfo
 	std::chrono::time_point<std::chrono::high_resolution_clock> startTime;
 	std::chrono::time_point<std::chrono::high_resolution_clock> curTime;
 
-	int		reqBodyLen = -1;
-	int		reqBodyDataRead = 0;
-	int		bytesToWriteInCgi = -1;
-	int		bytesReceivedFromCgi = 0;
-	bool 	bodyOK = false;
-	bool	chunkedOK = false;
+	long int		reqBodyLen = -1;
+	long int		reqBodyDataRead = 0;
+	long int		bytesToWriteInCgi = -1;
+	long int		bytesReceivedFromCgi = 0;
+	bool 			bodyOK = false;
+	bool			chunkedOK = false;
 
 	int		clientFd;
 	int		errorFileFd = -1;

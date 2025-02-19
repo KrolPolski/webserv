@@ -1,5 +1,6 @@
 #include "ConnectionHandler.hpp"
 #include "URLhandler.hpp"
+#include "Logger.hpp"
 
 
 // A helper function to split the start line
@@ -13,7 +14,7 @@ int	ConnectionHandler::splitStartLine(clientInfo *clientPTR, requestParseInfo	&p
 	endIndex = parseInfo.startLine.find_first_of(' ');
 	if (endIndex == parseInfo.startLine.npos)
 	{
-		std::cerr << RED << "\nInvalid request:\n" << RESET << "first line is missing URI\n\n" << RESET;
+		webservLog.webservLog(ERROR, "Invalid request: first line is missing URI", true);
 		clientPTR->respHandler->setResponseCode(400);
 		clientPTR->respHandler->openErrorResponseFile(clientPTR);
 		return (-1);
@@ -28,7 +29,7 @@ int	ConnectionHandler::splitStartLine(clientInfo *clientPTR, requestParseInfo	&p
 	endIndex = parseInfo.startLine.find_first_of(' ', startIndex);
 	if (endIndex == parseInfo.startLine.npos)
 	{
-		std::cerr << RED << "\nInvalid request:\n" << RESET << "first line is missing HTTP protocol\n\n" << RESET;
+		webservLog.webservLog(ERROR, "Invalid request: first line is missing HTTP protocol", true);
 		clientPTR->respHandler->setResponseCode(400);
 		clientPTR->respHandler->openErrorResponseFile(clientPTR);
 		return (-1);
@@ -38,7 +39,7 @@ int	ConnectionHandler::splitStartLine(clientInfo *clientPTR, requestParseInfo	&p
 
 	if (tempStr.size() > 4096) // From ChatGPT: "NGINX: The default maximum URI length is 4,096 characters (4 KB)"
 	{
-		std::cerr << RED << "\nInvalid request:\n" << RESET << "URI too long\n\n" << RESET;
+		webservLog.webservLog(ERROR, "Invalid request: URI too long", true);
 		clientPTR->respHandler->setResponseCode(414);
 		clientPTR->respHandler->openErrorResponseFile(clientPTR);
 		return (-1);
@@ -76,7 +77,7 @@ int	ConnectionHandler::splitStartLine(clientInfo *clientPTR, requestParseInfo	&p
 	startIndex = parseInfo.startLine.find_last_of(' ') + 1;
 	if (parseInfo.startLine.compare(startIndex, 8, "HTTP/1.1") != 0)
 	{
-		std::cerr << RED << "\nInvalid request:\n" << RESET << "Bad HTTP protocol. Only HTTP/1.1 is supported\n\n" << RESET;
+		webservLog.webservLog(ERROR, "Invalid request: Bad HTTP protocol. Only HTTP/1.1 is supported", true);
 		clientPTR->respHandler->setResponseCode(505);
 		clientPTR->respHandler->openErrorResponseFile(clientPTR);
 		return (-1);
@@ -170,7 +171,7 @@ int		ConnectionHandler::parseRequest(clientInfo *clientPTR)
 	endIndex = reqStr.find_first_of("\r\n");
 	if (endIndex == reqStr.npos)
 	{
-		std::cerr << RED << "\nInvalid request:\n" << RESET << "no new line found\n\n" << RESET;
+		webservLog.webservLog(ERROR, "Invalid request: no new line found", true);
 		clientPTR->respHandler->setResponseCode(400);
 		clientPTR->respHandler->openErrorResponseFile(clientPTR);
 		return (-1);
@@ -192,7 +193,7 @@ int		ConnectionHandler::parseRequest(clientInfo *clientPTR)
 		endIndex = reqStr.find_first_of("\r\n", startIndex);
 		if (endIndex == reqStr.npos) // check this later
 		{
-			std::cerr << RED << "\nInvalid request:\n" << RESET << "no new line found after header\n\n" << RESET;
+			webservLog.webservLog(ERROR, "Invalid request: no new line found after header", true);
 			clientPTR->respHandler->setResponseCode(400);
 			clientPTR->respHandler->openErrorResponseFile(clientPTR);
 			return (-1);
@@ -201,7 +202,7 @@ int		ConnectionHandler::parseRequest(clientInfo *clientPTR)
 		headerIndex = headerLine.find_first_of(':');
 		if (headerIndex == headerLine.npos)
 		{
-			std::cerr << RED << "\nInvalid request:\n" << RESET << "header is missing ':' character\n\n" << RESET;
+			webservLog.webservLog(ERROR, "Invalid request: header is missing ':' character", true);
 			clientPTR->respHandler->setResponseCode(400);
 			clientPTR->respHandler->openErrorResponseFile(clientPTR);
 			return (-1);
@@ -223,7 +224,7 @@ int		ConnectionHandler::parseRequest(clientInfo *clientPTR)
 		int	contenLen = std::stoi(it->second);
 		if (contenLen < 0)
 		{
-			std::cerr << RED << "\nInvalid request:\n" << RESET << "Content-Length is negative\n\n" << RESET;
+			webservLog.webservLog(ERROR, "Invalid request: Content-Length is negative", true);
 			clientPTR->respHandler->setResponseCode(400);
 			clientPTR->respHandler->openErrorResponseFile(clientPTR);
 			return (-1);
@@ -233,7 +234,7 @@ int		ConnectionHandler::parseRequest(clientInfo *clientPTR)
 	}
 	else if (it == headerMap.end() && parseInfo.method == "POST")
 	{
-		std::cerr << RED << "\nInvalid request:\n" << RESET << "POST request without Content-Length header\n\n" << RESET;
+		webservLog.webservLog(ERROR, "Invalid request: POST request without Content-Length header", true);
 		clientPTR->respHandler->setResponseCode(400);
 		clientPTR->respHandler->openErrorResponseFile(clientPTR);
 		return (-1);

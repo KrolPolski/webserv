@@ -54,7 +54,8 @@ const std::map<const unsigned int, std::string> ResponseHandler::errorCodes =
 	{403, "Forbidden"},
 	{404, "Not Found"},
 	{405, "Method Not Allowed"},
-	{408, "Client Timeout"}, // Is this ok...? -Panu
+	{408, "Client Timeout"},
+	{409, "Conflict"},
 	{500, "Internal Server Error"}
 };
 
@@ -76,6 +77,7 @@ void ResponseHandler::setRequestType(clientInfo *clientPTR)
 	}
 }
 
+/* Identifies the data type of the request by extension so we can use the appropriate headers in our responses */
 void ResponseHandler::setExtension(clientInfo *clientPTR)
 {
 	std::string extension = clientPTR->parsedRequest.extension;
@@ -106,7 +108,6 @@ void ResponseHandler::buildRedirectResponse301(std::string webFilePath, clientIn
 	headers += "Connection: close";
 	headers += "\r\n\r\n";
 	clientPTR->responseString = headers;
-
 	clientPTR->status = SEND_RESPONSE;
 }
 
@@ -122,14 +123,13 @@ void ResponseHandler::buildRedirectResponse307(std::string webFilePath, clientIn
 	headers += "Connection: close";
 	headers += "\r\n\r\n";
 	clientPTR->responseString = headers;
-
 	clientPTR->status = SEND_RESPONSE;
 }
 
 /* Ensures we do not read from error pages without going through poll*/
 int ResponseHandler::openResponseFile(clientInfo *clientPTR, std::string filePath)
 {
-	setExtension(clientPTR); // is this a good place for this...?
+	setExtension(clientPTR);
 
 	clientPTR->responseFileFd = open(filePath.c_str(), O_RDONLY);
 	if (clientPTR->responseFileFd == -1)
@@ -147,7 +147,6 @@ int ResponseHandler::openResponseFile(clientInfo *clientPTR, std::string filePat
 	}
 	else
 		clientPTR->status = BUILD_RESPONSE;
-
 	return (0);
 }
 
@@ -159,16 +158,16 @@ int ResponseHandler::openCgiPipes(clientInfo *clientPTR)
 		webservLog.webservLog(ERROR, "pipe() in CGI failed: " + errorString, true);
 		setResponseCode(500);
 		openErrorResponseFile(clientPTR);
-		return (-1); // Might not be needed
+		return (-1);
 	}
 	else if (fcntl(clientPTR->pipeToCgi[1], F_SETFL, O_NONBLOCK) == -1
-	|| fcntl(clientPTR->pipeFromCgi[0], F_SETFL, O_NONBLOCK) == -1) // NOTE: We don't need to make the child process FDs non-blocking!
+	|| fcntl(clientPTR->pipeFromCgi[0], F_SETFL, O_NONBLOCK) == -1) 
 	{
 		std::string errorString = std::strerror(errno);
 		webservLog.webservLog(ERROR, "fcntl() in CGI failed: " + errorString, true);
 		setResponseCode(500);
 		openErrorResponseFile(clientPTR);
-		return (-1); // Might not be needed
+		return (-1);
 	}
 	else
 		clientPTR->status = EXECUTE_CGI;
@@ -184,7 +183,6 @@ void ResponseHandler::checkFile(clientInfo *clientPTR)
 	std::string defaultFilePath;
 	std::string webFilePath = filePath;
 	enum dirListStates dirListing {UNSET};
-	// std::string port = clientPTR->relatedServer->serverConfig->getPort();
 	filePath = clientPTR->relatedServer->serverConfig->getRoot("/") + filePath;
   
 	if (std::filesystem::exists(filePath) && checkRightsOfDirectory(filePath, clientPTR) == false)
@@ -249,7 +247,6 @@ void ResponseHandler::checkFile(clientInfo *clientPTR)
 		
 		return ;
 	}
-
 	// If everything went well, we start to build a aappropriate response
 	openResponseFile(clientPTR, filePath);
 
@@ -270,10 +267,8 @@ bool ResponseHandler::checkRightsOfDirectory(std::string directoryPath, clientIn
 {
 	struct stat info;
 
-	// std::cout << "Before stat() call" << std::endl;
 	if (stat(directoryPath.c_str(), &info) == 0 && S_ISDIR(info.st_mode))
 	{
-		// std::cout << directoryPath << " is a directory" << std::endl;
 		if (!(info.st_mode & S_IRUSR) || !(info.st_mode & S_IWUSR) || !(info.st_mode & S_IXUSR))
 		{
 			setResponseCode(403);
@@ -344,18 +339,18 @@ void ResponseHandler::handleRequest(clientInfo *clientPTR)
 			{
 				if (checkRequestAllowed(clientPTR))
 				{
-					if (clientPTR->reqType != MULTIPART) // DO we have to handle other types of file uploads...?
+					if (clientPTR->reqType != MULTIPART)
 					{
 						if (clientPTR->parsedRequest.cgiType != NONE) // check for CGI
 							checkFile(clientPTR);
 						else
 						{
-							setResponseCode(400); // Sort of a temp solution, what should we actually do if someone uses POST to do something else than CGI or File upload?
+							setResponseCode(400);
 							openErrorResponseFile(clientPTR);
 						}
 						break ;
 					}
-					if (checkForMultipartFileData(clientPTR)) // Can you upload files some other way than using a HTML form...?
+					if (checkForMultipartFileData(clientPTR))
 						prepareUploadFile(clientPTR);
 					else
 						openErrorResponseFile(clientPTR);
@@ -463,13 +458,8 @@ bool	ResponseHandler::checkForMultipartFileData(clientInfo *clientPTR)
 			std::string	uploadDirPath;
 			if (clientPTR->relatedServer->serverConfig->isUploadDirSet(clientPTR->parsedRequest.filePath) == true)
 			{
-				// std::cout << "Upload file specified: " << clientPTR->relatedServer->serverConfig->getUploadDir(clientPTR->parsedRequest.filePath) << std::endl;
-				// std::cout << "FilePath: " << clientPTR->parsedRequest.filePath << std::endl;
-
 				uploadDirPath = clientPTR->relatedServer->serverConfig->getUploadDir(clientPTR->parsedRequest.filePath);
 				struct stat info;
-
-				// std::cout << "Before stat() call" << std::endl;
 				if (stat(uploadDirPath.c_str(), &info) == 0 && S_ISDIR(info.st_mode))
 				{
 					if (!(info.st_mode & S_IRUSR) || !(info.st_mode & S_IWUSR)
@@ -500,19 +490,16 @@ void	ResponseHandler::prepareUploadFile(clientInfo *clientPTR)
 	if (std::filesystem::exists(clientPTR->uploadFileName))
 	{
 		webservLog.webservLog(ERROR, "File upload failed: File with the same name already exists.", true);
-		setResponseCode(400); // is this ok...?
+		setResponseCode(409);
 		openErrorResponseFile(clientPTR);
 		return ;
 	}
-
-	//	checkExtension(filePath);  --> Is this needed here...?! Has been commented out for a long time -Panu
-
 	clientPTR->uploadFileFd = open(clientPTR->uploadFileName.c_str(), O_RDWR | O_CREAT, 0644);
 	if (clientPTR->uploadFileFd == -1)
 	{
 		std::string errorString = std::strerror(errno);
 		webservLog.webservLog(ERROR, "open() of upload file failed: " + errorString, true);
-		if (errno == 13) // bad permissions --> is this possible in theory?
+		if (errno == 13) // bad permissions
 			setResponseCode(403);
 		else
 			setResponseCode(500);
@@ -561,7 +548,7 @@ void ResponseHandler::deleteHandler(clientInfo *clientPTR, std::string filePath)
 		if (std::filesystem::exists(serverLocalPath))
 		{
 			auto perms = std::filesystem::status(serverLocalPath).permissions();
-			if ((perms & std::filesystem::perms::owner_write) != std::filesystem::perms::none) // Why were these originally group_write...? I'm testing owner_write for now -Panu
+			if ((perms & std::filesystem::perms::owner_write) != std::filesystem::perms::none)
 			{
 				try{
 					std::filesystem::remove(serverLocalPath);
@@ -605,7 +592,7 @@ int ResponseHandler::buildResponse(clientInfo *clientPTR)
 	if (clientPTR->responseFileFd == -1)
 	{
 		webservLog.webservLog(ERROR, "BuildResponse called before response file was opened", true);
-		return (-1); // Check this later
+		return (-1);
 	}
 
 	char 	buffer[100024];
@@ -617,7 +604,7 @@ int ResponseHandler::buildResponse(clientInfo *clientPTR)
 	{
 		std::string errorInfo = std::strerror(errno);
 		webservLog.webservLog(ERROR, "read() of response page file failed: " + errorInfo, true);
-		setResponseCode(500); // is this ok?
+		setResponseCode(500);
 		openErrorResponseFile(clientPTR);
 		return (-1);
 	}
@@ -661,6 +648,7 @@ void ResponseHandler::setResponseCode(unsigned int code)
 	responseCode = code;
 }
 
+/* Builds successful upload HTTP response */
 void ResponseHandler::build201Response(clientInfo *clientPTR, std::string webPathToFile)
 {
 	std::string headers;
@@ -697,7 +685,6 @@ void ResponseHandler::build500Response(clientInfo *clientPTR)
 	clientPTR->responseString = headers + content;
 	webservLog.webservLog(INFO, "responseString: " + clientPTR->responseString, false);
 }
-
 
 bool ResponseHandler::isValidErrorFile(std::string &errorFileName)
 {
@@ -757,8 +744,6 @@ void ResponseHandler::buildErrorResponse(clientInfo *clientPTR)
 {
 	if (clientPTR->errorFileFd == -1)
 		webservLog.webservLog(ERROR, "buildErrorResponse called before error file was opened", true);
-	//need to update this based on config file path to error pages
-	//tested with this and it works. now just fetch this from the configuration data. --- Patrik
 
 	char 	buffer[100024];
 	int		bytesRead;
@@ -801,7 +786,6 @@ void	ResponseHandler::buildDirListingResponse(const std::string& pathForDirToLis
 	content += " <h1>In directory with path: " + pathForDirToList + "</h1>\n";
 	content += "<ul>\n";
 
-	// is filesystem considered a "reading operation"...? Do we need to go through poll() before that?
 	for(const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(pathForDirToList))
 	{
 		std::string href = entry.path().filename().string();

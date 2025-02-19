@@ -80,6 +80,7 @@ void	ConfigurationHandler::defaultSettings()
 	m_errorPages.emplace(404, "/default-error-pages/404.html");
 	m_errorPages.emplace(405, "/default-error-pages/405.html");
 	m_errorPages.emplace(408, "/default-error-pages/408.html");
+	m_errorPages.emplace(409, "/default-error-pages/409.html");
 	m_errorPages.emplace(411, "/default-error-pages/411.html");
 	m_errorPages.emplace(413, "/default-error-pages/413.html");
 	m_errorPages.emplace(414, "/default-error-pages/414.html");
@@ -92,6 +93,7 @@ void	ConfigurationHandler::defaultSettings()
 	m_defaultErrorPages.emplace(404, "/default-error-pages/404.html");
 	m_defaultErrorPages.emplace(405, "/default-error-pages/405.html");
 	m_defaultErrorPages.emplace(408, "/default-error-pages/408.html");
+	m_defaultErrorPages.emplace(409, "/default-error-pages/409.html");
 	m_defaultErrorPages.emplace(411, "/default-error-pages/411.html");
 	m_defaultErrorPages.emplace(413, "/default-error-pages/413.html");
 	m_defaultErrorPages.emplace(414, "/default-error-pages/414.html");

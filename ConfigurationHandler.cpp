@@ -42,7 +42,7 @@ void	ConfigurationHandler::printSettings()
 		<< "\n" << x.first;
 		if (!x.second.m_root.empty())
 			std::cout << "\n  " << x.second.m_root;
-		if (x.second.m_reDirectStatusCode && !x.second.m_reDirectLocation.empty())
+		if (x.second.m_reDirectStatusCode > 0 && !x.second.m_reDirectLocation.empty())
 			std::cout << "\n  " << x.second.m_reDirectStatusCode << " " << x.second.m_reDirectLocation;
 		if (!x.second.m_methods.empty())
 			std::cout << "\n  " << x.second.m_methods;
@@ -203,11 +203,11 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : 
 	std::regex	hostRegex(R"(^\s*host\s+([^\s]+)\s*;\s*$)");
 	std::regex	serverNameRegex(R"(^\s*server_name\s+([^\s;]+(?:\s+[^\s;]+)*)\s*;\s*$)");
 	std::regex	maxClientBodyRegex(R"(^\s*max_client_body_size\s+(\d+)\s*;\s*$)");
-	std::regex	errorPageRegex(R"(^\s*error_page\s+(400|403|404|405|408|411|413|414|431|500|501|505)\s+([^\s]+\.html)\s*;\s*$)");
+	std::regex	errorPageRegex(R"(^\s*error_page\s+(400|403|404|405|408|411|413|414|431|500|501|505)\s+(/home/[\S]+\.html)\s*;\s*$)");
 	std::regex	indexRegex(R"(^\s*index\s+([^\s]+)\s*;\s*$)");
 	std::regex	locationRegex(R"(^\s*location\s+([^\s]+)\s*\s*$)");
 	std::regex	rootRegex(R"(^\s*root\s+/?([^/][^;]*[^/])?/?\s*;\s*$)");
-	std::regex	returnRegex(R"(^\s*return\s+(307)\s+(/[\S]+/)\s*;\s*$)");
+	std::regex	returnRegex(R"(^\s*return\s+(307)\s+([\S]+)\s*;\s*$)");
 	std::regex	methodsRegex(R"(^\s*methods\s+([^\s;]+(?:\s+[^\s;]+)*)\s*;\s*$)"); // could restrict GET|POST|DELETE as the valid ones
 	std::regex	uploadDirRegex(R"(^\s*upload_dir\s+(home/[\S]+/)\s*;\s*$)");
 	std::regex	dirListingRegex(R"(^\s*dir_listing\s+(on|off)\s*;\s*$)");
@@ -317,13 +317,13 @@ bool	ConfigurationHandler::isRedirectSet(std::string	key)
 	auto map_key = m_routes.find(key);
 	if (map_key != m_routes.end())
 	{
-		if (map_key->second.m_reDirectStatusCode && !map_key->second.m_reDirectLocation.empty())
+		if (map_key->second.m_reDirectStatusCode > 0 && !map_key->second.m_reDirectLocation.empty())
 		{
 			webservLog.webservLog(INFO, std::string("Redirect is set in location: " + key + std::string(", redirecting")), true);
 			return true;
 		}
 	}
-	webservLog.webservLog(INFO, std::string("Redirect is not set in location: ") + key, true);
+	webservLog.webservLog(INFO, std::string("Redirect is not set in location: ") + key, false);
 	return false;
 }
 
@@ -392,7 +392,10 @@ std::string	ConfigurationHandler::getInheritedMethods(std::string key) const
 		if (key.starts_with(keyFromOurMap))
 		{
 			if (!route.second.m_methods.empty())
+			{
+				webservLog.webservLog(INFO, "Found route, returning methods", false);
 				return route.second.m_methods;
+			}
 			else
 			{
 				webservLog.webservLog(INFO, "Could not find route for methods, inheriting from root", false);
@@ -413,11 +416,12 @@ enum dirListStates	ConfigurationHandler::getInheritedDirListing(std::string key)
 			continue ;
 		if (key.starts_with(keyFromOurMap))
 		{
-				if (route.second.m_dirListing == UNSET)
+			if (route.second.m_dirListing == UNSET)
 			{
 				webservLog.webservLog(INFO, "Could not find route for directory listing, inheriting from root", false);
 				return getDirListing("/");
 			}
+			webservLog.webservLog(INFO, "Found route, returning directory listing", false);
 			return route.second.m_dirListing;
 		}
 	}
@@ -434,9 +438,10 @@ std::string	ConfigurationHandler::getInheritedCgiPathPHP(std::string key) const
 			continue ;
 		if (key.starts_with(keyFromOurMap))
 		{
-			std::cout << "match found in " << key << " and " << keyFromOurMap << std::endl;
 			if (!route.second.m_cgiPathPHP.empty())
+			{
 				return route.second.m_cgiPathPHP;
+			}
 			else
 			{
 				webservLog.webservLog(INFO, "Could not find route for cgi path, inheriting from root", false);
@@ -457,9 +462,10 @@ std::string	ConfigurationHandler::getInheritedCgiPathPython(std::string key) con
 			continue ;
 		if (key.starts_with(keyFromOurMap))
 		{
-			std::cout << "match found in " << key << " and " << keyFromOurMap << std::endl;
 			if (!route.second.m_cgiPathPython.empty())
+			{
 				return route.second.m_cgiPathPython;
+			}
 			else
 			{
 				webservLog.webservLog(INFO, "Could not find route for cgi path, inheriting from root", false);
@@ -511,6 +517,7 @@ std::string	ConfigurationHandler::getMethods(std::string key) const
 	}
 	if (map_key->second.m_methods.empty())
 		return getInheritedMethods(key);
+	webservLog.webservLog(INFO, "Found route for methods in " + key, false);
 	return map_key->second.m_methods;
 }
 
@@ -527,6 +534,7 @@ enum dirListStates	ConfigurationHandler::getDirListing(std::string key) const
 		webservLog.webservLog(INFO, "Could not find route for directory listing, inheriting", false);
 		return getInheritedDirListing(key);
 	}
+	webservLog.webservLog(INFO, "Found route for directory listing in " + key, false);
 	return map_key->second.m_dirListing;
 }
 
@@ -539,10 +547,11 @@ std::string	ConfigurationHandler::getCgiPathPHP(std::string key) const
 		return getInheritedCgiPathPHP(key);
 	}
 	if (map_key->second.m_cgiPathPHP.empty())
-  {
+  	{
 		webservLog.webservLog(ERROR, "Could not find route cgi interpreter path", false);
     return getInheritedCgiPathPHP(key);
-  }
+  	}
+	webservLog.webservLog(INFO, "Found route for cgi php path in " + key, false);
 	return map_key->second.m_cgiPathPHP;
 }
 
@@ -555,10 +564,11 @@ std::string	ConfigurationHandler::getCgiPathPython(std::string key) const
 		return getInheritedCgiPathPython(key);
 	}
 	if (map_key->second.m_cgiPathPython.empty())
-  {
+  	{
 		webservLog.webservLog(ERROR, "Could not find route cgi interpreter path", false);
     return getInheritedCgiPathPython(key);
-  }
+  	}
+	webservLog.webservLog(INFO, "Found route for cgi python path in " + key, false);
 	return map_key->second.m_cgiPathPython;
 }
 

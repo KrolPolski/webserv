@@ -55,8 +55,14 @@ const std::map<const unsigned int, std::string> ResponseHandler::errorCodes =
 	{404, "Not Found"},
 	{405, "Method Not Allowed"},
 	{408, "Client Timeout"},
-	{409, "Conflict"},
-	{500, "Internal Server Error"}
+  {409, "Conflict"},
+	{411, "Length Required"},
+	{413, "Payload Too Large"},
+	{414, "URI Too Long"},
+	{431, "Request Header Fields Too Large"},
+	{500, "Internal Server Error"},
+	{501, "Not Implemented"},
+	{505, "HTTP Version Not Supported"}
 };
 
 /* Sets the appropriate request type enum */
@@ -345,7 +351,7 @@ void ResponseHandler::handleRequest(clientInfo *clientPTR)
 							checkFile(clientPTR);
 						else
 						{
-							setResponseCode(400);
+							setResponseCode(400); // 405?
 							openErrorResponseFile(clientPTR);
 						}
 						break ;

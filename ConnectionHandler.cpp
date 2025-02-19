@@ -42,7 +42,7 @@ int		ConnectionHandler::initServers(char *configFile)
 		}
 		catch(const std::exception& e)
 		{
-			std::cerr << "Error: Port is invalid" << '\n'; // start servers that have valid ports, stoi fails get discarded and user gets informed.
+			webservLog.webservLog(ERROR, "Error: Port is invalid", true); // start servers that have valid ports, stoi fails get discarded and user gets informed.
 			return -1;
 		}
 		
@@ -68,7 +68,8 @@ int		ConnectionHandler::initServerSocket(const unsigned int portNum, Configurati
 	
 	if (socketFd == -1)
 	{
-		std::cerr << RED << "\nsocket() failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		std::string errorString = std::strerror(errno);
+		webservLog.webservLog(ERROR, "socket() failed:" + errorString, true);
 		// Error handling...?
 		return (-1);
 	}
@@ -77,7 +78,8 @@ int		ConnectionHandler::initServerSocket(const unsigned int portNum, Configurati
 	int opt = 1;
 	if (setsockopt(socketFd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1)
 	{
-		std::cerr << RED << "\nsetsockopt() failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		std::string errorString = std::strerror(errno);
+		webservLog.webservLog(ERROR, "setsockopt() failed:" + errorString, true);
 		// Error handling...?
 		close(socketFd);
 		return (-1);
@@ -86,7 +88,8 @@ int		ConnectionHandler::initServerSocket(const unsigned int portNum, Configurati
 	// make socket non-blocking
 	if (fcntl(socketFd, F_SETFL, O_NONBLOCK) == -1)
 	{
-		std::cerr << RED << "\nfcntl() failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		std::string errorString = std::strerror(errno);
+		webservLog.webservLog(ERROR, "fcntl() failed:" + errorString, true);
 		// Error handling...?
 		close(socketFd);
 		return (-1);
@@ -100,7 +103,8 @@ int		ConnectionHandler::initServerSocket(const unsigned int portNum, Configurati
 
 	if (bind(socketFd, (sockaddr *)&serverAddress, sizeof(serverAddress)) == -1)
 	{
-		std::cerr << RED << "\nbind() failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		std::string errorString = std::strerror(errno);
+		webservLog.webservLog(ERROR, "bind() failed:" + errorString, true);
 		// Error handling...?
 		close(socketFd);
 		return (-1);
@@ -109,7 +113,8 @@ int		ConnectionHandler::initServerSocket(const unsigned int portNum, Configurati
 	// make socket ready to accept connections with listen()
 	if (listen(socketFd, 2) == -1) // how long should the queue be AND do I need to poll() before listen()...?
 	{
-		std::cerr << RED << "\nlisten() failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		std::string errorString = std::strerror(errno);
+		webservLog.webservLog(ERROR, "listen() failed:" + errorString, true);
 		// Error handling...?
 		close(socketFd);
 		return (1);
@@ -179,7 +184,8 @@ int		ConnectionHandler::startServers()
 				return (sigIntExit());
 			else
 			{
-				std::cerr << RED << "\npoll() failed:\n" << RESET << std::strerror(errno) << "\n\n";
+				std::string errorString = std::strerror(errno);
+				webservLog.webservLog(ERROR, "poll() failed:" + errorString, true);
 				// Error handling
 				return (-1); // should we quit the server...? Probably yea
 			}
@@ -206,7 +212,7 @@ void	ConnectionHandler::checkClientTimeOut()
 		client.curTime = std::chrono::high_resolution_clock::now();
 		if (client.curTime - client.startTime >= std::chrono::seconds(client.clientTimeOutLimit))
 		{
-			std::cerr << RED << "Client disconnected due to time out" << RESET << "\n";
+			webservLog.webservLog(ERROR, "Client disconnected due to time out", true);
 			if (client.respHandler != nullptr && client.respHandler->m_cgiHandler != nullptr)
 			{
 				pid_t cgiChildPid = client.respHandler->m_cgiHandler->getCgiChildPid();
@@ -232,7 +238,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 	clientInfo *clientPTR = getClientPTR(pollFdStuct.fd);
 	if (clientPTR == nullptr)
 	{
-		std::cerr << RED << "Client data could not be recieved; client not found for FD: " << pollFdStuct.fd << "\n" << RESET;
+		webservLog.webservLog(ERROR, "Client data could not be recieved; client not found for FD: " + std::to_string(pollFdStuct.fd), true);
 		return ;
 	}
 
@@ -769,7 +775,7 @@ int		ConnectionHandler::getBodyLength(clientInfo *clientPTR)
 
 	if (startIdx == std::string::npos)
 	{
-		std::cerr << RED << "\ngetBodyLength() failed:\n" << RESET << "Content-Length header was not found" << "\n\n";
+		webservLog.webservLog(ERROR, "getBodyLength() failed: Content-Length header was not found", true);
 		clientPTR->respHandler->setResponseCode(400); // is this ok?
 		clientPTR->respHandler->openErrorResponseFile(clientPTR);
 		addNewPollfd(clientPTR->errorFileFd);
@@ -780,7 +786,7 @@ int		ConnectionHandler::getBodyLength(clientInfo *clientPTR)
 	size_t endIdx = clientPTR->requestString.find("\r\n", startIdx);
 	if (endIdx == std::string::npos)
 	{
-		std::cerr << RED << "\ngetBodyLength() failed:\n" << RESET << "HTTP header format error" << "\n\n";
+		webservLog.webservLog(ERROR, "getBodyLength() failed: HTTP header format error", true);
 		clientPTR->respHandler->setResponseCode(400); // is this ok?
 		clientPTR->respHandler->openErrorResponseFile(clientPTR);
 		addNewPollfd(clientPTR->errorFileFd);
@@ -843,7 +849,8 @@ void	ConnectionHandler::writeUploadData(clientInfo *clientPTR)
 
 	if (write(clientPTR->uploadFileFd, binaryStr.c_str(), binaryStr.size()) == -1) // Is it ok to do the write in one call...?
 	{
-		std::cerr << RED << "\nwrite() in file upload failed\n" << RESET << std::strerror(errno) << "\n\n";
+		std::string errorString = std::strerror(errno);
+		webservLog.webservLog(ERROR, "write() in file upload failed " + errorString, true);
 		clientPTR->respHandler->setResponseCode(500); // check this later
 		clientPTR->respHandler->openErrorResponseFile(clientPTR);
 		addNewPollfd(clientPTR->errorFileFd);

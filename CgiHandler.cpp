@@ -201,7 +201,8 @@ int		CgiHandler::cgiChildProcess(clientInfo *clientPTR, std::vector<serverInfo> 
 
 	if (execve(m_pathToInterpreter.c_str(), m_argsForExecve, m_envArrExecve) == -1)
 	{
-		std::cerr << RED << "\nExecve() failed in CGI child process:\n" << RESET << std::strerror(errno) << "\n\n";
+		std::string errorString = strerror(errno);
+		webservLog.webservLog(ERROR, "Execve() failed in CGI child process:" + errorString, true);
 		closeAndDeleteClient(clientPTR);
 		return (-1);
 	}

@@ -54,7 +54,8 @@ const std::map<const unsigned int, std::string> ResponseHandler::errorCodes =
 	{403, "Forbidden"},
 	{404, "Not Found"},
 	{405, "Method Not Allowed"},
-	{408, "Client Timeout"}, // Is this ok...? -Panu
+	{408, "Client Timeout"},
+  {409, "Conflict"},
 	{411, "Length Required"},
 	{413, "Payload Too Large"},
 	{414, "URI Too Long"},
@@ -82,6 +83,7 @@ void ResponseHandler::setRequestType(clientInfo *clientPTR)
 	}
 }
 
+/* Identifies the data type of the request by extension so we can use the appropriate headers in our responses */
 void ResponseHandler::setExtension(clientInfo *clientPTR)
 {
 	std::string extension = clientPTR->parsedRequest.extension;
@@ -112,7 +114,6 @@ void ResponseHandler::buildRedirectResponse301(std::string webFilePath, clientIn
 	headers += "Connection: close";
 	headers += "\r\n\r\n";
 	clientPTR->responseString = headers;
-
 	clientPTR->status = SEND_RESPONSE;
 }
 
@@ -128,30 +129,30 @@ void ResponseHandler::buildRedirectResponse307(std::string webFilePath, clientIn
 	headers += "Connection: close";
 	headers += "\r\n\r\n";
 	clientPTR->responseString = headers;
-
 	clientPTR->status = SEND_RESPONSE;
 }
 
 /* Ensures we do not read from error pages without going through poll*/
 int ResponseHandler::openResponseFile(clientInfo *clientPTR, std::string filePath)
 {
-	setExtension(clientPTR); // is this a good place for this...?
+	setExtension(clientPTR);
 
 	clientPTR->responseFileFd = open(filePath.c_str(), O_RDONLY);
 	if (clientPTR->responseFileFd == -1)
 	{
-		std::cerr << RED << "\nopen() of response file failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		std::string errorString = std::strerror(errno);
+		webservLog.webservLog(ERROR, "open() of response file failed: " + errorString, true);
 		openErrorResponseFile(clientPTR);
 	}
 	else if (fcntl(clientPTR->responseFileFd, F_SETFL, O_NONBLOCK) == -1) // make file fd non-blocking
 	{
-		std::cerr << RED << "\nfcntl() failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		std::string errorString = std::strerror(errno);
+		webservLog.webservLog(ERROR, "fcntl() failed: " + errorString, true);
 		setResponseCode(500);
 		openErrorResponseFile(clientPTR);
 	}
 	else
 		clientPTR->status = BUILD_RESPONSE;
-
 	return (0);
 }
 
@@ -159,18 +160,20 @@ int ResponseHandler::openCgiPipes(clientInfo *clientPTR)
 {
 	if (pipe(clientPTR->pipeToCgi) == -1 || pipe(clientPTR->pipeFromCgi) == -1)
 	{
-		std::cerr << RED << "\npipe() in CGI failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		std::string errorString = std::strerror(errno);
+		webservLog.webservLog(ERROR, "pipe() in CGI failed: " + errorString, true);
 		setResponseCode(500);
 		openErrorResponseFile(clientPTR);
-		return (-1); // Might not be needed
+		return (-1);
 	}
 	else if (fcntl(clientPTR->pipeToCgi[1], F_SETFL, O_NONBLOCK) == -1
-	|| fcntl(clientPTR->pipeFromCgi[0], F_SETFL, O_NONBLOCK) == -1) // NOTE: We don't need to make the child process FDs non-blocking!
+	|| fcntl(clientPTR->pipeFromCgi[0], F_SETFL, O_NONBLOCK) == -1) 
 	{
-		std::cerr << RED << "\nfcntl() in CGI failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		std::string errorString = std::strerror(errno);
+		webservLog.webservLog(ERROR, "fcntl() in CGI failed: " + errorString, true);
 		setResponseCode(500);
 		openErrorResponseFile(clientPTR);
-		return (-1); // Might not be needed
+		return (-1);
 	}
 	else
 		clientPTR->status = EXECUTE_CGI;
@@ -186,7 +189,6 @@ void ResponseHandler::checkFile(clientInfo *clientPTR)
 	std::string defaultFilePath;
 	std::string webFilePath = filePath;
 	enum dirListStates dirListing {UNSET};
-
 	filePath = clientPTR->relatedServer->serverConfig->getRoot("/") + filePath;
   
 	if (std::filesystem::exists(filePath) && checkRightsOfDirectory(filePath, clientPTR) == false)
@@ -251,7 +253,6 @@ void ResponseHandler::checkFile(clientInfo *clientPTR)
 		
 		return ;
 	}
-
 	// If everything went well, we start to build a aappropriate response
 	openResponseFile(clientPTR, filePath);
 
@@ -272,10 +273,8 @@ bool ResponseHandler::checkRightsOfDirectory(std::string directoryPath, clientIn
 {
 	struct stat info;
 
-	// std::cout << "Before stat() call" << std::endl;
 	if (stat(directoryPath.c_str(), &info) == 0 && S_ISDIR(info.st_mode))
 	{
-		// std::cout << directoryPath << " is a directory" << std::endl;
 		if (!(info.st_mode & S_IRUSR) || !(info.st_mode & S_IWUSR) || !(info.st_mode & S_IXUSR))
 		{
 			setResponseCode(403);
@@ -316,16 +315,25 @@ bool ResponseHandler::checkRightsOfDirectory(std::string directoryPath, clientIn
 
 void ResponseHandler::handleRequest(clientInfo *clientPTR)
 {
+	std::string filePath = clientPTR->relatedServer->serverConfig->getRoot("/") + clientPTR->parsedRequest.filePath;
 	switch (requestType)
 	{
 		case GET:
 		{
 			requestTypeAsString = "GET";
-			if (checkRequestAllowed(clientPTR))
-				checkFile(clientPTR);
+			if (std::filesystem::exists(filePath))
+			{
+				if (checkRequestAllowed(clientPTR))
+					checkFile(clientPTR);
+				else
+				{
+					setResponseCode(405);
+					openErrorResponseFile(clientPTR);
+				}
+			}
 			else
 			{
-				setResponseCode(405);
+				setResponseCode(404);
 				openErrorResponseFile(clientPTR);
 			}
 			break;
@@ -333,28 +341,36 @@ void ResponseHandler::handleRequest(clientInfo *clientPTR)
 		case POST:
 		{
 			requestTypeAsString = "POST";
-			if (checkRequestAllowed(clientPTR))
+			if (std::filesystem::exists(filePath))
 			{
-				if (clientPTR->reqType != MULTIPART) // DO we have to handle other types of file uploads...?
+				if (checkRequestAllowed(clientPTR))
 				{
-					if (clientPTR->parsedRequest.cgiType != NONE) // check for CGI
-						checkFile(clientPTR);
-					else
+					if (clientPTR->reqType != MULTIPART)
 					{
-						setResponseCode(405); // Sort of a temp solution, what should we actually do if someone uses POST to do something else than CGI or File upload?
-						openErrorResponseFile(clientPTR); // NGINX does not allow POST requests to static files, 405 response is given.
+						if (clientPTR->parsedRequest.cgiType != NONE) // check for CGI
+							checkFile(clientPTR);
+						else
+						{
+							setResponseCode(400); // 405?
+							openErrorResponseFile(clientPTR);
+						}
+						break ;
 					}
+					if (checkForMultipartFileData(clientPTR))
+						prepareUploadFile(clientPTR);
+					else
+						openErrorResponseFile(clientPTR);
 					break ;
 				}
-				if (checkForMultipartFileData(clientPTR)) // Can you upload files some other way than using a HTML form...?
-					prepareUploadFile(clientPTR);
 				else
+				{
+					setResponseCode(405);
 					openErrorResponseFile(clientPTR);
-				break ;
+				}
 			}
 			else
 			{
-				setResponseCode(405);
+				setResponseCode(404);
 				openErrorResponseFile(clientPTR);
 			}
 			break ;
@@ -362,11 +378,19 @@ void ResponseHandler::handleRequest(clientInfo *clientPTR)
 		case DELETE:
 		{
 			requestTypeAsString = "DELETE";
-			if (checkRequestAllowed(clientPTR))
-				deleteHandler(clientPTR, clientPTR->parsedRequest.filePath);
+			if (std::filesystem::exists(filePath))
+			{
+				if (checkRequestAllowed(clientPTR))
+					deleteHandler(clientPTR, clientPTR->parsedRequest.filePath);
+				else
+				{
+					setResponseCode(405);
+					openErrorResponseFile(clientPTR);
+				}
+			}
 			else
 			{
-				setResponseCode(405);
+				setResponseCode(404);
 				openErrorResponseFile(clientPTR);
 			}
 			break ;
@@ -385,7 +409,7 @@ bool	ResponseHandler::checkForMultipartFileData(clientInfo *clientPTR)
 	size_t boundaryStartIdx = clientPTR->requestString.find(temp);
 	if (boundaryStartIdx == std::string::npos)
 	{
-		std::cerr << RED << "\ncheckForMultipartFileData() failed:\n" << RESET << "Boundary not found\n\n";
+		webservLog.webservLog(ERROR, "checkForMultipartFileData() failed: Boundary not found", true);
 		setResponseCode(400);
 		return false;
 	}
@@ -393,7 +417,7 @@ bool	ResponseHandler::checkForMultipartFileData(clientInfo *clientPTR)
 	size_t boundaryEndIdx = clientPTR->requestString.find("\r\n", boundaryStartIdx);
 	if (boundaryEndIdx == std::string::npos)
 	{
-		std::cerr << RED << "\ncheckForMultipartFileData() failed:\n" << RESET << "Boundary header has no ending\n\n";
+		webservLog.webservLog(ERROR, "checkForMultipartFileData() failed: Boundary header has no ending", true);
 		setResponseCode(400);
 		return false;
 	}
@@ -407,7 +431,7 @@ bool	ResponseHandler::checkForMultipartFileData(clientInfo *clientPTR)
 		startIdx = clientPTR->requestString.find(boundaryStr, startIdx);
 		if (startIdx == std::string::npos)
 		{
-			std::cerr << RED << "\ncheckForMultipartFileData() failed:\n" << RESET << "Boundary not found\n\n";
+			webservLog.webservLog(ERROR, "checkForMultipartFileData() failed: Boundary not found", true);
 			setResponseCode(400);
 			return false;
 		}
@@ -419,7 +443,7 @@ bool	ResponseHandler::checkForMultipartFileData(clientInfo *clientPTR)
 		size_t endIdx = clientPTR->requestString.find("\r\n", startIdx);
 		if (endIdx == std::string::npos)
 		{
-			std::cerr << RED << "\ncheckForMultipartFileData() failed:\n" << RESET << "Boundary line has no ending\n\n";
+			webservLog.webservLog(ERROR, "checkForMultipartFileData() failed: Boundary line has no ending", true);
 			setResponseCode(400);
 			return false;
 		}
@@ -440,13 +464,8 @@ bool	ResponseHandler::checkForMultipartFileData(clientInfo *clientPTR)
 			std::string	uploadDirPath;
 			if (clientPTR->relatedServer->serverConfig->isUploadDirSet(clientPTR->parsedRequest.filePath) == true)
 			{
-				// std::cout << "Upload file specified: " << clientPTR->relatedServer->serverConfig->getUploadDir(clientPTR->parsedRequest.filePath) << std::endl;
-				// std::cout << "FilePath: " << clientPTR->parsedRequest.filePath << std::endl;
-
 				uploadDirPath = clientPTR->relatedServer->serverConfig->getUploadDir(clientPTR->parsedRequest.filePath);
 				struct stat info;
-
-				// std::cout << "Before stat() call" << std::endl;
 				if (stat(uploadDirPath.c_str(), &info) == 0 && S_ISDIR(info.st_mode))
 				{
 					if (!(info.st_mode & S_IRUSR) || !(info.st_mode & S_IWUSR)
@@ -467,7 +486,7 @@ bool	ResponseHandler::checkForMultipartFileData(clientInfo *clientPTR)
 		}
 	}
 
-	std::cerr << RED << "\ncheckForMultipartFileData() failed:\n" << RESET << "No files found in the form upload request body\n\n";
+	webservLog.webservLog(ERROR, "checkForMultipartFileData() failed: No files found in the form upload request body", true);
 	setResponseCode(400);
 	return (false);
 }
@@ -476,19 +495,17 @@ void	ResponseHandler::prepareUploadFile(clientInfo *clientPTR)
 {
 	if (std::filesystem::exists(clientPTR->uploadFileName))
 	{
-		std::cerr << RED << "\nFile upload failed:\n" << RESET << "File with the same name already exists.\n\n";
-		setResponseCode(400); // is this ok...?
+		webservLog.webservLog(ERROR, "File upload failed: File with the same name already exists.", true);
+		setResponseCode(409);
 		openErrorResponseFile(clientPTR);
 		return ;
 	}
-
-	//	checkExtension(filePath);  --> Is this needed here...?! Has been commented out for a long time -Panu
-
 	clientPTR->uploadFileFd = open(clientPTR->uploadFileName.c_str(), O_RDWR | O_CREAT, 0644);
 	if (clientPTR->uploadFileFd == -1)
 	{
-		std::cerr << RED << "\nopen() of upload file failed:\n" << RESET << std::strerror(errno) << "\n\n";
-		if (errno == 13) // bad permissions --> is this possible in theory?
+		std::string errorString = std::strerror(errno);
+		webservLog.webservLog(ERROR, "open() of upload file failed: " + errorString, true);
+		if (errno == 13) // bad permissions
 			setResponseCode(403);
 		else
 			setResponseCode(500);
@@ -496,7 +513,8 @@ void	ResponseHandler::prepareUploadFile(clientInfo *clientPTR)
 	}
 	else if (fcntl(clientPTR->uploadFileFd, F_SETFL, O_NONBLOCK) == -1) // make file fd non-blocking
 	{
-		std::cerr << RED << "\nfcntl() failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		std::string errorString = std::strerror(errno);
+		webservLog.webservLog(ERROR, "fcntl() failed: " + errorString, true);
 		setResponseCode(500);
 		openErrorResponseFile(clientPTR);
 	}
@@ -522,7 +540,7 @@ void ResponseHandler::deleteHandler(clientInfo *clientPTR, std::string filePath)
 			}
 			catch(std::exception& e)
 			{
-				std::cerr << "Attempt to remove " << serverLocalPath << " failed: " << e.what() << std::endl;
+				webservLog.webservLog(ERROR, "Attempt to remove " + serverLocalPath + " failed: " + e.what(), true);
 			}
 		}
 		else
@@ -536,7 +554,7 @@ void ResponseHandler::deleteHandler(clientInfo *clientPTR, std::string filePath)
 		if (std::filesystem::exists(serverLocalPath))
 		{
 			auto perms = std::filesystem::status(serverLocalPath).permissions();
-			if ((perms & std::filesystem::perms::owner_write) != std::filesystem::perms::none) // Why were these originally group_write...? I'm testing owner_write for now -Panu
+			if ((perms & std::filesystem::perms::owner_write) != std::filesystem::perms::none)
 			{
 				try{
 					std::filesystem::remove(serverLocalPath);
@@ -580,7 +598,7 @@ int ResponseHandler::buildResponse(clientInfo *clientPTR)
 	if (clientPTR->responseFileFd == -1)
 	{
 		webservLog.webservLog(ERROR, "BuildResponse called before response file was opened", true);
-		return (-1); // Check this later
+		return (-1);
 	}
 
 	char 	buffer[100024];
@@ -592,7 +610,7 @@ int ResponseHandler::buildResponse(clientInfo *clientPTR)
 	{
 		std::string errorInfo = std::strerror(errno);
 		webservLog.webservLog(ERROR, "read() of response page file failed: " + errorInfo, true);
-		setResponseCode(500); // is this ok?
+		setResponseCode(500);
 		openErrorResponseFile(clientPTR);
 		return (-1);
 	}
@@ -636,6 +654,7 @@ void ResponseHandler::setResponseCode(unsigned int code)
 	responseCode = code;
 }
 
+/* Builds successful upload HTTP response */
 void ResponseHandler::build201Response(clientInfo *clientPTR, std::string webPathToFile)
 {
 	std::string headers;
@@ -672,7 +691,6 @@ void ResponseHandler::build500Response(clientInfo *clientPTR)
 	clientPTR->responseString = headers + content;
 	webservLog.webservLog(INFO, "responseString: " + clientPTR->responseString, false);
 }
-
 
 bool ResponseHandler::isValidErrorFile(std::string &errorFileName)
 {
@@ -732,8 +750,6 @@ void ResponseHandler::buildErrorResponse(clientInfo *clientPTR)
 {
 	if (clientPTR->errorFileFd == -1)
 		webservLog.webservLog(ERROR, "buildErrorResponse called before error file was opened", true);
-	//need to update this based on config file path to error pages
-	//tested with this and it works. now just fetch this from the configuration data. --- Patrik
 
 	char 	buffer[100024];
 	int		bytesRead;
@@ -742,7 +758,8 @@ void ResponseHandler::buildErrorResponse(clientInfo *clientPTR)
 	bytesRead = read(clientPTR->errorFileFd, buffer, readPerCall);
 	if (bytesRead == -1)
 	{
-		std::cerr << RED << "\nread() of error page file failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		std::string errorString = std::strerror(errno);
+		webservLog.webservLog(ERROR, "read() of error page file failed: " + errorString, true);
 		setResponseCode(500);
 		openErrorResponseFile(clientPTR);
 		return ;
@@ -775,7 +792,6 @@ void	ResponseHandler::buildDirListingResponse(const std::string& pathForDirToLis
 	content += " <h1>In directory with path: " + pathForDirToList + "</h1>\n";
 	content += "<ul>\n";
 
-	// is filesystem considered a "reading operation"...? Do we need to go through poll() before that?
 	for(const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(pathForDirToList))
 	{
 		std::string href = entry.path().filename().string();

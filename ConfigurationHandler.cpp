@@ -14,9 +14,12 @@
 /* *************************************************************************** */
 
 #include "ConfigurationHandler.hpp"
+#include "ConnectionHandler.hpp"
 #include "Logger.hpp"
 #include <fcntl.h>
 #include <iostream>
+#include <set>
+#include <iterator>
 
 /*
 PRINT SETTINGS
@@ -106,7 +109,7 @@ void	ConfigurationHandler::defaultSettings()
 	m_globalDirListing = FALSE;
 	m_globalCgiPathPHP = G_CGI_PATH_PHP;
 	m_globalCgiPathPython = G_CGI_PATH_PYTHON;
-	printSettings(); //remove before end -- Patrik
+	// printSettings(); //remove before end -- Patrik
 }
 
 bool	ConfigurationHandler::checkLocationBlocksRoot(locationBlock &block)
@@ -208,7 +211,7 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : 
 	std::regex	locationRegex(R"(^\s*location\s+([^\s]+)\s*\s*$)");
 	std::regex	rootRegex(R"(^\s*root\s+/?([^/][^;]*[^/])?/?\s*;\s*$)");
 	std::regex	returnRegex(R"(^\s*return\s+(307)\s+([\S]+)\s*;\s*$)");
-	std::regex	methodsRegex(R"(^\s*methods\s+([^\s;]+(?:\s+[^\s;]+)*)\s*;\s*$)"); // could restrict GET|POST|DELETE as the valid ones
+	std::regex	methodsRegex(R"(^\s*methods\s+([^\s;]+(?:\s+[^\s;]+)*)\s*;\s*$)");
 	std::regex	uploadDirRegex(R"(^\s*upload_dir\s+(home/[\S]+/)\s*;\s*$)");
 	std::regex	dirListingRegex(R"(^\s*dir_listing\s+(on|off)\s*;\s*$)");
 	std::regex	cgiPathRegexPHP(R"(^\s*cgi_path_php\s+(\/[^/][^;]*[^/])?/?\s*;\s*$)");
@@ -242,7 +245,6 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : 
 			m_index = match[1];
 		else if (regex_search(*iter, match, locationRegex) == true)
 		{
-			// std::cout << "Processing line: " << *iter << std::endl;
 			int openBraces = 0;
 			locationBlock loc;
 			std::string key = match[1];
@@ -252,7 +254,6 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : 
 				openBraces++;
 				while (openBraces == 1 && iter != m_rawBlock.end())
 				{
-					// std::cout << "Processing line: " << *iter << std::endl;
 					if (std::regex_search(*iter, match, locationRegex) == true)
 					{
 						openBraces = 0;
@@ -288,7 +289,6 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : 
 					if (iter->find('{') != std::string::npos)
 						openBraces++;
 				}
-				// std::cout << *iter << std::endl;
 				if (openBraces == 0)
 				{
 					if (checkLocationBlocksRoot(loc) == false)
@@ -303,11 +303,14 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : 
 				}
 			}
 		}
-		// std::cout << "Processing line: " << *iter << std::endl;
 	}
 	if (requiredSettings() == false)
-		throw std::runtime_error("Required settings not present");
-	printSettings(); //remove before the end of the project -- Patrik // std:::optional
+	{
+		webservLog.webservLog(WARNING, "Required settings error", true);
+		m_errorStatus = 1;
+	}
+	else
+		printSettings(); //remove before the end of the project -- Patrik // std:::optional
 }
 /*
 VALIDATION FOR IF CERTAIN SPECIFICATIONS ARE SET
@@ -380,6 +383,11 @@ uint	ConfigurationHandler::getMCBSize() const
 std::string	ConfigurationHandler::getNames() const
 {
 	return m_names;
+}
+
+int	ConfigurationHandler::getErrorStatus() const
+{
+	return m_errorStatus;
 }
 
 std::string	ConfigurationHandler::getInheritedMethods(std::string key) const
@@ -651,12 +659,16 @@ void	readFile(const std::string &fileName, std::vector<std::string> &rawFile)
 EXTRACTING EACH SERVER BLOCK
 */
 
-void	extractServerBlocks(std::map<std::string, ConfigurationHandler> &servers, std::vector<std::string> &rawFile)
+void	extractServerBlocks(std::multimap<std::string, ConfigurationHandler> &servers, std::vector<std::string> &rawFile)
 {
 	webservLog.webservLog(INFO, "Extracting server blocks from Configuration file", false);
-	std::string	port;
-	int	openBraces = 0;
+
+	std::string					port;
+	int							openBraces = 0;
+	bool						duplicateIP = false;
 	std::vector<std::string>	temp;
+	std::set<std::string>		ipAddresses;
+
 	for (std::vector<std::string>::iterator iter = rawFile.begin(); iter != rawFile.end(); iter++)
 	{
 		std::smatch	match;
@@ -667,6 +679,15 @@ void	extractServerBlocks(std::map<std::string, ConfigurationHandler> &servers, s
 		}
 		if (regex_search(*iter, match, std::regex(R"(^listen\s+(\d+)\s*;\s*$)")) == true)
 			port = match[1];
+		if (regex_search(*iter, match, std::regex(R"(^\s*host\s+([^\s]+)\s*;\s*$)")) == true)
+		{
+			auto dupIpCheck = ipAddresses.insert(match[1]);
+			if (dupIpCheck.second == false)
+			{
+				webservLog.webservLog(WARNING, "Duplicate IP address found, discarding duplicate server block", true);
+				duplicateIP = true;
+			}
+		}
 		if (iter->find('{') != std::string::npos)
 			openBraces++;
 		if (iter->find('}') != std::string::npos)
@@ -674,14 +695,16 @@ void	extractServerBlocks(std::map<std::string, ConfigurationHandler> &servers, s
 		if (openBraces == 0)
 		{
 			temp.push_back(*iter);
-			auto dup = servers.emplace(port, ConfigurationHandler(temp));
-			if (dup.second == false)
-				webservLog.webservLog(WARNING, "Duplicate port detected, running valid ones" , true);
-				// throw std::runtime_error("Duplicate port found");
-			if (servers.size() > 5)
-				throw std::runtime_error("Configuration file is too big"); // figure out later - now when this is in its own try catch. we would need to limit it somehow
+			if (duplicateIP == false)
+				servers.emplace(port, ConfigurationHandler(temp));
+			auto last = std::prev(servers.end());
+			if (last->second.getErrorStatus() == 1)
+				servers.erase(last);
+			// if (servers.size() > 5)
+			// 	throw std::runtime_error("Configuration file is too big"); // figure out later - now when this is in its own try catch. we would need to limit it somehow
 			temp.clear();
 			port.clear();
+			duplicateIP = false;
 		}
 		if (!temp.empty())
 			temp.push_back(*iter);

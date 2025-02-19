@@ -62,6 +62,7 @@ class ConfigurationHandler
 		unsigned int 							m_maxClientBodySize;	// max client body size
 		std::map<std::string, locationBlock>	m_routes;				// root of that location as key & struct for each block info
 		std::map<int, std::string>				m_errorPages;			// Custom error pages and their location, error code as key
+		int										m_errorStatus = 0;		// If required settings are faulty, we discard that block
 
 		ConfigurationHandler();
 
@@ -81,17 +82,16 @@ class ConfigurationHandler
 		std::string				getInheritedCgiPathPHP(std::string) const;
 		std::string				getInheritedCgiPathPython(std::string) const;
 		std::string				getRoot(std::string) const;
-
 		int						getRedirectStatusCode(std::string) const;
 		std::string				getRedirectLocation(std::string) const;
 		std::string				getUploadDir(std::string) const;
-
 		std::string				getMethods(std::string) const;
 		enum dirListStates		getDirListing(std::string) const;
 		std::string				getCgiPathPHP(std::string) const;
 		std::string				getCgiPathPython(std::string) const;
 		std::string				getErrorPages(unsigned int) const;
 		std::string				getDefaultErrorPages(unsigned int) const;
+		int						getErrorStatus() const;
 
 		bool					checkLocationBlocksRoot(locationBlock &);
 		bool					requiredSettings();
@@ -105,6 +105,6 @@ class ConfigurationHandler
 
 std::string	fileNameCheck(char *);
 void		readFile(const std::string&, std::vector<std::string>&);
-void		extractServerBlocks(std::map<std::string, ConfigurationHandler>&, std::vector<std::string>&);
+void		extractServerBlocks(std::multimap<std::string, ConfigurationHandler>&, std::vector<std::string>&);
 
 #endif

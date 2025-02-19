@@ -37,7 +37,7 @@ class ConnectionHandler
 
 	private:
 	
-	std::map<std::string, ConfigurationHandler>	m_configMap;
+	std::multimap<std::string, ConfigurationHandler>	m_configMap;
 
 	std::vector<serverInfo>	m_serverVec;
 	std::vector<clientInfo>	m_clientVec;

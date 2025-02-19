@@ -134,12 +134,14 @@ int ResponseHandler::openResponseFile(clientInfo *clientPTR, std::string filePat
 	clientPTR->responseFileFd = open(filePath.c_str(), O_RDONLY);
 	if (clientPTR->responseFileFd == -1)
 	{
-		std::cerr << RED << "\nopen() of response file failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		std::string errorString = std::strerror(errno);
+		webservLog.webservLog(ERROR, "open() of response file failed: " + errorString, true);
 		openErrorResponseFile(clientPTR);
 	}
 	else if (fcntl(clientPTR->responseFileFd, F_SETFL, O_NONBLOCK) == -1) // make file fd non-blocking
 	{
-		std::cerr << RED << "\nfcntl() failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		std::string errorString = std::strerror(errno);
+		webservLog.webservLog(ERROR, "fcntl() failed: " + errorString, true);
 		setResponseCode(500);
 		openErrorResponseFile(clientPTR);
 	}
@@ -153,7 +155,8 @@ int ResponseHandler::openCgiPipes(clientInfo *clientPTR)
 {
 	if (pipe(clientPTR->pipeToCgi) == -1 || pipe(clientPTR->pipeFromCgi) == -1)
 	{
-		std::cerr << RED << "\npipe() in CGI failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		std::string errorString = std::strerror(errno);
+		webservLog.webservLog(ERROR, "pipe() in CGI failed: " + errorString, true);
 		setResponseCode(500);
 		openErrorResponseFile(clientPTR);
 		return (-1); // Might not be needed
@@ -161,7 +164,8 @@ int ResponseHandler::openCgiPipes(clientInfo *clientPTR)
 	else if (fcntl(clientPTR->pipeToCgi[1], F_SETFL, O_NONBLOCK) == -1
 	|| fcntl(clientPTR->pipeFromCgi[0], F_SETFL, O_NONBLOCK) == -1) // NOTE: We don't need to make the child process FDs non-blocking!
 	{
-		std::cerr << RED << "\nfcntl() in CGI failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		std::string errorString = std::strerror(errno);
+		webservLog.webservLog(ERROR, "fcntl() in CGI failed: " + errorString, true);
 		setResponseCode(500);
 		openErrorResponseFile(clientPTR);
 		return (-1); // Might not be needed
@@ -404,7 +408,7 @@ bool	ResponseHandler::checkForMultipartFileData(clientInfo *clientPTR)
 	size_t boundaryStartIdx = clientPTR->requestString.find(temp);
 	if (boundaryStartIdx == std::string::npos)
 	{
-		std::cerr << RED << "\ncheckForMultipartFileData() failed:\n" << RESET << "Boundary not found\n\n";
+		webservLog.webservLog(ERROR, "checkForMultipartFileData() failed: Boundary not found", true);
 		setResponseCode(400);
 		return false;
 	}
@@ -412,7 +416,7 @@ bool	ResponseHandler::checkForMultipartFileData(clientInfo *clientPTR)
 	size_t boundaryEndIdx = clientPTR->requestString.find("\r\n", boundaryStartIdx);
 	if (boundaryEndIdx == std::string::npos)
 	{
-		std::cerr << RED << "\ncheckForMultipartFileData() failed:\n" << RESET << "Boundary header has no ending\n\n";
+		webservLog.webservLog(ERROR, "checkForMultipartFileData() failed: Boundary header has no ending", true);
 		setResponseCode(400);
 		return false;
 	}
@@ -426,7 +430,7 @@ bool	ResponseHandler::checkForMultipartFileData(clientInfo *clientPTR)
 		startIdx = clientPTR->requestString.find(boundaryStr, startIdx);
 		if (startIdx == std::string::npos)
 		{
-			std::cerr << RED << "\ncheckForMultipartFileData() failed:\n" << RESET << "Boundary not found\n\n";
+			webservLog.webservLog(ERROR, "checkForMultipartFileData() failed: Boundary not found", true);
 			setResponseCode(400);
 			return false;
 		}
@@ -438,7 +442,7 @@ bool	ResponseHandler::checkForMultipartFileData(clientInfo *clientPTR)
 		size_t endIdx = clientPTR->requestString.find("\r\n", startIdx);
 		if (endIdx == std::string::npos)
 		{
-			std::cerr << RED << "\ncheckForMultipartFileData() failed:\n" << RESET << "Boundary line has no ending\n\n";
+			webservLog.webservLog(ERROR, "checkForMultipartFileData() failed: Boundary line has no ending", true);
 			setResponseCode(400);
 			return false;
 		}
@@ -486,7 +490,7 @@ bool	ResponseHandler::checkForMultipartFileData(clientInfo *clientPTR)
 		}
 	}
 
-	std::cerr << RED << "\ncheckForMultipartFileData() failed:\n" << RESET << "No files found in the form upload request body\n\n";
+	webservLog.webservLog(ERROR, "checkForMultipartFileData() failed: No files found in the form upload request body", true);
 	setResponseCode(400);
 	return (false);
 }
@@ -495,7 +499,7 @@ void	ResponseHandler::prepareUploadFile(clientInfo *clientPTR)
 {
 	if (std::filesystem::exists(clientPTR->uploadFileName))
 	{
-		std::cerr << RED << "\nFile upload failed:\n" << RESET << "File with the same name already exists.\n\n";
+		webservLog.webservLog(ERROR, "File upload failed: File with the same name already exists.", true);
 		setResponseCode(400); // is this ok...?
 		openErrorResponseFile(clientPTR);
 		return ;
@@ -506,7 +510,8 @@ void	ResponseHandler::prepareUploadFile(clientInfo *clientPTR)
 	clientPTR->uploadFileFd = open(clientPTR->uploadFileName.c_str(), O_RDWR | O_CREAT, 0644);
 	if (clientPTR->uploadFileFd == -1)
 	{
-		std::cerr << RED << "\nopen() of upload file failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		std::string errorString = std::strerror(errno);
+		webservLog.webservLog(ERROR, "open() of upload file failed: " + errorString, true);
 		if (errno == 13) // bad permissions --> is this possible in theory?
 			setResponseCode(403);
 		else
@@ -515,7 +520,8 @@ void	ResponseHandler::prepareUploadFile(clientInfo *clientPTR)
 	}
 	else if (fcntl(clientPTR->uploadFileFd, F_SETFL, O_NONBLOCK) == -1) // make file fd non-blocking
 	{
-		std::cerr << RED << "\nfcntl() failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		std::string errorString = std::strerror(errno);
+		webservLog.webservLog(ERROR, "fcntl() failed: " + errorString, true);
 		setResponseCode(500);
 		openErrorResponseFile(clientPTR);
 	}
@@ -541,7 +547,7 @@ void ResponseHandler::deleteHandler(clientInfo *clientPTR, std::string filePath)
 			}
 			catch(std::exception& e)
 			{
-				std::cerr << "Attempt to remove " << serverLocalPath << " failed: " << e.what() << std::endl;
+				webservLog.webservLog(ERROR, "Attempt to remove " + serverLocalPath + " failed: " + e.what(), true);
 			}
 		}
 		else
@@ -761,7 +767,8 @@ void ResponseHandler::buildErrorResponse(clientInfo *clientPTR)
 	bytesRead = read(clientPTR->errorFileFd, buffer, readPerCall);
 	if (bytesRead == -1)
 	{
-		std::cerr << RED << "\nread() of error page file failed:\n" << RESET << std::strerror(errno) << "\n\n";
+		std::string errorString = std::strerror(errno);
+		webservLog.webservLog(ERROR, "read() of error page file failed: " + errorString, true);
 		setResponseCode(500);
 		openErrorResponseFile(clientPTR);
 		return ;

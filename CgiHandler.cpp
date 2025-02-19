@@ -16,9 +16,9 @@ CgiHandler::CgiHandler(clientInfo *clientPTR)
 	CgiTypes 	type = clientPTR->parsedRequest.cgiType;
 
 	if (type == PHP)
-		m_pathToInterpreter = clientPTR->relatedServer->serverConfig->getCgiPathPHP(clientPTR->parsedRequest.filePath) + "/php-cgi"; // NOTE: These might be in different locations with each other
+		m_pathToInterpreter = clientPTR->relatedServer->serverConfig->getCgiPathPHP(clientPTR->parsedRequest.filePath) + "/php-cgi";
 	else if (type == PYTHON)
-		m_pathToInterpreter = clientPTR->relatedServer->serverConfig->getCgiPathPython(clientPTR->parsedRequest.filePath) + "/python3"; // NOTE: These might be in different locations with each other
+		m_pathToInterpreter = clientPTR->relatedServer->serverConfig->getCgiPathPython(clientPTR->parsedRequest.filePath) + "/python3";
 
 	std::string currentDir = std::filesystem::current_path();
 	std::string root = clientPTR->relatedServer->serverConfig->getRoot("/");
@@ -31,8 +31,8 @@ CgiHandler::CgiHandler(clientInfo *clientPTR)
 
 void	CgiHandler::setExecveArgs()
 {
-	m_argsForExecve[0] = (char * )m_pathToInterpreter.c_str(); // check the casting later
-	m_argsForExecve[1] = (char * )m_pathToScript.c_str(); // check the casting later
+	m_argsForExecve[0] = (char * )m_pathToInterpreter.c_str();
+	m_argsForExecve[1] = (char * )m_pathToScript.c_str();
 	m_argsForExecve[2] = NULL;
 }
 
@@ -49,19 +49,19 @@ void	CgiHandler::setExecveEnvArr(clientInfo *clientPTR)
 	m_queryStr = "QUERY_STRING=" + clientPTR->parsedRequest.queryString;
 	m_pathInfo = "PATH_INFO=" + m_pathToScript;
 	m_requestMethod = "REQUEST_METHOD=" + clientPTR->parsedRequest.method;
-	m_scriptFileName = "SCRIPT_FILENAME=" + m_pathToScript.substr(m_pathToScript.find_last_of('/') + 1); // is this wrong...?
+	m_scriptFileName = "SCRIPT_FILENAME=" + m_pathToScript.substr(m_pathToScript.find_last_of('/') + 1);
 	m_scriptName = "SCRIPT_NAME=" + clientPTR->relatedServer->serverConfig->getRoot("/") + clientPTR->parsedRequest.filePath;
 	m_redirectStatus = "REDIRECT_STATUS=200";
 	m_serverProtocol = "SERVER_PROTOCOL=HTTP/1.1";
 	m_gatewayInterface = "GATEWAY_INTERFACE=CGI/1.1";
-	m_remote_addr = "REMOTE_ADDR=127.0.0.1"; // change later
-	m_serverName = "SERVER_NAME=local_host"; // change later
-	m_serverPort = "SERVER_PORT=" + clientPTR->relatedServer->serverConfig->getPort(); // check this later
+	m_remote_addr = "REMOTE_ADDR=" + clientPTR->relatedServer->serverConfig->getHost();
+	m_serverName = "SERVER_NAME=" + clientPTR->relatedServer->serverConfig->getNames();
+	m_serverPort = "SERVER_PORT=" + clientPTR->relatedServer->serverConfig->getPort();
 
 	// Make strings compatible with execve
-	m_envArrExecve[0] = (char *) m_contenLen.c_str(); // check the casting later
-	m_envArrExecve[1] = (char *) m_contenType.c_str(); // check the casting later
-	m_envArrExecve[2] = (char *) m_queryStr.c_str(); // check the casting later
+	m_envArrExecve[0] = (char *) m_contenLen.c_str();
+	m_envArrExecve[1] = (char *) m_contenType.c_str();
+	m_envArrExecve[2] = (char *) m_queryStr.c_str();
 	m_envArrExecve[3] = (char *) m_serverProtocol.c_str();
 	m_envArrExecve[4] = (char *) m_gatewayInterface.c_str();
 	m_envArrExecve[5] = (char *) m_pathInfo.c_str();
@@ -90,26 +90,23 @@ int	CgiHandler::executeCgi(clientInfo *clientPTR, std::vector<serverInfo> &serve
 	{
 		m_childProcRunning = true;
 
-		//std::cout << RED << "Client FD in parent before:\n" << RESET << clientPTR->clientFd << "\n";
-
 		m_childProcPid = fork();
 		if (m_childProcPid == -1)
 			return (errorExit(clientPTR, "Fork() failed: ", false));
 
 		if (m_childProcPid == 0)
 		{
-			//std::cout << RED << "Client FD in child:\n" << RESET << clientPTR->clientFd << "\n";
 			return (cgiChildProcess(clientPTR, serverVec, clientVec));
 		}
 		else
 		{
 			// In parent/main process
 
-			close(clientPTR->pipeFromCgi[1]); // Do we need to check close() return value here...?
+			close(clientPTR->pipeFromCgi[1]);
 			close(clientPTR->pipeToCgi[0]);
 
 			if (clientPTR->bytesToWriteInCgi == 0 && clientPTR->pipeToCgi[1] != -1)
-				close(clientPTR->pipeToCgi[1]); // Do we need to check close() return value here...?
+				close(clientPTR->pipeToCgi[1]);
 
 			return (checkWaitStatus(clientPTR));
 		}
@@ -117,7 +114,7 @@ int	CgiHandler::executeCgi(clientInfo *clientPTR, std::vector<serverInfo> &serve
 	else
 	{
 		if (clientPTR->bytesToWriteInCgi == 0 && clientPTR->pipeToCgi[1] != -1) 
-			close(clientPTR->pipeToCgi[1]); // Do we need to check close() return value here...?
+			close(clientPTR->pipeToCgi[1]);
 		return (checkWaitStatus(clientPTR));
 	}
 }
@@ -144,7 +141,7 @@ int		CgiHandler::writeToCgiPipe(clientInfo *clientPTR)
 	}
 	else if (clientPTR->parsedRequest.method == "GET")
 	{
-		clientPTR->respHandler->m_cgiHandler->setPipeToCgiReadReady(); // this makes no sence, right..? I'm accessing CGIhandler within CGIhandler :D
+		clientPTR->respHandler->m_cgiHandler->setPipeToCgiReadReady();
 		clientPTR->bytesToWriteInCgi = 0;
 	}
 	return (0);
@@ -175,10 +172,8 @@ int		CgiHandler::cgiChildProcess(clientInfo *clientPTR, std::vector<serverInfo> 
 	int			len = m_pathToScript.length() - (m_pathToScript.length() - index);
 	std::string scriptDirectoryPath = m_pathToScript.substr(0, len);
 
-	//std::cout << RED << "Client FD in child after function call:\n" << RESET << clientPTR->clientFd << "\n\n";
-
 	if (close(clientPTR->pipeFromCgi[0]) == -1 || close(clientPTR->pipeToCgi[1]) == -1)
-		return (errorExit(clientPTR, "Close() failed in CGI child process: ", true)); // is this needed...?
+		return (errorExit(clientPTR, "Close() failed in CGI child process: ", true));
 
 	if (chdir(scriptDirectoryPath.c_str()) == -1)
 		return (errorExit(clientPTR, "Chdir() failed in CGI child process: ", true));
@@ -187,22 +182,14 @@ int		CgiHandler::cgiChildProcess(clientInfo *clientPTR, std::vector<serverInfo> 
 		return (errorExit(clientPTR, "Dup2() failed in CGI child process: ", true));
 
 	if (close(clientPTR->pipeFromCgi[1]) == -1 || close(clientPTR->pipeToCgi[0]) == -1)
-		return (errorExit(clientPTR, "Close() failed in CGI child process: ", true)); // is this needed...?
+		return (errorExit(clientPTR, "Close() failed in CGI child process: ", true));
 
-	/*
-		PROBLEM:
-
-		- We need to close Logger stream before entering execve (otherwise Valgrind will complain about FD leak)
-		- If we do that, we can't error log the possible Execve failure.
-		- Is this ok...?
-	*/
 	webservLog.closeLogFileStream();
 	closeExtraFD(clientPTR, serverVec, clientVec);
 
 	if (execve(m_pathToInterpreter.c_str(), m_argsForExecve, m_envArrExecve) == -1)
 	{
-		std::string errorString = strerror(errno);
-		webservLog.webservLog(ERROR, "Execve() failed in CGI child process:" + errorString, true);
+		std::cerr << RED << "\nExecve() failed in CGI child process:\n" << RESET << std::strerror(errno) << "\n\n"; // this can't user Logger!!
 		closeAndDeleteClient(clientPTR);
 		return (-1);
 	}

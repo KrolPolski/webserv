@@ -74,7 +74,7 @@ struct clientInfo
 	int			uploadFileFd = -1;
 
 	
-	clientInfo(int clientFd, const serverInfo *server) : relatedServer(server), clientFd(clientFd)
+	clientInfo(int clientFd) : clientFd(clientFd)
 	{
 		startTime = std::chrono::high_resolution_clock::now();
 		respHandler = new ResponseHandler; // get's deleted in the client cleanup

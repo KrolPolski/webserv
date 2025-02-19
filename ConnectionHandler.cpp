@@ -47,11 +47,12 @@ int		ConnectionHandler::initServers(char *configFile)
 		}
 		
 		int socketfd = initServerSocket(portNum, iter->second);
-		if (socketfd == -1)
-			return (-1);
 		
-		m_serverVec.push_back({socketfd, &iter->second});
-		addNewPollfd(socketfd);
+		if (socketfd != -1)
+		{
+			m_serverVec.push_back({socketfd, &iter->second});
+			addNewPollfd(socketfd);
+		}
 	}
 	if (m_configMap.size() == 0)
 		return -1;
@@ -70,7 +71,6 @@ int		ConnectionHandler::initServerSocket(const unsigned int portNum, Configurati
 	{
 		std::string errorString = std::strerror(errno);
 		webservLog.webservLog(ERROR, "socket() failed:" + errorString, true);
-		// Error handling...?
 		return (-1);
 	}
 
@@ -80,7 +80,6 @@ int		ConnectionHandler::initServerSocket(const unsigned int portNum, Configurati
 	{
 		std::string errorString = std::strerror(errno);
 		webservLog.webservLog(ERROR, "setsockopt() failed:" + errorString, true);
-		// Error handling...?
 		close(socketFd);
 		return (-1);
 	}
@@ -90,7 +89,6 @@ int		ConnectionHandler::initServerSocket(const unsigned int portNum, Configurati
 	{
 		std::string errorString = std::strerror(errno);
 		webservLog.webservLog(ERROR, "fcntl() failed:" + errorString, true);
-		// Error handling...?
 		close(socketFd);
 		return (-1);
 	}
@@ -105,19 +103,17 @@ int		ConnectionHandler::initServerSocket(const unsigned int portNum, Configurati
 	{
 		std::string errorString = std::strerror(errno);
 		webservLog.webservLog(ERROR, "bind() failed:" + errorString, true);
-		// Error handling...?
 		close(socketFd);
 		return (-1);
 	}
 
 	// make socket ready to accept connections with listen()
-	if (listen(socketFd, 2) == -1) // how long should the queue be AND do I need to poll() before listen()...?
+	if (listen(socketFd, 20) == -1)
 	{
 		std::string errorString = std::strerror(errno);
 		webservLog.webservLog(ERROR, "listen() failed:" + errorString, true);
-		// Error handling...?
 		close(socketFd);
-		return (1);
+		return (-1);
 	}
 
 	return (socketFd);
@@ -186,15 +182,18 @@ int		ConnectionHandler::startServers()
 			{
 				std::string errorString = std::strerror(errno);
 				webservLog.webservLog(ERROR, "poll() failed:" + errorString, true);
-				// Error handling
-				return (-1); // should we quit the server...? Probably yea
+        for (auto &obj : m_clientVec)
+					clientCleanUp(&obj);
+				for (auto &server : m_serverVec)
+					close(server.fd);
+				return (-1);
 			}
 		}
 		else if (readySocketCount == 0)
 			continue ;
 
 		// Check status of polled sockets
-		for (int i = 0; i < (int)m_pollfdVec.size(); ++i) // the int casting... not good
+		for (int i = 0; i < (int)m_pollfdVec.size(); ++i)
 		{
 			bool isServerSocket = checkForServerSocket(m_pollfdVec[i].fd);
 			if (m_pollfdVec[i].revents & POLLIN && isServerSocket)
@@ -217,7 +216,7 @@ void	ConnectionHandler::checkClientTimeOut()
 			{
 				pid_t cgiChildPid = client.respHandler->m_cgiHandler->getCgiChildPid();
 				if (cgiChildPid != -1)
-					kill(cgiChildPid, SIGKILL); // Most likely an infinity loop or I/O problem in CGI, in order to avoid zombies we use SIGINT
+					kill(cgiChildPid, SIGKILL);
 			}	
 			client.respHandler->setResponseCode(408);
 			client.respHandler->openErrorResponseFile(getClientPTR(client.clientFd));
@@ -239,6 +238,8 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 	if (clientPTR == nullptr)
 	{
 		webservLog.webservLog(ERROR, "Client data could not be recieved; client not found for FD: " + std::to_string(pollFdStuct.fd), true);
+    removeFromPollfdVec(pollFdStuct.fd);
+		close(pollFdStuct.fd);
 		return ;
 	}
 
@@ -336,7 +337,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			// Execute CGI child process
 			int executeStatus = clientPTR->respHandler->m_cgiHandler->executeCgi(clientPTR, m_serverVec, m_clientVec);
 
-			// Wait for the CGI child process to finish && read the output from child process
+			// Wait for the CGI child process to finish && read the output from child process.
 			// 0 = CGI child process successful, 2 = still waiting for child process, -1 = error
 			if (executeStatus == 0 || executeStatus == 2 || executeStatus == -1)
 			{
@@ -450,34 +451,24 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 
 void		ConnectionHandler::acceptNewClient(const unsigned int serverFd)
 {
-	int newClientFd = accept(serverFd, nullptr, nullptr); // why are these nullptr...?	
+	int newClientFd = accept(serverFd, nullptr, nullptr);
 	if (newClientFd == -1)
 	{
 		std::string errorString = std::strerror(errno);
 		webservLog.webservLog(ERROR, "accept() failed: " + errorString, false);
-		// Error handling...?
 		return ;
 	}
 	else
 	{
 		if (fcntl(newClientFd, F_SETFL, O_NONBLOCK) == -1)
 		{
-      		close (newClientFd);
+      close (newClientFd);
 			std::string errorString = std::strerror(errno);
 			webservLog.webservLog(ERROR, "fcntl() failed: " + errorString, true);
-			// Error handling...?
-			return ;
-		}
-
-		serverInfo *relatedServerPTR = getServerByFd(serverFd);
-		if (relatedServerPTR == nullptr)
-		{
-			close (newClientFd);
-			webservLog.webservLog(ERROR, "acceptNewClient() failed: server not found", true);
 			return ;
 		}
 		addNewPollfd(newClientFd);
-		m_clientVec.push_back({newClientFd, relatedServerPTR});
+		m_clientVec.push_back({newClientFd});
 	}
 
 }
@@ -583,7 +574,7 @@ bool	ConnectionHandler::unChunkRequest(clientInfo *clientPTR)
 void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clientInfo *clientPTR)
 {
 	char	buf[100024] = {0};
-	int		bufLen = 100023; // what is the correct size for recv() buffer...?
+	int		bufLen = 100023;
 
 	int recievedBytes = recv(clientFd, buf, bufLen, 0);
 	if (recievedBytes <= 0)
@@ -596,7 +587,7 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 		else
 		{
 			std::string errorString = std::strerror(errno);
-			webservLog.webservLog(ERROR, "recv() failed: " + errorString, true);
+			webservLog.webservLog(ERROR, "recv() failed " + errorString, true);
 			clientPTR->respHandler->setResponseCode(500);
 			clientPTR->respHandler->openErrorResponseFile(clientPTR);
 			addNewPollfd(clientPTR->errorFileFd);
@@ -605,15 +596,12 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 	}
 
 	buf[recievedBytes] = '\0';
-	// CHUNKED: Is there a possibility that we get some chunked data on the first read...?
 	clientPTR->requestString.append(buf, recievedBytes);
 
-	if (clientPTR->reqType == UNDEFINED)
+	if (clientPTR->requestString.find("\r\n\r\n") == std::string::npos)
 	{
-		clientPTR->reqType = checkRequestType(clientPTR);
-
 		// if we have more than 8KB characters of only headers, we say it's a bad request
-		if (clientPTR->reqType == UNDEFINED && clientPTR->requestString.size() > 8192)
+		if (clientPTR->requestString.size() > 8192)
 		{
 			webservLog.webservLog(ERROR, "Bad request: Request headers too long", true);
 			clientPTR->respHandler->setResponseCode(400);
@@ -621,6 +609,21 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 			addNewPollfd(clientPTR->errorFileFd);
 			return ;
 		}
+		else
+			return ;
+	}
+
+	// Once we have the headers, we can add relatedServer
+	if (getRelatedServer(clientPTR) == -1)
+	{
+		addNewPollfd(clientPTR->errorFileFd);
+		return ;
+	}
+
+	// Set request type
+	if (clientPTR->reqType == UNDEFINED)
+	{
+		clientPTR->reqType = checkRequestType(clientPTR);
 
 		size_t headerEndIdx = clientPTR->requestString.find("\r\n\r\n");
 		if (headerEndIdx != std::string::npos && headerEndIdx > 8192)
@@ -633,9 +636,7 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 		}
 	}
 
-//	std::cout << "Recv bytes: " << clientPTR->requestString.size() << "\n";
-
-
+	// Do appropriate actions
 	if (clientPTR->reqType == CHUNKED)
 	{
 		if (unChunkRequest(clientPTR) == false)
@@ -645,14 +646,14 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 			addNewPollfd(clientPTR->errorFileFd);
 			return ;
 		}
-		if (checkChunkedEnd(clientPTR)) // Should we unchunk as we go...? So that we can more reliable check for max_content_len?
+		if (checkChunkedEnd(clientPTR))
 		{		
 			clientPTR->status = PARSE_REQUEST;
 			parseClientRequest(clientPTR);
 		}
 
 	}
-	else if (clientPTR->reqType == MULTIPART) // Can this be same as OTHER...?
+	else if (clientPTR->reqType == MULTIPART)
 	{
 
 		if (clientPTR->reqBodyLen == -1)
@@ -683,7 +684,7 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 		}
 
 	}
-	else if (clientPTR->reqType == OTHER) // Can this be same as MULTIPART...?
+	else if (clientPTR->reqType == OTHER)
 	{
 
 		if (clientPTR->reqBodyLen == -1)
@@ -735,14 +736,12 @@ bool	ConnectionHandler::checkForBody(clientInfo *clientPTR)
 		addNewPollfd(clientPTR->errorFileFd);
 		return false;
 	}
+
 	if (bodySize == clientPTR->reqBodyLen)
 		return true;
 	else
 		return false;
 
-	/*
-		Should I also check here that the received body is teh same length as the Content-Length header...?
-	*/
 }
 
 clientRequestType	ConnectionHandler::checkRequestType(clientInfo *clientPTR)
@@ -759,7 +758,7 @@ clientRequestType	ConnectionHandler::checkRequestType(clientInfo *clientPTR)
 
 bool	ConnectionHandler::checkChunkedEnd(clientInfo *clientPTR)
 {
-	if (clientPTR->chunkedOK == true) // Might be more efficient to look only the recieved buffer, not entire string!!
+	if (clientPTR->chunkedOK == true)
 		return true;
 	else
 		return false;
@@ -776,7 +775,7 @@ int		ConnectionHandler::getBodyLength(clientInfo *clientPTR)
 	if (startIdx == std::string::npos)
 	{
 		webservLog.webservLog(ERROR, "getBodyLength() failed: Content-Length header was not found", true);
-		clientPTR->respHandler->setResponseCode(400); // is this ok?
+		clientPTR->respHandler->setResponseCode(400);
 		clientPTR->respHandler->openErrorResponseFile(clientPTR);
 		addNewPollfd(clientPTR->errorFileFd);
 		return -1;
@@ -787,7 +786,7 @@ int		ConnectionHandler::getBodyLength(clientInfo *clientPTR)
 	if (endIdx == std::string::npos)
 	{
 		webservLog.webservLog(ERROR, "getBodyLength() failed: HTTP header format error", true);
-		clientPTR->respHandler->setResponseCode(400); // is this ok?
+		clientPTR->respHandler->setResponseCode(400);
 		clientPTR->respHandler->openErrorResponseFile(clientPTR);
 		addNewPollfd(clientPTR->errorFileFd);
 		return -1;
@@ -845,9 +844,18 @@ void	ConnectionHandler::writeUploadData(clientInfo *clientPTR)
 {
 	size_t binaryStartIdx = clientPTR->multipartFileDataStartIdx;
 	size_t binaryEndIdx = clientPTR->requestString.find(clientPTR->multipartBoundaryStr + "--");
-	std::string binaryStr = clientPTR->requestString.substr(binaryStartIdx, binaryEndIdx - binaryStartIdx); // There was a -2, do I need it...?
+	if (binaryEndIdx == std::string::npos)
+	{
+		std::cerr << RED << "writeUploadData() failed: " << RESET << "request is missing ending boundary" << "\n\n";
+		clientPTR->respHandler->setResponseCode(400);
+		clientPTR->respHandler->openErrorResponseFile(clientPTR);
+		addNewPollfd(clientPTR->errorFileFd);
+		return ;
+	}
 
-	if (write(clientPTR->uploadFileFd, binaryStr.c_str(), binaryStr.size()) == -1) // Is it ok to do the write in one call...?
+	std::string binaryStr = clientPTR->requestString.substr(binaryStartIdx, binaryEndIdx - binaryStartIdx);
+
+	if (write(clientPTR->uploadFileFd, binaryStr.c_str(), binaryStr.size()) == -1)
 	{
 		std::string errorString = std::strerror(errno);
 		webservLog.webservLog(ERROR, "write() in file upload failed " + errorString, true);
@@ -856,8 +864,6 @@ void	ConnectionHandler::writeUploadData(clientInfo *clientPTR)
 		addNewPollfd(clientPTR->errorFileFd);
 		return ;
 	}
-
-	//clientPTR->respHandler->openResponseFile(clientPTR, "home/images/uploadSuccessful.html"); // hard coded for now
 	else // successful upload
 	{
 		clientPTR->respHandler->setResponseCode(201);
@@ -877,7 +883,7 @@ void	ConnectionHandler::writeUploadData(clientInfo *clientPTR)
 
 void		ConnectionHandler::sendDataToClient(clientInfo *clientPTR)
 {
-	size_t	sendLenMax = 1000000; // Check this
+	size_t	sendLenMax = 1000000;
 	size_t	sendDataLen = clientPTR->responseString.size();
 	if (sendDataLen > sendLenMax)
 		sendDataLen = sendLenMax;
@@ -904,7 +910,7 @@ void		ConnectionHandler::sendDataToClient(clientInfo *clientPTR)
 	}
 
 	clientPTR->bytesSent += sendBytes;
-	if (sendBytes <= (int)clientPTR->responseString.size()) // check int cast!
+	if (sendBytes <= (int)clientPTR->responseString.size())
 		clientPTR->responseString.erase(0, sendBytes);
 
 	if (clientPTR->responseString.size() == 0)
@@ -925,7 +931,7 @@ void	ConnectionHandler::addNewPollfd(int newFd)
 	m_pollfdVec.push_back(tempPollfd);
 }
 
-void	ConnectionHandler::removeFromPollfdVec(int &fdToRemove)
+void	ConnectionHandler::removeFromPollfdVec(const int &fdToRemove)
 {
 	if (fdToRemove == -1)
 		return ;
@@ -934,7 +940,7 @@ void	ConnectionHandler::removeFromPollfdVec(int &fdToRemove)
 	{
 		if (m_pollfdVec[i].fd == fdToRemove)
 		{
-			m_pollfdVec.erase(m_pollfdVec.begin() + i); // can this be done smarter than with erase()...?
+			m_pollfdVec.erase(m_pollfdVec.begin() + i);
 			return ;
 		}
 	}
@@ -945,42 +951,42 @@ void	ConnectionHandler::removeClientFdsFromPollVec(clientInfo *clientPTR)
 	if (clientPTR->clientFd != -1)
 	{
 		removeFromPollfdVec(clientPTR->clientFd);
-		close(clientPTR->clientFd); // Should we check return value...?
+		close(clientPTR->clientFd);
 	}
 	if (clientPTR->errorFileFd != -1)
 	{
 		removeFromPollfdVec(clientPTR->errorFileFd);
-		close(clientPTR->errorFileFd); // Should we check return value...?
+		close(clientPTR->errorFileFd);
 	}
 	if (clientPTR->responseFileFd != -1)
 	{
 		removeFromPollfdVec(clientPTR->responseFileFd);
-		close(clientPTR->responseFileFd); // Should we check return value...?
+		close(clientPTR->responseFileFd);
 	}
-	if (clientPTR->uploadFileFd != -1) // Should we close this immidiately after the file data has been saved...?
+	if (clientPTR->uploadFileFd != -1)
 	{
 		removeFromPollfdVec(clientPTR->uploadFileFd);
-		close(clientPTR->uploadFileFd); // Should we check return value...?
+		close(clientPTR->uploadFileFd);
 	}
 	if (clientPTR->pipeToCgi[0] != -1)
 	{
 		removeFromPollfdVec(clientPTR->pipeToCgi[0]);
-		close(clientPTR->pipeToCgi[0]); // Should we check return value...?
+		close(clientPTR->pipeToCgi[0]);
 	}
 	if (clientPTR->pipeToCgi[1] != -1)
 	{
 		removeFromPollfdVec(clientPTR->pipeToCgi[1]);
-		close(clientPTR->pipeToCgi[1]); // Should we check return value...?
+		close(clientPTR->pipeToCgi[1]);
 	}
 	if (clientPTR->pipeFromCgi[0] != -1)
 	{
 		removeFromPollfdVec(clientPTR->pipeFromCgi[0]);
-		close(clientPTR->pipeFromCgi[0]); // Should we check return value...?
+		close(clientPTR->pipeFromCgi[0]);
 	}
 	if (clientPTR->pipeFromCgi[1] != -1)
 	{
 		removeFromPollfdVec(clientPTR->pipeFromCgi[1]);
-		close(clientPTR->pipeFromCgi[1]); // Should we check return value...?
+		close(clientPTR->pipeFromCgi[1]);
 	}
 
 }
@@ -989,13 +995,11 @@ void	ConnectionHandler::removeClientFdsFromPollVec(clientInfo *clientPTR)
 	CLOSE SOCKETS
 */
 
-// All open sockets need to be polled, so we can use the m_pollfdVec for this... right?
-// Or should we store all open sockets some other way? Or should we loop throught the info structs (server & client)?
 void	ConnectionHandler::closeAllSockets()
 {
 	for (auto &obj : m_pollfdVec)
 	{
-		close(obj.fd); // Possible error handling...?
+		close(obj.fd);
 	}
 }
 
@@ -1011,17 +1015,6 @@ bool	ConnectionHandler::checkForServerSocket(const int fdToCheck)
 			return (true);
 	}
 	return (false);
-}
-
-// Returns nullptr if server is not found
-serverInfo *ConnectionHandler::getServerByFd(const int fd)
-{
-	for (auto &server : m_serverVec)
-	{
-		if (server.fd == fd)
-			return (&server);
-	}
-	return (nullptr);
 }
 
 // returns nullptr if (for some reason) the client is not found
@@ -1060,7 +1053,7 @@ void		ConnectionHandler::removeFromClientVec(clientInfo *clientPTR)
 	{
 		if (&m_clientVec[i] == clientPTR)
 		{
-			m_clientVec.erase(m_clientVec.begin() + i); // can this be done smarter than erase()...?
+			m_clientVec.erase(m_clientVec.begin() + i);
 			return ;
 		}
 	}
@@ -1074,7 +1067,7 @@ void	ConnectionHandler::clientCleanUp(clientInfo *clientPTR)
 		{
 			pid_t cgiChildPid = clientPTR->respHandler->m_cgiHandler->getCgiChildPid();
 			if (cgiChildPid != -1)
-				kill(cgiChildPid, SIGKILL); // Or sigint...? And errorhandling?
+				kill(cgiChildPid, SIGKILL);
 			delete clientPTR->respHandler->m_cgiHandler;
 		}
 		delete clientPTR->respHandler;
@@ -1089,6 +1082,9 @@ int		ConnectionHandler::sigIntExit()
 
 	for (auto &obj : m_clientVec)
 		clientCleanUp(&obj);
+
+	for (auto &server : m_serverVec)
+		close(server.fd);
 
 	return (-1);
 }

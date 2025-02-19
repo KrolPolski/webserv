@@ -86,6 +86,72 @@ int	ConnectionHandler::splitStartLine(clientInfo *clientPTR, requestParseInfo	&p
 	return 0;
 }
 
+int ConnectionHandler::getRelatedServer(clientInfo *clientPTR)
+{
+	size_t reqIdxStart = clientPTR->requestString.find("Host: ");
+	if (reqIdxStart == std::string::npos)
+	{
+		std::cerr << RED << "Invalid request: " << RESET << "Host header is missing" << RESET;
+		clientPTR->respHandler->setResponseCode(400);
+		clientPTR->respHandler->openErrorResponseFile(clientPTR);
+		return (-1);
+	}
+
+	reqIdxStart += 6; // +6 to skip 'Host: '
+	size_t reqIdxEnd = clientPTR->requestString.find("\r\n", reqIdxStart);
+
+	std::string requestHost = clientPTR->requestString.substr(reqIdxStart, reqIdxEnd - reqIdxStart);
+	size_t columnIdx = requestHost.find(':');
+	if (columnIdx != std::string::npos)
+		requestHost = requestHost.substr(0, columnIdx);
+
+	std::cout << "ReqHost:\n" << requestHost << "\n";
+
+	for (auto &server : m_serverVec)
+	{
+		std::cout << "ServerHost:\n" << server.serverConfig->getHost() << "\n";
+
+		if (requestHost == server.serverConfig->getHost())
+		{
+			std::cout << "We have a match!\n";
+			clientPTR->relatedServer = &server;
+			return 0;
+		}
+
+		std::string serverNames = server.serverConfig->getNames();
+		std::string curName;
+		size_t endIdx = serverNames.find(' ');
+		size_t startIdx = 0;
+
+		while (startIdx < serverNames.size())
+		{
+			if (endIdx == std::string::npos)
+				endIdx = serverNames.size();
+
+			curName = serverNames.substr(startIdx, endIdx - startIdx);
+
+			std::cout << "Server name:\n" << curName << "\n";
+
+			if (requestHost == curName)
+			{
+				std::cout << "We have a name match!\n";
+
+				clientPTR->relatedServer = &server;
+				return 0;
+			}
+
+			startIdx = endIdx + 1;
+			endIdx = serverNames.find(' ', startIdx);
+		}
+
+	}
+
+	clientPTR->relatedServer = &m_serverVec[0];
+
+	return 0;
+
+}
+
 /*
 	Parses HTTP request as follows:
 
@@ -101,6 +167,8 @@ int		ConnectionHandler::parseRequest(clientInfo *clientPTR)
 	size_t			endIndex = 0;
 	std::string 	&reqStr = clientPTR->requestString;
 	requestParseInfo	&parseInfo = clientPTR->parsedRequest;
+
+	std::cout << "REQUEST:\n" << reqStr << "\n\n";
 
 	// Separate start line from client's request
 	endIndex = reqStr.find_first_of("\r\n");
@@ -152,7 +220,7 @@ int		ConnectionHandler::parseRequest(clientInfo *clientPTR)
 
 	// Get content from request
 
-	std::map<std::string, std::string>::iterator it = headerMap.find("Content-Length");
+	auto it = headerMap.find("Content-Length");
 
 	if (it != headerMap.end())
 	{

@@ -15,10 +15,10 @@ int main(int argc, char *argv[])
 		return (1);
 	}
 
-	signal(SIGINT, sigIntHandler); // is this needed...?
+	signal(SIGINT, sigIntHandler);
 
 	ConnectionHandler	handler;
-	char	configFileName[] = "configurations/new.conf"; // our default config file name here
+	char	configFileName[] = "configurations/new.conf";
 	char	*configPTR = configFileName;
 
 	if (argc == 2)

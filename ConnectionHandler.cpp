@@ -206,7 +206,7 @@ void	ConnectionHandler::checkClientTimeOut()
 		client.curTime = std::chrono::high_resolution_clock::now();
 		if (client.curTime - client.startTime >= std::chrono::seconds(client.clientTimeOutLimit))
 		{
-			std::cerr << RED << "\nClient disconnected due to time out\n" << RESET << "\n";
+			std::cerr << RED << "Client disconnected due to time out" << RESET << "\n";
 			if (client.respHandler != nullptr && client.respHandler->m_cgiHandler != nullptr)
 			{
 				pid_t cgiChildPid = client.respHandler->m_cgiHandler->getCgiChildPid();
@@ -243,7 +243,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[RECIEVE_REQUEST])
 			{
 				clientPTR->stateFlags[RECIEVE_REQUEST] = true;
-				webservLog.webservLog(INFO, "\nCLIENT RECIEVE_REQUEST!\n", false);
+				webservLog.webservLog(INFO, "CLIENT RECIEVE_REQUEST!", false);
 			}
 
 			if (clientPTR->clientFd == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
@@ -259,7 +259,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[SAVE_FILE])
 			{
 				clientPTR->stateFlags[SAVE_FILE] = true;
-				webservLog.webservLog(INFO, "\nCLIENT SAVE_FILE!\n", false);
+				webservLog.webservLog(INFO, "CLIENT SAVE_FILE!", false);
 			}
 
 			if (clientPTR->uploadFileFd == pollFdStuct.fd && pollFdStuct.revents & POLLOUT)
@@ -275,7 +275,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[BUILD_ERRORPAGE])
 			{
 				clientPTR->stateFlags[BUILD_ERRORPAGE] = true;
-				webservLog.webservLog(INFO, "\nCLIENT BUILD_ERRORPAGE!\n", false);
+				webservLog.webservLog(INFO, "CLIENT BUILD_ERRORPAGE!", false);
 			}
 
 			if (clientPTR->errorFileFd == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
@@ -291,7 +291,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[BUILD_RESPONSE])
 			{
 				clientPTR->stateFlags[BUILD_RESPONSE] = true;
-				webservLog.webservLog(INFO, "\nCLIENT BUILD_RESPONSE!\n", false);
+				webservLog.webservLog(INFO, "CLIENT BUILD_RESPONSE!", false);
 			}
 
 			if (clientPTR->responseFileFd == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
@@ -307,7 +307,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[EXECUTE_CGI])
 			{
 				clientPTR->stateFlags[EXECUTE_CGI] = true;
-				webservLog.webservLog(INFO, "\nCLIENT EXECUTE_CGI!\n", false);
+				webservLog.webservLog(INFO, "CLIENT EXECUTE_CGI!", false);
 			}
 
 			// Write the request body to CGI script & check that pipe FDs are ready
@@ -384,7 +384,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[BUILD_CGI_RESPONSE])
 			{
 				clientPTR->stateFlags[BUILD_CGI_RESPONSE] = true;
-				webservLog.webservLog(INFO, "\nCLIENT BUILD_CGI_RESPONSE!\n", false);
+				webservLog.webservLog(INFO, "CLIENT BUILD_CGI_RESPONSE!", false);
 			}
 
 			if (clientPTR->pipeFromCgi[0] == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
@@ -406,7 +406,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[SEND_RESPONSE])
 			{
 				clientPTR->stateFlags[SEND_RESPONSE] = true;
-				webservLog.webservLog(INFO, "\nCLIENT SEND_RESPONSE!\n", false);
+				webservLog.webservLog(INFO, "CLIENT SEND_RESPONSE!", false);
 			}
 
 			if (clientPTR->clientFd == pollFdStuct.fd && pollFdStuct.revents & POLLOUT)
@@ -422,7 +422,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 			if (!clientPTR->stateFlags[DISCONNECT])
 			{
 				clientPTR->stateFlags[DISCONNECT] = true;
-				webservLog.webservLog(INFO, "\nCLIENT DISCONNECT!\n", false);
+				webservLog.webservLog(INFO, "CLIENT DISCONNECT!", false);
 			}
 
 			clientCleanUp(clientPTR);
@@ -448,7 +448,7 @@ void		ConnectionHandler::acceptNewClient(const unsigned int serverFd)
 	if (newClientFd == -1)
 	{
 		std::string errorString = std::strerror(errno);
-		webservLog.webservLog(ERROR, "\naccept() failed:\n" + errorString, false);
+		webservLog.webservLog(ERROR, "accept() failed: " + errorString, false);
 		// Error handling...?
 		return ;
 	}
@@ -456,9 +456,9 @@ void		ConnectionHandler::acceptNewClient(const unsigned int serverFd)
 	{
 		if (fcntl(newClientFd, F_SETFL, O_NONBLOCK) == -1)
 		{
-      close (newClientFd);
+      		close (newClientFd);
 			std::string errorString = std::strerror(errno);
-			webservLog.webservLog(ERROR, "\nfcntl() failed:\n" + errorString, true);
+			webservLog.webservLog(ERROR, "fcntl() failed: " + errorString, true);
 			// Error handling...?
 			return ;
 		}
@@ -467,7 +467,7 @@ void		ConnectionHandler::acceptNewClient(const unsigned int serverFd)
 		if (relatedServerPTR == nullptr)
 		{
 			close (newClientFd);
-			webservLog.webservLog(ERROR, "\nacceptNewClient() failed:\n server not found\n\n", true);
+			webservLog.webservLog(ERROR, "acceptNewClient() failed: server not found", true);
 			return ;
 		}
 		addNewPollfd(newClientFd);
@@ -508,22 +508,22 @@ bool	ConnectionHandler::unChunkRequest(clientInfo *clientPTR)
 	indexEnd = request.find("\r\n", indexStart) + 2;
 	request.erase(indexStart , indexEnd - indexStart);
 	bodyIndex = request.find("\r\n\r\n") + 4;
-	static std::string conLenStr = "Content-Lenght: ";
+	static std::string conLenStr = "Content-Length: ";
 	if (header.empty())
 	{
 		header = request.substr(0, bodyIndex - 2);
 	}
 	try
 	{
-		webservLog.webservLog(DEBUG, "Getting body", true);
+		webservLog.webservLog(INFO, "Getting body", false);
 		static std::string	unChunked;
 		body = request.substr(bodyIndex, request.size() - bodyIndex);
-		webservLog.webservLog(DEBUG, "Entering while loop", true);
+		webservLog.webservLog(INFO, "Entering while loop", false);
 		while (1)
 		{
 			if (body.find("\r\n", startIndex) == body.npos)
 			{
-				webservLog.webservLog(DEBUG, "Exiting, waiting for next chunk hex size", true);
+				webservLog.webservLog(INFO, "Exiting, waiting for next chunk hex size", false);
 				break ;
 			}
 			size_t indexAfterHex = body.find("\r\n", startIndex);
@@ -531,7 +531,7 @@ bool	ConnectionHandler::unChunkRequest(clientInfo *clientPTR)
 			uint bytesToRead = std::stoi(hexValue, nullptr, 16);
 			if (body.size() - startIndex < bytesToRead + 2)
 			{
-				webservLog.webservLog(DEBUG, "Chunk body not complete, waiting for more data", true);
+				webservLog.webservLog(INFO, "Chunk body not complete, waiting for more data", false);
 				return true;
 			}
 			contentLength += bytesToRead;
@@ -539,7 +539,7 @@ bool	ConnectionHandler::unChunkRequest(clientInfo *clientPTR)
 				return false;
 			if (bytesToRead == 0)
 			{
-				webservLog.webservLog(INFO, "Finished chunked reading request", true);
+				webservLog.webservLog(INFO, "Finished chunked reading request", false);
 				header += conLenStr;
 				break ;
 			}
@@ -549,14 +549,13 @@ bool	ConnectionHandler::unChunkRequest(clientInfo *clientPTR)
 			startIndex += bytesToRead + 2;
 
 		}
-		webservLog.webservLog(DEBUG, "Exiting while loop", true);
+		webservLog.webservLog(INFO, "Exiting while loop", false);
 		if (std::search(header.begin(), header.end(), conLenStr.begin(), conLenStr.end()) != header.end()) // here we need to get check for correct thing
 		{
 			header += std::to_string(contentLength) + "\r\n\r\n";
-			webservLog.webservLog(INFO, "Header\n" + header, false);
-			webservLog.webservLog(INFO, "Body\n" + unChunked, false);
 			clientPTR->requestString.erase();
 			clientPTR->requestString += header + unChunked;
+			webservLog.webservLog(INFO, "Full request unchunked\n" + clientPTR->requestString, false);
 			header.erase();
 			body.erase();
 			unChunked.erase();
@@ -571,10 +570,9 @@ bool	ConnectionHandler::unChunkRequest(clientInfo *clientPTR)
 	{
 		webservLog.webservLog(ERROR, "Unchunking chunked request failed", true);
 		return false;
-		// Bad request if chunk size doesnt match the chunk body
 	}
 	return true;
-} // test with a body that is biiiiiig. change the regex for config mac client body=====Patrik
+}
 
 void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clientInfo *clientPTR)
 {
@@ -592,7 +590,7 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 		else
 		{
 			std::string errorString = std::strerror(errno);
-			webservLog.webservLog(ERROR, "\nrecv() failed\n" + errorString + "\n\n", true);
+			webservLog.webservLog(ERROR, "recv() failed: " + errorString, true);
 			clientPTR->respHandler->setResponseCode(500);
 			clientPTR->respHandler->openErrorResponseFile(clientPTR);
 			addNewPollfd(clientPTR->errorFileFd);
@@ -636,7 +634,7 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 	{
 		if (unChunkRequest(clientPTR) == false)
 		{
-			clientPTR->respHandler->setResponseCode(400);
+			clientPTR->respHandler->setResponseCode(413);
 			clientPTR->respHandler->openErrorResponseFile(clientPTR);
 			addNewPollfd(clientPTR->errorFileFd);
 			return ;
@@ -663,7 +661,13 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 
 		if (!clientPTR->bodyOK)
 			clientPTR->reqBodyDataRead += recievedBytes;
-
+		if (checkBodySize(clientPTR->reqBodyDataRead, clientPTR) == false)
+		{
+			clientPTR->respHandler->setResponseCode(413);
+			clientPTR->respHandler->openErrorResponseFile(clientPTR);
+			addNewPollfd(clientPTR->errorFileFd);
+			return ;
+		}
 
 		if (clientPTR->bodyOK || clientPTR->reqBodyDataRead == clientPTR->reqBodyLen)
 		{
@@ -688,7 +692,13 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 
 		if (!clientPTR->bodyOK)
 			clientPTR->reqBodyDataRead += recievedBytes;
-
+		if (checkBodySize(clientPTR->reqBodyDataRead, clientPTR) == false)
+		{
+			clientPTR->respHandler->setResponseCode(413);
+			clientPTR->respHandler->openErrorResponseFile(clientPTR);
+			addNewPollfd(clientPTR->errorFileFd);
+			return ;
+		}
 
 		if (clientPTR->bodyOK || clientPTR->reqBodyDataRead == clientPTR->reqBodyLen)
 		{
@@ -711,7 +721,14 @@ bool	ConnectionHandler::checkForBody(clientInfo *clientPTR)
 
 	bodyStartIdx += 4;
 	std::string body = clientPTR->requestString.substr(bodyStartIdx); // TEMP! Bad idea
-	int bodySize = body.size();
+	uint bodySize = body.size();
+	if (checkBodySize(bodySize, clientPTR) == false)
+	{
+		clientPTR->respHandler->setResponseCode(413);
+		clientPTR->respHandler->openErrorResponseFile(clientPTR);
+		addNewPollfd(clientPTR->errorFileFd);
+		return false;
+	}
 	if (bodySize == clientPTR->reqBodyLen)
 		return true;
 	else
@@ -865,13 +882,13 @@ void		ConnectionHandler::sendDataToClient(clientInfo *clientPTR)
 	{
 		if (sendBytes == 0)
 		{
-			webservLog.webservLog(INFO, "Connection closed by the client during send() operation\n", false);
+			webservLog.webservLog(INFO, "Connection closed by the client during send() operation", false);
 			clientPTR->status = DISCONNECT;
 		}
 		else
 		{	
 			std::string errorString = std::strerror(errno);
-			webservLog.webservLog(ERROR, "\nsend() failed\n" + errorString + "\n\n", true);
+			webservLog.webservLog(ERROR, "send() failed: " + errorString, true);
 			clientPTR->respHandler->setResponseCode(500);
 			clientPTR->respHandler->openErrorResponseFile(clientPTR);
 			addNewPollfd(clientPTR->errorFileFd);
@@ -1061,7 +1078,7 @@ void	ConnectionHandler::clientCleanUp(clientInfo *clientPTR)
 // Returns -1 for error handling purposes
 int		ConnectionHandler::sigIntExit()
 {
-	webservLog.webservLog(INFO, "\nRecieved SIGINT signal, exiting program\n", true);
+	webservLog.webservLog(INFO, "Recieved SIGINT signal, exiting program", true);
 
 	for (auto &obj : m_clientVec)
 		clientCleanUp(&obj);

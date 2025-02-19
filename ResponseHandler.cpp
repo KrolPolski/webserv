@@ -55,7 +55,13 @@ const std::map<const unsigned int, std::string> ResponseHandler::errorCodes =
 	{404, "Not Found"},
 	{405, "Method Not Allowed"},
 	{408, "Client Timeout"}, // Is this ok...? -Panu
-	{500, "Internal Server Error"}
+	{411, "Length Required"},
+	{413, "Payload Too Large"},
+	{414, "URI Too Long"},
+	{431, "Request Header Fields Too Large"},
+	{500, "Internal Server Error"},
+	{501, "Not Implemented"},
+	{505, "HTTP Version Not Supported"}
 };
 
 /* Sets the appropriate request type enum */
@@ -180,7 +186,7 @@ void ResponseHandler::checkFile(clientInfo *clientPTR)
 	std::string defaultFilePath;
 	std::string webFilePath = filePath;
 	enum dirListStates dirListing {UNSET};
-	// std::string port = clientPTR->relatedServer->serverConfig->getPort();
+
 	filePath = clientPTR->relatedServer->serverConfig->getRoot("/") + filePath;
   
 	if (std::filesystem::exists(filePath) && checkRightsOfDirectory(filePath, clientPTR) == false)
@@ -310,7 +316,6 @@ bool ResponseHandler::checkRightsOfDirectory(std::string directoryPath, clientIn
 
 void ResponseHandler::handleRequest(clientInfo *clientPTR)
 {
-	
 	switch (requestType)
 	{
 		case GET:
@@ -336,8 +341,8 @@ void ResponseHandler::handleRequest(clientInfo *clientPTR)
 						checkFile(clientPTR);
 					else
 					{
-						setResponseCode(400); // Sort of a temp solution, what should we actually do if someone uses POST to do something else than CGI or File upload?
-						openErrorResponseFile(clientPTR);
+						setResponseCode(405); // Sort of a temp solution, what should we actually do if someone uses POST to do something else than CGI or File upload?
+						openErrorResponseFile(clientPTR); // NGINX does not allow POST requests to static files, 405 response is given.
 					}
 					break ;
 				}

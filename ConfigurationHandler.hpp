@@ -33,14 +33,14 @@ enum dirListStates
 
 struct locationBlock
 {
-	std::string					m_root;					// root of each location block in server configuration
-	int							m_reDirectStatusCode;	// redirect, status code
-	std::string					m_reDirectLocation;		// redirect, /new_location
-	std::string					m_methods; 				// e.g. GET POST DELETE
-	std::string					m_uploadDir;			// specified upload directory
-	std::string					m_cgiPathPHP;			// path to cgi interpreter PHP, changes depending on system
-	std::string					m_cgiPathPython;		// path to cgi interpreter Python, changes depending on system
-	enum dirListStates			m_dirListing; 			// directory listing ON or OFF
+	std::string					m_root;						// root of each location block in server configuration
+	int							m_reDirectStatusCode = 0;	// redirect, status code
+	std::string					m_reDirectLocation;			// redirect, /new_location
+	std::string					m_methods; 					// e.g. GET POST DELETE
+	std::string					m_uploadDir;				// specified upload directory
+	std::string					m_cgiPathPHP;				// path to cgi interpreter PHP, changes depending on system
+	std::string					m_cgiPathPython;			// path to cgi interpreter Python, changes depending on system
+	enum dirListStates			m_dirListing; 				// directory listing ON or OFF
 
 	locationBlock() : m_dirListing(UNSET)
 	{};

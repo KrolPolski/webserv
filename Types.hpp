@@ -1,14 +1,5 @@
 #pragma once
 
-/*
-	A headerfile for storing custom data-types and defines that are needed in multiple classes
-*/
-
-
-/*
-	DEFINES (some nice colors for terminal output =))
-*/
-
 # define RED 	"\033[31m"
 # define GREEN	"\033[32m"
 # define BLUE	"\033[34m"
@@ -18,11 +9,6 @@
 # define LIGHT_GREEN "\033[92m"
 # define ORANGE "\033[38;5;214m"
 # define RESET	"\033[0m"
-
-
-/*
-	ENUMS	
-*/
 
 
 enum requestTypes
@@ -61,21 +47,8 @@ enum clientRequestType
 	CHUNKED
 };
 
-/*enum contentTypes
-{
-	HTML,
-	CSS,
-	JAVASCRIPT,
-	PNG,
-	JSON
-}*/
 
-
-/*
-	SIGNAL HANDLING
-*/
-
-#include <signal.h> // for signal handling
+#include <signal.h>
 
 extern bool	isSigInt;
 

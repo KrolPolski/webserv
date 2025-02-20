@@ -42,7 +42,7 @@ int		ConnectionHandler::initServers(char *configFile)
 		}
 		catch(const std::exception& e)
 		{
-			webservLog.webservLog(ERROR, "Error: Port is invalid", true); // start servers that have valid ports, stoi fails get discarded and user gets informed.
+			webservLog.webservLog(ERROR, "Error: Port is invalid", true);
 			return -1;
 		}
 		
@@ -74,7 +74,6 @@ int		ConnectionHandler::initServerSocket(const unsigned int portNum, Configurati
 		return (-1);
 	}
 
-	// This solves the bind() issue
 	int opt = 1;
 	if (setsockopt(socketFd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1)
 	{
@@ -84,7 +83,6 @@ int		ConnectionHandler::initServerSocket(const unsigned int portNum, Configurati
 		return (-1);
 	}
 
-	// make socket non-blocking
 	if (fcntl(socketFd, F_SETFL, O_NONBLOCK) == -1)
 	{
 		std::string errorString = std::strerror(errno);
@@ -93,7 +91,6 @@ int		ConnectionHandler::initServerSocket(const unsigned int portNum, Configurati
 		return (-1);
 	}
 
-	// Create address & bind() socket to a certain port
 	sockaddr_in	serverAddress;
 	serverAddress.sin_family = AF_INET;
 	serverAddress.sin_port = htons(portNum);
@@ -107,7 +104,6 @@ int		ConnectionHandler::initServerSocket(const unsigned int portNum, Configurati
 		return (-1);
 	}
 
-	// make socket ready to accept connections with listen()
 	if (listen(socketFd, 20) == -1)
 	{
 		std::string errorString = std::strerror(errno);
@@ -192,7 +188,6 @@ int		ConnectionHandler::startServers()
 		else if (readySocketCount == 0)
 			continue ;
 
-		// Check status of polled sockets
 		for (int i = 0; i < (int)m_pollfdVec.size(); ++i)
 		{
 			bool isServerSocket = checkForServerSocket(m_pollfdVec[i].fd);
@@ -226,7 +221,6 @@ void	ConnectionHandler::checkClientTimeOut()
 	}
 }
 
-// If client has had a recent action in the server side process, we restart their time out clock
 void	ConnectionHandler::resetClientTimeOut(clientInfo *clientPTR)
 {
 	clientPTR->startTime = std::chrono::high_resolution_clock::now();
@@ -238,7 +232,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 	if (clientPTR == nullptr)
 	{
 		webservLog.webservLog(ERROR, "Client data could not be recieved; client not found for FD: " + std::to_string(pollFdStuct.fd), true);
-    removeFromPollfdVec(pollFdStuct.fd);
+    	removeFromPollfdVec(pollFdStuct.fd);
 		close(pollFdStuct.fd);
 		return ;
 	}
@@ -547,7 +541,7 @@ bool	ConnectionHandler::unChunkRequest(clientInfo *clientPTR)
 
 		}
 		webservLog.webservLog(INFO, "Exiting while loop", false);
-		if (std::search(header.begin(), header.end(), conLenStr.begin(), conLenStr.end()) != header.end()) // here we need to get check for correct thing
+		if (std::search(header.begin(), header.end(), conLenStr.begin(), conLenStr.end()) != header.end())
 		{
 			header += std::to_string(contentLength) + "\r\n\r\n";
 			clientPTR->requestString.erase();
@@ -613,7 +607,7 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 			return ;
 	}
 
-	// Once we have the headers, we can add relatedServer
+	// Once we have the headers, we can add relatedServer to client
 	if (getRelatedServer(clientPTR) == -1)
 	{
 		addNewPollfd(clientPTR->errorFileFd);
@@ -727,7 +721,7 @@ bool	ConnectionHandler::checkForBody(clientInfo *clientPTR)
 		return false;
 
 	bodyStartIdx += 4;
-	std::string body = clientPTR->requestString.substr(bodyStartIdx); // TEMP! Bad idea
+	std::string body = clientPTR->requestString.substr(bodyStartIdx);
 	uint bodySize = body.size();
 	if (checkBodySize(bodySize, clientPTR) == false)
 	{
@@ -807,7 +801,7 @@ int		ConnectionHandler::getBodyLength(clientInfo *clientPTR)
 void	ConnectionHandler::parseClientRequest(clientInfo *clientPTR)
 {
 
-	if (parseRequest(clientPTR) == -1) // this code is in separate file ('requestParsing.cpp')
+	if (parseRequest(clientPTR) == -1)
 	{
 		addNewPollfd(clientPTR->errorFileFd);
 		return ;
@@ -846,7 +840,7 @@ void	ConnectionHandler::writeUploadData(clientInfo *clientPTR)
 	size_t binaryEndIdx = clientPTR->requestString.find(clientPTR->multipartBoundaryStr + "--");
 	if (binaryEndIdx == std::string::npos)
 	{
-		std::cerr << RED << "writeUploadData() failed: " << RESET << "request is missing ending boundary" << "\n\n";
+		webservLog.webservLog(ERROR, "writeUploadData() failed: request is missing ending boundary", true);
 		clientPTR->respHandler->setResponseCode(400);
 		clientPTR->respHandler->openErrorResponseFile(clientPTR);
 		addNewPollfd(clientPTR->errorFileFd);
@@ -859,12 +853,12 @@ void	ConnectionHandler::writeUploadData(clientInfo *clientPTR)
 	{
 		std::string errorString = std::strerror(errno);
 		webservLog.webservLog(ERROR, "write() in file upload failed " + errorString, true);
-		clientPTR->respHandler->setResponseCode(500); // check this later
+		clientPTR->respHandler->setResponseCode(500);
 		clientPTR->respHandler->openErrorResponseFile(clientPTR);
 		addNewPollfd(clientPTR->errorFileFd);
 		return ;
 	}
-	else // successful upload
+	else
 	{
 		clientPTR->respHandler->setResponseCode(201);
 		clientPTR->respHandler->build201Response(clientPTR, clientPTR->uploadWebPath);

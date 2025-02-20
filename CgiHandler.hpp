@@ -68,9 +68,10 @@ class CgiHandler
 	void	setExecveArgs();
 	void	setExecveEnvArr(clientInfo *clientPTR);
 
-	int		cgiChildProcess(clientInfo *clientPTR, std::vector<serverInfo> serverVec, std::vector<clientInfo> clientVec);
+	void	cgiChildProcess(clientInfo *clientPTR, std::vector<serverInfo> serverVec, std::vector<clientInfo> clientVec);
 
 	int		errorExit(clientInfo *clientPTR, std::string errStr, bool isChildProc);
+	void	childErrorExit(clientInfo *clientPTR, std::string errStr, bool isChildProc);
 	void	closeAndInitFd(int &fd);
 	void	closeAndDeleteClient(clientInfo *clientPTR);
 

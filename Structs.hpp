@@ -25,7 +25,7 @@ struct requestParseInfo
 	std::map<std::string, std::string>	headerMap; // All headers as key value pairs
 	std::string		rawContent; // The body of request, if there is any
 
-	std::string	method = ""; // GET POST etc
+	std::string	method; // GET POST etc
 	std::string filePath; // Relative requested path
 	std::string	extension; // has the first . included (for example '.php')
 	std::string queryString; // Everything from the URI after '?' character
@@ -58,11 +58,11 @@ struct clientInfo
 	int		pipeFromCgi[2] = {-1, -1};
 	int		bytesSent = 0;
 
-	int		clientTimeOutLimit = 10; // we need to check this!
+	int		clientTimeOutLimit = 10;
 
-	bool	stateFlags[9] = {}; // JUST FOR DEBUG
+	bool	stateFlags[9] = {};
 
-	std::string	clientIP; // we should probably get this in the constructor
+	std::string	clientIP;
 	std::string	requestString;
 	std::string responseBody;
 	std::string responseString;
@@ -77,7 +77,7 @@ struct clientInfo
 	clientInfo(int clientFd) : clientFd(clientFd)
 	{
 		startTime = std::chrono::high_resolution_clock::now();
-		respHandler = new ResponseHandler; // get's deleted in the client cleanup
+		respHandler = new ResponseHandler;
 	}
 
 };

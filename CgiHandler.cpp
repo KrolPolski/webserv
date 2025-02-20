@@ -248,7 +248,10 @@ int CgiHandler::finishCgiResponse(clientInfo *clientPTR)
 		m_responseHeaders += "Content-Length: ";
 		int contentLen = getCgiResponseBodyLen();
 		if (contentLen == -1)
+		{
+			close(clientPTR->pipeFromCgi[0]);
 			return -1;
+		}
 		m_responseHeaders += std::to_string(contentLen);
 		m_responseHeaders += "\r\n";
 	}

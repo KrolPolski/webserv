@@ -178,7 +178,7 @@ int		ConnectionHandler::startServers()
 			{
 				std::string errorString = std::strerror(errno);
 				webservLog.webservLog(ERROR, "poll() failed:" + errorString, true);
-        for (auto &obj : m_clientVec)
+        		for (auto &obj : m_clientVec)
 					clientCleanUp(&obj);
 				for (auto &server : m_serverVec)
 					close(server.fd);
@@ -353,8 +353,12 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 						clientPTR->respHandler->setResponseCode(500);
 						clientPTR->respHandler->openErrorResponseFile(clientPTR);
 						addNewPollfd(clientPTR->errorFileFd);
+						removeFromPollfdVec(clientPTR->pipeFromCgi[0]);
+						clientPTR->pipeFromCgi[0] = -1;
 						return ;
 					}
+					removeFromPollfdVec(clientPTR->pipeFromCgi[0]);
+					clientPTR->pipeFromCgi[0] = -1;
 					resetClientTimeOut(clientPTR);
 				}
 				else if (executeStatus == 2 && clientPTR->pipeFromCgi[0] == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
@@ -580,11 +584,12 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 		}
 		else
 		{
-			std::string errorString = std::strerror(errno);
-			webservLog.webservLog(ERROR, "recv() failed " + errorString, true);
-			clientPTR->respHandler->setResponseCode(500);
-			clientPTR->respHandler->openErrorResponseFile(clientPTR);
-			addNewPollfd(clientPTR->errorFileFd);
+//			std::string errorString = std::strerror(errno);
+			webservLog.webservLog(ERROR, "recv() failed ", true);
+			clientPTR->status = DISCONNECT;
+//			clientPTR->respHandler->setResponseCode(500);
+//			clientPTR->respHandler->openErrorResponseFile(clientPTR);
+//			addNewPollfd(clientPTR->errorFileFd);
 		}
 		return ;
 	}
@@ -1055,6 +1060,9 @@ void		ConnectionHandler::removeFromClientVec(clientInfo *clientPTR)
 
 void	ConnectionHandler::clientCleanUp(clientInfo *clientPTR)
 {
+	if (clientPTR->parsedRequest.isCgi)
+		removeCGI();
+
 	if (clientPTR->respHandler != nullptr)
 	{
 		if (clientPTR->respHandler->m_cgiHandler != nullptr)
@@ -1091,6 +1099,24 @@ std::vector<serverInfo> &ConnectionHandler::getServerVec()
 std::vector<clientInfo> &ConnectionHandler::getClientVec()
 {
 	return m_clientVec;
+}
+
+bool ConnectionHandler::addCGI()
+{
+	if (m_cgiCounter >= 10)
+		return false;
+	
+	std::cout << "CGI count: " << m_cgiCounter << "\n";
+
+	m_cgiCounter++;
+	return true;
+}
+
+void ConnectionHandler::removeCGI()
+{
+	if (m_cgiCounter > 0)
+		m_cgiCounter--;
+
 }
 
 

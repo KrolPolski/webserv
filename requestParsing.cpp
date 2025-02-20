@@ -79,7 +79,7 @@ int	ConnectionHandler::splitStartLine(clientInfo *clientPTR, requestParseInfo	&p
 		if (!addCGI())
 		{
 			webservLog.webservLog(ERROR, "Too many concurrent CGI processes.", true);
-			clientPTR->respHandler->setResponseCode(500); // Change to 503
+			clientPTR->respHandler->setResponseCode(503);
 			clientPTR->respHandler->openErrorResponseFile(clientPTR);
 			parseInfo.isCgi = false;
 			return (-1);

@@ -321,7 +321,17 @@ void ResponseHandler::handleRequest(clientInfo *clientPTR)
 		case GET:
 		{
 			requestTypeAsString = "GET";
-			if (std::filesystem::exists(filePath))
+			if (!std::filesystem::exists(filePath) && clientPTR->relatedServer->serverConfig->isRedirectSet(clientPTR->parsedRequest.filePath) == true)
+			{
+				if (checkRequestAllowed(clientPTR))
+					checkFile(clientPTR);
+				else
+				{
+					setResponseCode(405);
+					openErrorResponseFile(clientPTR);
+				}
+			}
+			else if (std::filesystem::exists(filePath))
 			{
 				if (checkRequestAllowed(clientPTR))
 					checkFile(clientPTR);

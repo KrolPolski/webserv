@@ -11,14 +11,14 @@ int main(int argc, char *argv[])
 {
 	if (argc > 2)
 	{
-		std::cerr << RED << "\nInvalid arguments! Please provide only one configuration file.\n\n" << RESET;
+		webservLog.webservLog(ERROR, "Invalid arguments! Please provide only one configuration file.", true);
 		return (1);
 	}
 
-	signal(SIGINT, sigIntHandler); // is this needed...?
+	signal(SIGINT, sigIntHandler);
 
 	ConnectionHandler	handler;
-	char	configFileName[] = "configurations/new.conf"; // our default config file name here
+	char	configFileName[] = "configurations/complete.conf";
 	char	*configPTR = configFileName;
 
 	if (argc == 2)

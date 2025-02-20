@@ -30,6 +30,8 @@ class ConnectionHandler
 
 	std::vector<serverInfo> &getServerVec();
 	std::vector<clientInfo> &getClientVec();
+	bool addCGI();
+	void removeCGI();
 
 //////
 
@@ -40,6 +42,8 @@ class ConnectionHandler
 	std::vector<serverInfo>	m_serverVec;
 	std::vector<clientInfo>	m_clientVec;
 	std::vector<pollfd>		m_pollfdVec;
+
+	int m_cgiCounter = 0;
 
 	// socket functions
 	int		initServerSocket(const unsigned int portNum, ConfigurationHandler &config);

@@ -74,6 +74,18 @@ int	ConnectionHandler::splitStartLine(clientInfo *clientPTR, requestParseInfo	&p
 		parseInfo.cgiType = PYTHON;
 	}
 
+	if (parseInfo.isCgi)
+	{
+		if (!addCGI())
+		{
+			webservLog.webservLog(ERROR, "Too many concurrent CGI processes.", true);
+			clientPTR->respHandler->setResponseCode(500); // Change to 503
+			clientPTR->respHandler->openErrorResponseFile(clientPTR);
+			parseInfo.isCgi = false;
+			return (-1);
+		}
+	}
+
 	startIndex = parseInfo.startLine.find_last_of(' ') + 1;
 	if (parseInfo.startLine.compare(startIndex, 8, "HTTP/1.1") != 0)
 	{

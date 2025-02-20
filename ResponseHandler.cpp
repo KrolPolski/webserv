@@ -412,7 +412,6 @@ void ResponseHandler::handleRequest(clientInfo *clientPTR)
 
 }
 
-/* Returns the end index of Content-Disposition -header line related to an uploaded file. (so returned index is in the "\r\n" sequence)*/
 bool	ResponseHandler::checkForMultipartFileData(clientInfo *clientPTR)
 {
 	std::string temp = "boundary=";
@@ -471,6 +470,13 @@ bool	ResponseHandler::checkForMultipartFileData(clientInfo *clientPTR)
 			size_t nameStart = tokensVec[2].find_first_of('"') + 1;
 			size_t nameEnd = tokensVec[2].find_last_of('"');
 
+			if (nameStart == std::string::npos || nameEnd == std::string::npos)
+			{
+				webservLog.webservLog(ERROR, "checkForMultipartFileData() failed: filename format error", true);
+				setResponseCode(400);
+				return false;
+			}
+
 			std::string	uploadDirPath;
 			if (clientPTR->relatedServer->serverConfig->isUploadDirSet(clientPTR->parsedRequest.filePath) == true)
 			{
@@ -489,6 +495,7 @@ bool	ResponseHandler::checkForMultipartFileData(clientInfo *clientPTR)
 			}
 			else
 				uploadDirPath = clientPTR->relatedServer->serverConfig->getRoot(clientPTR->parsedRequest.filePath) + "/";
+
 			clientPTR->uploadWebPath = "http://localhost:" + clientPTR->relatedServer->serverConfig->getPort() + "/" + uploadDirPath + tokensVec[2].substr(nameStart, nameEnd - nameStart);// HARD CODED for now
 			clientPTR->uploadFileName = uploadDirPath + tokensVec[2].substr(nameStart, nameEnd - nameStart);
 			clientPTR->multipartFileDataStartIdx = clientPTR->requestString.find("\r\n\r\n", endIdx) + 4;
@@ -675,7 +682,6 @@ void ResponseHandler::build201Response(clientInfo *clientPTR, std::string webPat
 	clientPTR->responseBody = R"({"message": "File uploaded successfully",
 	"url": )" + webPathToFile + "}";
 	headers += "Content-Length: " + std::to_string(clientPTR->responseBody.length()) + "\r\n\r\n";
-	std::cout << headers << clientPTR->responseBody << std::endl;
 	clientPTR->responseString = headers + clientPTR->responseBody;
 	clientPTR->status = SEND_RESPONSE;
 }

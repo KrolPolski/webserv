@@ -8,8 +8,6 @@
 #include <sys/stat.h> // stat()
 #include <poll.h> // poll()
 #include <vector>
-
-// TEST
 #include <fcntl.h>
 
 struct serverInfo;
@@ -27,14 +25,10 @@ class CgiHandler
 	int	checkWaitStatus(clientInfo *clientPTR);
 	int	buildCgiResponse(clientInfo *clientPTR);
 	int finishCgiResponse(clientInfo *clientPTR);
-
 	void setPipeToCgiReadReady(void);
 	void setPipeFromCgiWriteReady(void);
-
 	pid_t &getCgiChildPid();
 
-
-//////
 
 	private:
 
@@ -56,8 +50,8 @@ class CgiHandler
 	bool		m_pipeToCgiReadReady;
 	bool		m_pipeFromCgiWriteReady;
 	bool		m_childProcRunning;
-	bool		m_scriptReady; // meaning the child process has finished
-	bool		m_responseReady; // When read() returns < buffersize --> might not be needed
+	bool		m_scriptReady;
+	bool		m_responseReady;
 
 	std::string 	m_pathToInterpreter;
 	std::string 	m_pathToScript;
@@ -66,7 +60,7 @@ class CgiHandler
 	std::string 	m_responseBody;
 	std::string		m_responseString;
 
-	char 	*m_argsForExecve[3] = {}; // is this initialization ok?
+	char 	*m_argsForExecve[3] = {};
 	char 	*m_envArrExecve[16] = {};
 
 	pid_t	m_childProcPid;
@@ -74,9 +68,10 @@ class CgiHandler
 	void	setExecveArgs();
 	void	setExecveEnvArr(clientInfo *clientPTR);
 
-	int		cgiChildProcess(clientInfo *clientPTR, std::vector<serverInfo> serverVec, std::vector<clientInfo> clientVec);
+	void	cgiChildProcess(clientInfo *clientPTR, std::vector<serverInfo> serverVec, std::vector<clientInfo> clientVec);
 
 	int		errorExit(clientInfo *clientPTR, std::string errStr, bool isChildProc);
+	void	childErrorExit(clientInfo *clientPTR, std::string errStr, bool isChildProc);
 	void	closeAndInitFd(int &fd);
 	void	closeAndDeleteClient(clientInfo *clientPTR);
 

@@ -586,8 +586,10 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 		{
 //			std::string errorString = std::strerror(errno);
 			webservLog.webservLog(ERROR, "recv() failed ", true);
-			clientPTR->status = DISCONNECT;
-//			clientPTR->respHandler->setResponseCode(500);
+			clientPTR->respHandler->setResponseCode(500);
+			clientPTR->respHandler->build500Response(clientPTR);
+			clientPTR->status = SEND_RESPONSE;
+//			
 //			clientPTR->respHandler->openErrorResponseFile(clientPTR);
 //			addNewPollfd(clientPTR->errorFileFd);
 		}
@@ -901,9 +903,7 @@ void		ConnectionHandler::sendDataToClient(clientInfo *clientPTR)
 		{	
 			std::string errorString = std::strerror(errno);
 			webservLog.webservLog(ERROR, "send() failed: " + errorString, true);
-			clientPTR->respHandler->setResponseCode(500);
-			clientPTR->respHandler->openErrorResponseFile(clientPTR);
-			addNewPollfd(clientPTR->errorFileFd);
+			clientPTR->status = DISCONNECT;
 		}
 		return ;
 	}

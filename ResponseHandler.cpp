@@ -462,7 +462,7 @@ bool	ResponseHandler::checkForMultipartFileData(clientInfo *clientPTR)
 
 			if (nameStart == std::string::npos || nameEnd == std::string::npos)
 			{
-				std::cerr << RED << "checkForMultipartFileData() failed: " << RESET << "filename format error\n\n";
+				webservLog.webservLog(ERROR, "checkForMultipartFileData() failed: filename format error", true);
 				setResponseCode(400);
 				return false;
 			}
@@ -672,7 +672,6 @@ void ResponseHandler::build201Response(clientInfo *clientPTR, std::string webPat
 	clientPTR->responseBody = R"({"message": "File uploaded successfully",
 	"url": )" + webPathToFile + "}";
 	headers += "Content-Length: " + std::to_string(clientPTR->responseBody.length()) + "\r\n\r\n";
-	std::cout << headers << clientPTR->responseBody << std::endl;
 	clientPTR->responseString = headers + clientPTR->responseBody;
 	clientPTR->status = SEND_RESPONSE;
 }

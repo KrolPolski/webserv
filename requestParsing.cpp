@@ -50,7 +50,7 @@ int	ConnectionHandler::splitStartLine(clientInfo *clientPTR, requestParseInfo	&p
 	else
 	{
 		endIndex = tempStr.find_first_of('?');
-		parseInfo.filePath = tempStr.substr(0, endIndex); // add also the root folder to the beginning!
+		parseInfo.filePath = tempStr.substr(0, endIndex);
 		endIndex++;
 		parseInfo.queryString = tempStr.substr(endIndex, tempStr.length() - endIndex);
 	}
@@ -91,7 +91,7 @@ int ConnectionHandler::getRelatedServer(clientInfo *clientPTR)
 	size_t reqIdxStart = clientPTR->requestString.find("Host: ");
 	if (reqIdxStart == std::string::npos)
 	{
-		std::cerr << RED << "Invalid request: " << RESET << "Host header is missing" << RESET;
+		webservLog.webservLog(ERROR, "Invalid request: Host header is missing", true);
 		clientPTR->respHandler->setResponseCode(400);
 		clientPTR->respHandler->openErrorResponseFile(clientPTR);
 		return (-1);
@@ -105,15 +105,10 @@ int ConnectionHandler::getRelatedServer(clientInfo *clientPTR)
 	if (columnIdx != std::string::npos)
 		requestHost = requestHost.substr(0, columnIdx);
 
-	std::cout << "ReqHost:\n" << requestHost << "\n";
-
 	for (auto &server : m_serverVec)
 	{
-		std::cout << "ServerHost:\n" << server.serverConfig->getHost() << "\n";
-
 		if (requestHost == server.serverConfig->getHost())
 		{
-			std::cout << "We have a match!\n";
 			clientPTR->relatedServer = &server;
 			return 0;
 		}
@@ -130,12 +125,8 @@ int ConnectionHandler::getRelatedServer(clientInfo *clientPTR)
 
 			curName = serverNames.substr(startIdx, endIdx - startIdx);
 
-			std::cout << "Server name:\n" << curName << "\n";
-
 			if (requestHost == curName)
 			{
-				std::cout << "We have a name match!\n";
-
 				clientPTR->relatedServer = &server;
 				return 0;
 			}
@@ -146,29 +137,16 @@ int ConnectionHandler::getRelatedServer(clientInfo *clientPTR)
 
 	}
 
-	clientPTR->relatedServer = &m_serverVec[0];
-
+	clientPTR->relatedServer = &m_serverVec[0]; // if no appropriate server block was found, use default one.
 	return 0;
-
 }
 
-/*
-	Parses HTTP request as follows:
-
-	1. Splits start line and extracts method and filepath (+ possible query string)
-	2. Parses all headers into a map (key = header name, value = header value)
-	3. Extracts content from the request body (if one is found)
-
-	This function could be broken into smaller pieces
-*/
 int		ConnectionHandler::parseRequest(clientInfo *clientPTR)
 {
 	size_t			startIndex = 0;
 	size_t			endIndex = 0;
 	std::string 	&reqStr = clientPTR->requestString;
 	requestParseInfo	&parseInfo = clientPTR->parsedRequest;
-
-	std::cout << "REQUEST:\n" << reqStr << "\n\n";
 
 	// Separate start line from client's request
 	endIndex = reqStr.find_first_of("\r\n");
@@ -194,7 +172,7 @@ int		ConnectionHandler::parseRequest(clientInfo *clientPTR)
 	while (reqStr[startIndex] != '\0')
 	{
 		endIndex = reqStr.find_first_of("\r\n", startIndex);
-		if (endIndex == reqStr.npos) // check this later
+		if (endIndex == reqStr.npos)
 		{
 			webservLog.webservLog(ERROR, "Invalid request: no new line found after header", true);
 			clientPTR->respHandler->setResponseCode(400);
@@ -219,7 +197,6 @@ int		ConnectionHandler::parseRequest(clientInfo *clientPTR)
 	}
 
 	// Get content from request
-
 	auto it = headerMap.find("Content-Length");
 
 	if (it != headerMap.end())

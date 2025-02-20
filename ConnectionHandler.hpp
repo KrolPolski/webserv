@@ -25,8 +25,6 @@ class ConnectionHandler
 	ConnectionHandler();
 	~ConnectionHandler();
 
-	// Do we need canonical form here...?
-
 	int		initServers(char *configFile);
 	int		startServers();
 
@@ -74,7 +72,6 @@ class ConnectionHandler
 	bool	checkChunkedEnd(clientInfo *clientPTR);
 	int		getBodyLength(clientInfo *clientPTR);
 	bool	checkForBody(clientInfo *clientPTR);
-
 
 	// multipart data
 	void	writeUploadData(clientInfo *clientPTR);

@@ -96,7 +96,8 @@ int	CgiHandler::executeCgi(clientInfo *clientPTR, std::vector<serverInfo> &serve
 
 		if (m_childProcPid == 0)
 		{
-			return (cgiChildProcess(clientPTR, serverVec, clientVec));
+			cgiChildProcess(clientPTR, serverVec, clientVec);
+			return 0;
 		}
 		else
 		{
@@ -166,23 +167,23 @@ void	CgiHandler::closeExtraFD(clientInfo *clientPTR, std::vector<serverInfo> &se
 		close(server.fd);
 }
 
-int		CgiHandler::cgiChildProcess(clientInfo *clientPTR, std::vector<serverInfo> serverVec, std::vector<clientInfo> clientVec)
+void	CgiHandler::cgiChildProcess(clientInfo *clientPTR, std::vector<serverInfo> serverVec, std::vector<clientInfo> clientVec)
 {
 	size_t 		index = m_pathToScript.find_last_of('/');
 	int			len = m_pathToScript.length() - (m_pathToScript.length() - index);
 	std::string scriptDirectoryPath = m_pathToScript.substr(0, len);
 
 	if (close(clientPTR->pipeFromCgi[0]) == -1 || close(clientPTR->pipeToCgi[1]) == -1)
-		return (errorExit(clientPTR, "Close() failed in CGI child process: ", true));
+		childErrorExit(clientPTR, "Close() failed in CGI child process: ", true);
 
 	if (chdir(scriptDirectoryPath.c_str()) == -1)
-		return (errorExit(clientPTR, "Chdir() failed in CGI child process: ", true));
+		childErrorExit(clientPTR, "Chdir() failed in CGI child process: ", true);
 
 	if (dup2(clientPTR->pipeFromCgi[1], STDOUT_FILENO) == -1 || dup2(clientPTR->pipeToCgi[0], STDIN_FILENO) == -1)
-		return (errorExit(clientPTR, "Dup2() failed in CGI child process: ", true));
+		childErrorExit(clientPTR, "Dup2() failed in CGI child process: ", true);
 
 	if (close(clientPTR->pipeFromCgi[1]) == -1 || close(clientPTR->pipeToCgi[0]) == -1)
-		return (errorExit(clientPTR, "Close() failed in CGI child process: ", true));
+		childErrorExit(clientPTR, "Close() failed in CGI child process: ", true);
 
 	webservLog.closeLogFileStream();
 	closeExtraFD(clientPTR, serverVec, clientVec);
@@ -191,10 +192,9 @@ int		CgiHandler::cgiChildProcess(clientInfo *clientPTR, std::vector<serverInfo> 
 	{
 		std::cerr << RED << "\nExecve() failed in CGI child process:\n" << RESET << std::strerror(errno) << "\n\n"; // this can't user Logger!!
 		closeAndDeleteClient(clientPTR);
-		return (-1);
+		exit(1);
 	}
 
-	return (0);
 }
 
 int	CgiHandler::checkWaitStatus(clientInfo *clientPTR)
@@ -243,7 +243,6 @@ int CgiHandler::getCgiResponseBodyLen()
 int CgiHandler::finishCgiResponse(clientInfo *clientPTR)
 {
 	m_responseHeaders = "HTTP/1.1 200 OK\r\n";
-	m_responseHeaders += "Server: " + clientPTR->relatedServer->serverConfig->getNames() + "\r\n"; // CHECK THIS!!
 	if (m_responseBody.find("Content-Length: ") == std::string::npos)
 	{
 		m_responseHeaders += "Content-Length: ";
@@ -254,20 +253,20 @@ int CgiHandler::finishCgiResponse(clientInfo *clientPTR)
 		m_responseHeaders += "\r\n";
 	}
 	if (m_responseBody.find("Content-Type: ") == std::string::npos)
-		m_responseHeaders += "Content-Type: text/html\r\n"; // either this or just plain text...?
+		m_responseHeaders += "Content-Type: text/html\r\n";
 	clientPTR->responseString = m_responseHeaders + m_responseBody;
 	clientPTR->status = SEND_RESPONSE;
 
-	close(clientPTR->pipeFromCgi[0]); // Do we need to check close() return value...?
+	close(clientPTR->pipeFromCgi[0]);
 
 	return (0);
 }
 
 int	CgiHandler::buildCgiResponse(clientInfo *clientPTR)
 {
-	char 	buffer[10001]; // should this be bigger...?
+	char 	buffer[10001];
 	int		bytesRead;
-	int		readPerCall = 10000; // should this be bigger...?
+	int		readPerCall = 10000;
 
 	bytesRead = read(clientPTR->pipeFromCgi[0], buffer, readPerCall);
 	if (bytesRead == -1)
@@ -282,7 +281,6 @@ int	CgiHandler::buildCgiResponse(clientInfo *clientPTR)
 	return (0);
 }
 
-
 int		CgiHandler::errorExit(clientInfo *clientPTR, std::string errStr, bool isChildProc)
 {
 	std::string errMessage = std::strerror(errno);
@@ -291,7 +289,20 @@ int		CgiHandler::errorExit(clientInfo *clientPTR, std::string errStr, bool isChi
 
 	if (isChildProc)
 		closeAndDeleteClient(clientPTR);
+		
 	return (-1);
+}
+
+void		CgiHandler::childErrorExit(clientInfo *clientPTR, std::string errStr, bool isChildProc)
+{
+	std::string errMessage = std::strerror(errno);
+
+	webservLog.webservLog(ERROR, errStr + errMessage, true);
+
+	if (isChildProc)
+		closeAndDeleteClient(clientPTR);
+		
+	exit (1);
 }
 
 void	CgiHandler::closeAndDeleteClient(clientInfo *clientPTR)
@@ -316,7 +327,7 @@ void	CgiHandler::closeAndInitFd(int &fd)
 {
 	if (fd >= 0)
 	{
-		close(fd); // error handling...?
+		close(fd);
 		fd = -1;
 	}
 }

@@ -207,7 +207,7 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : 
 	std::regex	hostRegex(R"(^\s*host\s+([^\s]+)\s*;\s*$)");
 	std::regex	serverNameRegex(R"(^\s*server_name\s+([^\s;]+(?:\s+[^\s;]+)*)\s*;\s*$)");
 	std::regex	maxClientBodyRegex(R"(^\s*max_client_body_size\s+(\d+)\s*;\s*$)");
-	std::regex	errorPageRegex(R"(^\s*error_page\s+(400|403|404|405|408|411|413|414|431|500|501|505)\s+(/home/[\S]+\.html)\s*;\s*$)");
+	std::regex	errorPageRegex(R"(^\s*error_page\s+(400|403|404|405|408|411|413|414|431|500|501|503|505)\s+(/home/[\S]+\.html)\s*;\s*$)");
 	std::regex	indexRegex(R"(^\s*index\s+([^\s]+)\s*;\s*$)");
 	std::regex	locationRegex(R"(^\s*location\s+([^\s]+)\s*\s*$)");
 	std::regex	rootRegex(R"(^\s*root\s+/?([^/][^;]*[^/])?/?\s*;\s*$)");

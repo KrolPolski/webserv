@@ -90,6 +90,7 @@ void	ConfigurationHandler::defaultSettings()
 	m_errorPages.emplace(431, "/default-error-pages/431.html");
 	m_errorPages.emplace(500, "/default-error-pages/500.html");
 	m_errorPages.emplace(501, "/default-error-pages/501.html");
+	m_errorPages.emplace(503, "/default-error-pages/503.html");
 	m_errorPages.emplace(505, "/default-error-pages/505.html");
 	m_defaultErrorPages.emplace(400, "/default-error-pages/400.html");
 	m_defaultErrorPages.emplace(403, "/default-error-pages/403.html");
@@ -103,6 +104,7 @@ void	ConfigurationHandler::defaultSettings()
 	m_defaultErrorPages.emplace(431, "/default-error-pages/431.html");
 	m_defaultErrorPages.emplace(500, "/default-error-pages/500.html");
 	m_defaultErrorPages.emplace(501, "/default-error-pages/501.html");
+	m_defaultErrorPages.emplace(503, "/default-error-pages/503.html");
 	m_defaultErrorPages.emplace(505, "/default-error-pages/505.html");
 
 	m_globalMethods = G_METHOD;

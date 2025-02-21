@@ -27,14 +27,12 @@ class ResponseHandler
 		static const std::map<std::string, std::string> extensionTypes;
 		static const std::map<const unsigned int, std::string> errorCodes;
 		void setRequestType(enum requestTypes reqType);
-		void build500Response(clientInfo *clientPTR);
 		void build204Response(clientInfo *clientPTR);
 		void buildDirListingResponse(const std::string& pathToDir, clientInfo *ClientPTR);
 		void deleteHandler(clientInfo *clientPTR, std::string filePath);
 		bool	checkForMultipartFileData(clientInfo *clientPTR);
 		void	prepareUploadFile(clientInfo *clientPTR);
 		bool 	isValidErrorFile(std::string &errorFileName);
-
 	
     public:
 		CgiHandler	*m_cgiHandler = nullptr; // Should this be private and accessed through getter...?
@@ -50,12 +48,10 @@ class ResponseHandler
 		const enum requestTypes& getRequestType() const;
 		unsigned int getResponseCode() const;
 		bool checkRequestAllowed(clientInfo *clientPTR);
-
 		bool checkRightsOfDirectory(std::string directoryPath, clientInfo *clientPTR);
-
 		void buildRedirectResponse301(std::string filePath, clientInfo *clientPTR);
 		void buildRedirectResponse307(std::string filePath, clientInfo *clientPTR);
-
+		void build500Response(clientInfo *clientPTR);
 		void buildErrorResponse(clientInfo *ClientPTR); // is this ok in public...? used to be in private! - Panu
 		void openErrorResponseFile(clientInfo *clientPTR);
 		int buildResponse(clientInfo *clientPTR);

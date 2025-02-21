@@ -1103,7 +1103,7 @@ std::vector<clientInfo> &ConnectionHandler::getClientVec()
 
 bool ConnectionHandler::addCGI()
 {
-	if (m_cgiCounter >= 10)
+	if (m_cgiCounter >= 25)
 		return false;
 	
 	std::cout << "CGI count: " << m_cgiCounter << "\n";

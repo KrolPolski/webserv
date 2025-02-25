@@ -149,7 +149,8 @@ int ConnectionHandler::getRelatedServer(clientInfo *clientPTR)
 
 	}
 
-	clientPTR->relatedServer = &m_serverVec[0]; // if no appropriate server block was found, use default one.
+	// if no appropriate server block was found, we leave the relatedServer to point the default server (initialized value)
+	
 	return 0;
 }
 
@@ -213,14 +214,20 @@ int		ConnectionHandler::parseRequest(clientInfo *clientPTR)
 
 	if (it != headerMap.end())
 	{
-		int	contenLen = std::stoi(it->second);
-		if (contenLen < 0)
+		unsigned int contenLen = 0;
+		try
 		{
-			webservLog.webservLog(ERROR, "Invalid request: Content-Length is negative", true);
+			contenLen = std::stoul(it->second);
+		}
+		catch(const std::exception& e)
+		{
+			webservLog.webservLog(ERROR, e.what(), false);
+			webservLog.webservLog(ERROR, "Invalid request: Bad Content-Length value", true);
 			clientPTR->respHandler->setResponseCode(400);
 			clientPTR->respHandler->openErrorResponseFile(clientPTR);
-			return (-1);
+			return -1;
 		}
+
 		startIndex += 2; // 2 because we first move to the '\n' and then over it
 		parseInfo.rawContent = reqStr.substr(startIndex, contenLen);
 	}

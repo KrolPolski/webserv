@@ -33,7 +33,7 @@ struct requestParseInfo
 
 struct clientInfo
 {
-	const serverInfo	*relatedServer;
+	serverInfo			*relatedServer = nullptr;
 	requestParseInfo	parsedRequest;
 
 	ResponseHandler		*respHandler = nullptr;
@@ -44,12 +44,13 @@ struct clientInfo
 	std::chrono::time_point<std::chrono::high_resolution_clock> startTime;
 	std::chrono::time_point<std::chrono::high_resolution_clock> curTime;
 
-	long int		reqBodyLen = -1;
+	unsigned int	reqBodyLen = 0;
 	long int		reqBodyDataRead = 0;
 	long int		bytesToWriteInCgi = -1;
 	long int		bytesReceivedFromCgi = 0;
 	bool 			bodyOK = false;
 	bool			chunkedOK = false;
+	bool			reqLenSet = false;
 
 	int		clientFd;
 	int		errorFileFd = -1;
@@ -58,7 +59,7 @@ struct clientInfo
 	int		pipeFromCgi[2] = {-1, -1};
 	int		bytesSent = 0;
 
-	int		clientTimeOutLimit = 10;
+	int		clientTimeOutLimit = 10; // Needs to be bigger in Valgrind tests
 
 	bool	stateFlags[9] = {};
 
@@ -74,10 +75,11 @@ struct clientInfo
 	int			uploadFileFd = -1;
 
 	
-	clientInfo(int clientFd) : clientFd(clientFd)
+	clientInfo(int clientFd, serverInfo *defaultServer) : clientFd(clientFd)
 	{
 		startTime = std::chrono::high_resolution_clock::now();
 		respHandler = new ResponseHandler;
+		relatedServer = defaultServer;
 	}
 
 };

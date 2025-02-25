@@ -43,7 +43,7 @@ int		ConnectionHandler::initServers(char *configFile)
 		catch(const std::exception& e)
 		{
 			webservLog.webservLog(ERROR, "Error: Port is invalid", true);
-			return -1;
+			continue  ;
 		}
 		
 		int socketfd = initServerSocket(portNum, iter->second);
@@ -94,7 +94,15 @@ int		ConnectionHandler::initServerSocket(const unsigned int portNum, Configurati
 	sockaddr_in	serverAddress;
 	serverAddress.sin_family = AF_INET;
 	serverAddress.sin_port = htons(portNum);
-	serverAddress.sin_addr.s_addr = convertIP(config.getHost());
+
+	unsigned int convertedIP = 0;
+	if (!convertIP(config.getHost(), convertedIP))
+	{
+		webservLog.webservLog(ERROR, "initServerSocket() failed: Bad IP conversion", true);
+		close(socketFd);
+		return (-1);
+	}
+	serverAddress.sin_addr.s_addr = convertedIP;
 
 	if (bind(socketFd, (sockaddr *)&serverAddress, sizeof(serverAddress)) == -1)
 	{
@@ -115,11 +123,10 @@ int		ConnectionHandler::initServerSocket(const unsigned int portNum, Configurati
 	return (socketFd);
 }
 
-unsigned int ConnectionHandler::convertIP(std::string IPaddress)
+bool ConnectionHandler::convertIP(std::string IPaddress, unsigned int &convertedIP)
 {
 	std::string ipBlockStr;
 	int ipBlockNum = 0;
-	unsigned int result = 0;
 	size_t startIdx = 0;
 	size_t endIdx = 0;
 	std::vector<int> blockVec;
@@ -133,7 +140,16 @@ unsigned int ConnectionHandler::convertIP(std::string IPaddress)
 		else
 			ipBlockStr = IPaddress.substr(startIdx, endIdx - startIdx);
 
-		ipBlockNum = std::stoi(ipBlockStr);
+		try
+		{
+			ipBlockNum = std::stoi(ipBlockStr);
+		}
+		catch(const std::exception& e)
+		{
+			webservLog.webservLog(ERROR, e.what(), false);
+			return false;
+		}
+
 		blockVec.push_back(ipBlockNum);
 		startIdx = endIdx + 1;
 	}
@@ -145,14 +161,14 @@ unsigned int ConnectionHandler::convertIP(std::string IPaddress)
 		for (int j = 128; j > 0; (j >>= 1))
 		{
 			if ((ipBlockNum & j) != 0)
-				result = (result | j);
+				convertedIP = (convertedIP | j);
 		}
 
 		if (i != 0)
-			result <<= 8;
+			convertedIP <<= 8;
 	}
 
-	return result;
+	return true;
 	
 }
 
@@ -181,7 +197,11 @@ int		ConnectionHandler::startServers()
         		for (auto &obj : m_clientVec)
 					clientCleanUp(&obj);
 				for (auto &server : m_serverVec)
+				{
+					removeFromPollfdVec(server.fd);
 					close(server.fd);
+					server.fd = -1;
+				}
 				return (-1);
 			}
 		}
@@ -231,7 +251,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 	clientInfo *clientPTR = getClientPTR(pollFdStuct.fd);
 	if (clientPTR == nullptr)
 	{
-		webservLog.webservLog(ERROR, "Client data could not be recieved; client not found for FD: " + std::to_string(pollFdStuct.fd), true);
+		webservLog.webservLog(ERROR, "Client data could not be receive; client not found for FD: " + std::to_string(pollFdStuct.fd), true);
     	removeFromPollfdVec(pollFdStuct.fd);
 		close(pollFdStuct.fd);
 		return ;
@@ -460,13 +480,13 @@ void		ConnectionHandler::acceptNewClient(const unsigned int serverFd)
 	{
 		if (fcntl(newClientFd, F_SETFL, O_NONBLOCK) == -1)
 		{
-      close (newClientFd);
+      		close(newClientFd);
 			std::string errorString = std::strerror(errno);
 			webservLog.webservLog(ERROR, "fcntl() failed: " + errorString, true);
 			return ;
 		}
 		addNewPollfd(newClientFd);
-		m_clientVec.push_back({newClientFd});
+		m_clientVec.push_back({newClientFd, &m_serverVec[0]});
 	}
 
 }
@@ -584,14 +604,11 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 		}
 		else
 		{
-//			std::string errorString = std::strerror(errno);
-			webservLog.webservLog(ERROR, "recv() failed ", true);
+			std::string errorString = std::strerror(errno);
+			webservLog.webservLog(ERROR, "recv() failed: " + errorString, true);
 			clientPTR->respHandler->setResponseCode(500);
 			clientPTR->respHandler->build500Response(clientPTR);
 			clientPTR->status = SEND_RESPONSE;
-//			
-//			clientPTR->respHandler->openErrorResponseFile(clientPTR);
-//			addNewPollfd(clientPTR->errorFileFd);
 		}
 		return ;
 	}
@@ -656,11 +673,10 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 	}
 	else if (clientPTR->reqType == MULTIPART)
 	{
-
-		if (clientPTR->reqBodyLen == -1)
+		if (!clientPTR->reqLenSet)
 		{
-			clientPTR->reqBodyLen = getBodyLength(clientPTR);
-			if (clientPTR->reqBodyLen < 0)
+			clientPTR->reqLenSet = true;
+			if (!getBodyLength(clientPTR))
 				return ;
 			clientPTR->bodyOK = checkForBody(clientPTR);
 			if (!clientPTR->bodyOK)
@@ -679,7 +695,6 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 
 		if (clientPTR->bodyOK || clientPTR->reqBodyDataRead == clientPTR->reqBodyLen)
 		{
-
 			clientPTR->status = PARSE_REQUEST;
 			parseClientRequest(clientPTR);
 		}
@@ -688,10 +703,10 @@ void	ConnectionHandler::recieveDataFromClient(const unsigned int clientFd, clien
 	else if (clientPTR->reqType == OTHER)
 	{
 
-		if (clientPTR->reqBodyLen == -1)
+		if (!clientPTR->reqLenSet)
 		{
-			clientPTR->reqBodyLen = getBodyLength(clientPTR);
-			if (clientPTR->reqBodyLen < 0)
+			clientPTR->reqLenSet = true;
+			if (!getBodyLength(clientPTR))
 				return ;
 			clientPTR->bodyOK = checkForBody(clientPTR);
 			if (!clientPTR->bodyOK)
@@ -765,10 +780,13 @@ bool	ConnectionHandler::checkChunkedEnd(clientInfo *clientPTR)
 		return false;
 }
 
-int		ConnectionHandler::getBodyLength(clientInfo *clientPTR)
+bool	ConnectionHandler::getBodyLength(clientInfo *clientPTR)
 {
 	if (clientPTR->requestString.find("GET") == 0 || clientPTR->requestString.find("DELETE") == 0)
-		return 0;
+	{
+		clientPTR->reqBodyLen = 0;
+		return true;
+	}
 
 	std::string	strToFind = "Content-Length: ";
 	size_t 		startIdx = clientPTR->requestString.find(strToFind);
@@ -779,28 +797,36 @@ int		ConnectionHandler::getBodyLength(clientInfo *clientPTR)
 		clientPTR->respHandler->setResponseCode(400);
 		clientPTR->respHandler->openErrorResponseFile(clientPTR);
 		addNewPollfd(clientPTR->errorFileFd);
-		return -1;
+		return false;
 	}
 	startIdx += strToFind.length();
 
 	size_t endIdx = clientPTR->requestString.find("\r\n", startIdx);
-	if (endIdx == std::string::npos)
+	if (endIdx == std::string::npos || startIdx == endIdx)
 	{
 		webservLog.webservLog(ERROR, "getBodyLength() failed: HTTP header format error", true);
 		clientPTR->respHandler->setResponseCode(400);
 		clientPTR->respHandler->openErrorResponseFile(clientPTR);
 		addNewPollfd(clientPTR->errorFileFd);
-		return -1;
-	}
-	else if (startIdx == endIdx)
-	{
-		addNewPollfd(clientPTR->errorFileFd);
-		return -1;
+		return false;
 	}
 
 	std::string lengthStr = clientPTR->requestString.substr(startIdx, endIdx - startIdx);
+	try
+	{
+		clientPTR->reqBodyLen = std::stoul(lengthStr);
+	}
+	catch(const std::exception& e)
+	{
+		webservLog.webservLog(ERROR, e.what(), false);
+		webservLog.webservLog(ERROR, "getBodyLength() failed: Bad Content-Length header", true);
+		clientPTR->respHandler->setResponseCode(400);
+		clientPTR->respHandler->openErrorResponseFile(clientPTR);
+		addNewPollfd(clientPTR->errorFileFd);
+		return false;
+	}
 
-	return (std::stoi(lengthStr));
+	return (true);
 }
 
 
@@ -951,41 +977,49 @@ void	ConnectionHandler::removeClientFdsFromPollVec(clientInfo *clientPTR)
 	{
 		removeFromPollfdVec(clientPTR->clientFd);
 		close(clientPTR->clientFd);
+		clientPTR->clientFd = -1;
 	}
 	if (clientPTR->errorFileFd != -1)
 	{
 		removeFromPollfdVec(clientPTR->errorFileFd);
 		close(clientPTR->errorFileFd);
+		clientPTR->errorFileFd = -1;
 	}
 	if (clientPTR->responseFileFd != -1)
 	{
 		removeFromPollfdVec(clientPTR->responseFileFd);
 		close(clientPTR->responseFileFd);
+		clientPTR->responseFileFd = -1;
 	}
 	if (clientPTR->uploadFileFd != -1)
 	{
 		removeFromPollfdVec(clientPTR->uploadFileFd);
 		close(clientPTR->uploadFileFd);
+		clientPTR->uploadFileFd = -1;
 	}
 	if (clientPTR->pipeToCgi[0] != -1)
 	{
 		removeFromPollfdVec(clientPTR->pipeToCgi[0]);
 		close(clientPTR->pipeToCgi[0]);
+		clientPTR->pipeToCgi[0] = -1;
 	}
 	if (clientPTR->pipeToCgi[1] != -1)
 	{
 		removeFromPollfdVec(clientPTR->pipeToCgi[1]);
 		close(clientPTR->pipeToCgi[1]);
+		clientPTR->pipeToCgi[1] = -1;
 	}
 	if (clientPTR->pipeFromCgi[0] != -1)
 	{
 		removeFromPollfdVec(clientPTR->pipeFromCgi[0]);
 		close(clientPTR->pipeFromCgi[0]);
+		clientPTR->pipeFromCgi[0] = -1;
 	}
 	if (clientPTR->pipeFromCgi[1] != -1)
 	{
 		removeFromPollfdVec(clientPTR->pipeFromCgi[1]);
 		close(clientPTR->pipeFromCgi[1]);
+		clientPTR->pipeFromCgi[1] = -1;
 	}
 
 }
@@ -998,7 +1032,9 @@ void	ConnectionHandler::closeAllSockets()
 {
 	for (auto &obj : m_pollfdVec)
 	{
-		close(obj.fd);
+		removeFromPollfdVec(obj.fd);
+		if (obj.fd > 0)
+			close(obj.fd);
 	}
 }
 
@@ -1080,13 +1116,17 @@ void	ConnectionHandler::clientCleanUp(clientInfo *clientPTR)
 // Returns -1 for error handling purposes
 int		ConnectionHandler::sigIntExit()
 {
-	webservLog.webservLog(INFO, "Recieved SIGINT signal, exiting program", true);
+	webservLog.webservLog(INFO, "Received SIGINT signal, exiting program", true);
 
 	for (auto &obj : m_clientVec)
 		clientCleanUp(&obj);
 
 	for (auto &server : m_serverVec)
+	{
+		removeFromPollfdVec(server.fd);
 		close(server.fd);
+		server.fd = -1;
+	}
 
 	return (-1);
 }
@@ -1103,11 +1143,9 @@ std::vector<clientInfo> &ConnectionHandler::getClientVec()
 
 bool ConnectionHandler::addCGI()
 {
-	if (m_cgiCounter >= 10)
+	if (m_cgiCounter >= m_cgiMax)
 		return false;
 	
-	std::cout << "CGI count: " << m_cgiCounter << "\n";
-
 	m_cgiCounter++;
 	return true;
 }

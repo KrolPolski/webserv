@@ -44,10 +44,11 @@ class ConnectionHandler
 	std::vector<pollfd>		m_pollfdVec;
 
 	int m_cgiCounter = 0;
+	int m_cgiMax = 10;
 
 	// socket functions
 	int		initServerSocket(const unsigned int portNum, ConfigurationHandler &config);
-	unsigned int convertIP(std::string IPaddress);
+	bool 	convertIP(std::string IPaddress, unsigned int &convertedIP);
 	void	closeAllSockets();
 	bool	checkForServerSocket(const int socketFd);
 
@@ -74,7 +75,7 @@ class ConnectionHandler
 	int 	splitStartLine(clientInfo *clientPTR, requestParseInfo	&parseInfo);
 	clientRequestType	checkRequestType(clientInfo *clientPTR);
 	bool	checkChunkedEnd(clientInfo *clientPTR);
-	int		getBodyLength(clientInfo *clientPTR);
+	bool	getBodyLength(clientInfo *clientPTR);
 	bool	checkForBody(clientInfo *clientPTR);
 
 	// multipart data

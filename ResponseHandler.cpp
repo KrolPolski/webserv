@@ -317,12 +317,29 @@ bool ResponseHandler::checkRightsOfDirectory(std::string directoryPath, clientIn
 void ResponseHandler::handleRequest(clientInfo *clientPTR)
 {
 	std::string filePath = clientPTR->relatedServer->serverConfig->getRoot("/") + clientPTR->parsedRequest.filePath;
+	bool fileExists = false;
+
+	// TEST
+	try
+	{
+		fileExists = std::filesystem::exists(filePath);
+	}
+	catch(const std::exception& e)
+	{
+		// Exception here means that the requested file is somehow bad (for example: too long directory name)
+		webservLog.webservLog(ERROR, e.what(), false);
+		webservLog.webservLog(ERROR, "Bad file name requested", true);
+		setResponseCode(400);
+		openErrorResponseFile(clientPTR);
+		return ;
+	}
+
 	switch (requestType)
 	{
 		case GET:
 		{
 			requestTypeAsString = "GET";
-			if (!std::filesystem::exists(filePath) && clientPTR->relatedServer->serverConfig->isRedirectSet(clientPTR->parsedRequest.filePath) == true)
+			if (!fileExists && clientPTR->relatedServer->serverConfig->isRedirectSet(clientPTR->parsedRequest.filePath) == true)
 			{
 				if (checkRequestAllowed(clientPTR))
 					checkFile(clientPTR);
@@ -332,7 +349,7 @@ void ResponseHandler::handleRequest(clientInfo *clientPTR)
 					openErrorResponseFile(clientPTR);
 				}
 			}
-			else if (std::filesystem::exists(filePath))
+			else if (fileExists)
 			{
 				if (checkRequestAllowed(clientPTR))
 					checkFile(clientPTR);
@@ -352,7 +369,7 @@ void ResponseHandler::handleRequest(clientInfo *clientPTR)
 		case POST:
 		{
 			requestTypeAsString = "POST";
-			if (std::filesystem::exists(filePath))
+			if (fileExists)
 			{
 				if (checkRequestAllowed(clientPTR))
 				{
@@ -362,7 +379,7 @@ void ResponseHandler::handleRequest(clientInfo *clientPTR)
 							checkFile(clientPTR);
 						else
 						{
-							setResponseCode(400); // 405?
+							setResponseCode(400);
 							openErrorResponseFile(clientPTR);
 						}
 						break ;
@@ -389,7 +406,7 @@ void ResponseHandler::handleRequest(clientInfo *clientPTR)
 		case DELETE:
 		{
 			requestTypeAsString = "DELETE";
-			if (std::filesystem::exists(filePath))
+			if (fileExists)
 			{
 				if (checkRequestAllowed(clientPTR))
 					deleteHandler(clientPTR, clientPTR->parsedRequest.filePath);
@@ -713,11 +730,23 @@ bool ResponseHandler::isValidErrorFile(std::string &errorFileName)
 {
 	if (errorFileName == "") // not found in config
 		return false;
-
-	if (errorFileName[0] == '/') // we need to strip the leading / so it uses relative paths instead of absolute ones
+	else if (errorFileName[0] == '/') // we need to strip the leading / so it uses relative paths instead of absolute ones
 		errorFileName = errorFileName.substr(1, errorFileName.size() - 1);
 
-	if (!std::filesystem::exists(errorFileName)) // non-existing
+	bool fileExists = false;
+	try
+	{
+		fileExists = std::filesystem::exists(errorFileName);
+	}
+	catch(const std::exception& e)
+	{
+		// Exception here means that the requested file is somehow bad
+		webservLog.webservLog(ERROR, e.what(), false);
+		return false;
+	}
+
+
+	if (!fileExists) // non-existing
 		return false;
 
 	auto perms = std::filesystem::status(errorFileName).permissions();
@@ -736,7 +765,7 @@ void ResponseHandler::openErrorResponseFile(clientInfo *clientPTR)
 		errorFileName = clientPTR->relatedServer->serverConfig->getDefaultErrorPages(responseCode);
 		if (!isValidErrorFile(errorFileName))
 		{
-			webservLog.webservLog(ERROR, "openErrorResponseFile() failed: Could not locate proper error response file", false);
+			webservLog.webservLog(ERROR, "openErrorResponseFile() failed: Could not locate proper error response file", true);
 			build500Response(clientPTR);
 			clientPTR->status = SEND_RESPONSE;
 			return ;

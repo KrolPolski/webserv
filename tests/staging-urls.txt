@@ -1,4 +1,2 @@
 http://localhost:8080
 http://localhost:8080/cgi/pythonPost.html
-http://localhost:8080/cgi/phpGet.php?username=Ryan&hobby=breaking+web+servers+with+stress+tests
-http://localhost:8080/cgi/pythonGet.py?fname=Ryan&lname=Boudwin

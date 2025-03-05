@@ -48,7 +48,7 @@ all: $(NAME)
 
 $(NAME): $(OBJS_PATH) $(OBJS)
 	@$(COMP) $(CFLAGS) -I$(INCLUDES_PATH) $(OBJS) -o $(NAME)
-	@echo "$(GREEN)$(NAME) creation successfull!$(RESET)"
+	@echo "$(GREEN)$(NAME) creation successful!$(RESET)"
 
 # Compile .cpp into .o files
 $(OBJS_PATH)%.o: $(SRCS_PATH)%.cpp | $(OBJS_PATH)
@@ -66,7 +66,7 @@ clean:
 fclean: clean
 	@rm -rf $(NAME)
 	@rm -rf logfile.log
-	@echo "$(RED)Full cleanup successfull!$(RESET)"
+	@echo "$(RED)Full cleanup successful!$(RESET)"
 
 re: fclean all
 

@@ -37,6 +37,26 @@ Additionally, an index file can be specified in the configuration. By default, i
 * host: The IP address for the server.
 * server_name: The server name (e.g., example.com, www.example.com).
 * max_client_body_size: The maximum size of a client's body.
+* error_page: Allows you to specify custom error pages. If not defined, the server will use the default error pages provided in the sample content.
+### Supported Error Codes and Example Usage:
+#### The following HTTP error codes can be assigned custom error pages:
+```
+error_page 400 /home/error/400.html;
+error_page 403 /home/error/403.html;
+error_page 404 /home/error/404.html;
+error_page 405 /home/error/405.html;
+error_page 408 /home/error/408.html;
+error_page 409 /home/error/409.html;
+error_page 411 /home/error/411.html;
+error_page 413 /home/error/413.html;
+error_page 414 /home/error/414.html;
+error_page 431 /home/error/431.html;
+error_page 500 /home/error/500.html;
+error_page 501 /home/error/501.html;
+error_page 503 /home/error/503.html;
+error_page 505 /home/error/505.html;
+```
+If an error page is not explicitly defined, the default pages will be used.
 
 ### Location Block Configuration:
 The location blocks within the root location are customizable to suit your needs.
@@ -49,8 +69,14 @@ The following variables are used within these location blocks:
 * upload_dir: Specifies a custom upload directory (optional). The upload directory must be located under the home (/) directory.
 * return: Allows a 307 Temporary Redirect within a location inside the root (/) directory (optional).
 
-### Important Note:
-All of the above-mentioned variables end with a semicolon (;). However, the server and location blocks do not end with a semicolon.
+#### Important Note:
+All of the above-mentioned variables must end with a semicolon (;), except for the server and location blocks, which do not require one.
+
+If the configuration is formatted incorrectly, detailed error messages will be logged in logfile.log. You can view the log file directly in the terminal using:
+```
+cat logfile.log
+```
+Additionally, all accepted configurations will be printed in the terminal, allowing you to verify which configurations are active and which addresses they are running on.
 
 ## Test instructions
 ### Unit tests

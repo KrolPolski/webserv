@@ -1,10 +1,25 @@
+/* *************************************************************************** */
+/*                                                                             */
+/*  $$\      $$\           $$\                                                 */
+/*  $$ | $\  $$ |          $$ |                                                */
+/*  $$ |$$$\ $$ | $$$$$$\  $$$$$$$\   $$$$$$$\  $$$$$$\   $$$$$$\ $$\    $$\   */
+/*  $$ $$ $$\$$ |$$  __$$\ $$  __$$\ $$  _____|$$  __$$\ $$  __$$\\$$\  $$  |  */
+/*  $$$$  _$$$$ |$$$$$$$$ |$$ |  $$ |\$$$$$$\  $$$$$$$$ |$$ |  \__|\$$\$$  /   */
+/*  $$$  / \$$$ |$$   ____|$$ |  $$ | \____$$\ $$   ____|$$ |       \$$$  /    */
+/*  $$  /   \$$ |\$$$$$$$\ $$$$$$$  |$$$$$$$  |\$$$$$$$\ $$ |        \$  /     */
+/*  \__/     \__| \_______|\_______/ \_______/  \_______|\__|         \_/      */
+/*                                                                             */
+/*   By: Panu Kangas, Ryan Boudwin, Patrik Lång                                */
+/*                                                                             */
+/* *************************************************************************** */
+
 #pragma once
 
+#include <iostream>
+#include <map>
 #include "Types.hpp"
 #include "ResponseHandler.hpp"
 #include "ConfigurationHandler.hpp"
-#include <iostream>
-#include <map>
 
 struct serverInfo
 {
@@ -21,8 +36,8 @@ struct requestParseInfo
 	bool 		isCgi = false;
 	CgiTypes	cgiType = NONE;
 
-	std::string		startLine; // Whole starting line
 	std::map<std::string, std::string>	headerMap; // All headers as key value pairs
+	std::string		startLine; // Whole starting line
 	std::string		rawContent; // The body of request, if there is any
 
 	std::string	method; // GET POST etc
@@ -74,12 +89,10 @@ struct clientInfo
 	size_t		multipartFileDataStartIdx;
 	int			uploadFileFd = -1;
 
-	
 	clientInfo(int clientFd, serverInfo *defaultServer) : clientFd(clientFd)
 	{
 		startTime = std::chrono::high_resolution_clock::now();
 		respHandler = new ResponseHandler;
 		relatedServer = defaultServer;
 	}
-
 };

@@ -313,9 +313,11 @@ ConfigurationHandler::ConfigurationHandler(std::vector<std::string> servBlck) : 
 	else
 		printSettings();
 }
+
 /*
 VALIDATION FOR IF CERTAIN SPECIFICATIONS ARE SET
 */
+
 bool	ConfigurationHandler::isRedirectSet(std::string	key)
 {
 	auto map_key = m_routes.find(key);

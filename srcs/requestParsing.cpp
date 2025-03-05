@@ -1,7 +1,21 @@
+/* *************************************************************************** */
+/*                                                                             */
+/*  $$\      $$\           $$\                                                 */
+/*  $$ | $\  $$ |          $$ |                                                */
+/*  $$ |$$$\ $$ | $$$$$$\  $$$$$$$\   $$$$$$$\  $$$$$$\   $$$$$$\ $$\    $$\   */
+/*  $$ $$ $$\$$ |$$  __$$\ $$  __$$\ $$  _____|$$  __$$\ $$  __$$\\$$\  $$  |  */
+/*  $$$$  _$$$$ |$$$$$$$$ |$$ |  $$ |\$$$$$$\  $$$$$$$$ |$$ |  \__|\$$\$$  /   */
+/*  $$$  / \$$$ |$$   ____|$$ |  $$ | \____$$\ $$   ____|$$ |       \$$$  /    */
+/*  $$  /   \$$ |\$$$$$$$\ $$$$$$$  |$$$$$$$  |\$$$$$$$\ $$ |        \$  /     */
+/*  \__/     \__| \_______|\_______/ \_______/  \_______|\__|         \_/      */
+/*                                                                             */
+/*   By: Panu Kangas, Ryan Boudwin, Patrik Lång                                */
+/*                                                                             */
+/* *************************************************************************** */
+
 #include "ConnectionHandler.hpp"
 #include "URLhandler.hpp"
 #include "Logger.hpp"
-
 
 // A helper function to split the start line
 int	ConnectionHandler::splitStartLine(clientInfo *clientPTR, requestParseInfo	&parseInfo)
@@ -241,4 +255,3 @@ int		ConnectionHandler::parseRequest(clientInfo *clientPTR)
 
 	return (0);
 }
-

@@ -13,35 +13,12 @@
 /*                                                                             */
 /* *************************************************************************** */
 
-#ifndef LOGGER_HPP
-# define LOGGER_HPP
+#include <iostream>
 
-# include <sstream>
-# include <ctime>
-# include <fstream>
-# include <iostream>
+bool	isSigInt = false;
 
-enum LogStatus
+void	sigIntHandler(int signal)
 {
-	INFO,
-	ERROR,
-	DEBUG,
-	WARNING
-};
-
-class Logger
-{
-	private:
-		std::ofstream logFile;
-	public:
-		Logger(const std::string &);
-		~Logger();
-
-		void	webservLog(LogStatus, const std::string &, bool);
-		void	closeLogFileStream();
-
-};
-
-extern Logger webservLog;
-
-#endif
+	if (signal == 2)
+		isSigInt = true;
+}

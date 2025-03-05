@@ -38,7 +38,6 @@ void	Logger::webservLog(LogStatus status, const std::string& message, bool toTer
 	char	timestamp[20];
 
 	strftime(timestamp, sizeof(timestamp), "%Y-%d-%m %H:%M:%S", timeinfo);
-
 	std::ostringstream	logEntry;
 
 	switch (status)
@@ -81,4 +80,3 @@ void	Logger::closeLogFileStream()
 {
 	logFile.close();
 }
-

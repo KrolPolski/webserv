@@ -1,5 +1,5 @@
 # Webserv
-This is a basic http web server, written in C++ by Ryan Boudwin, Panu Kangas and Patrik Lang as part of the 42 curriculum offered by [Hive Helsinki](https://www.hive.fi/en/), a peer to peer coding school.
+This is a basic http web server, written in C++ by Ryan Boudwin, Panu Kangas and Patrik Lång as part of the 42 curriculum offered by [Hive Helsinki](https://www.hive.fi/en/), a peer to peer coding school.
 ## Requirements
 * This was written in C++ using the 2020 standard, so you'll need an up to date compiler that supports it (g++ or clang++ should work).
 * It was written and tested primarily on Ubuntu Linux and the Google Chrome web browser. It has also been tested on Mac OS X.
@@ -20,6 +20,37 @@ make
 If you don't specify a configuration file, it will launch with the default configuration file (configurations/complete.conf) that will serve the sample web content we have provided in home/. You can then access it at:
 [http://localhost:8080](http://localhost:8080/)
 ## Configuration instructions
+We reference NGINX as inspiration for the configuration of our HTTP server.
+
+You can find examples of different configurations that work with our sample content in the configurations directory.
+
+### Required Settings to Launch the Server
+For each server block, the following settings are required to launch the server:
+* Port
+* IP Address
+* Server Name
+* Root Location /
+Additionally, an index file can be specified in the configuration. By default, index.html will be used.
+
+### Variables for Server Block Configuration:
+* listen: The port to listen on (e.g., 8000 - 8999).
+* host: The IP address for the server.
+* server_name: The server name (e.g., example.com, www.example.com).
+* max_client_body_size: The maximum size of a client's body.
+
+### Location Block Configuration:
+The location blocks within the root location are customizable to suit your needs.
+The following variables are used within these location blocks:
+
+* root: The path to the location (mandatory).
+* methods: The allowed HTTP methods for that location.
+* cgi_path_php/python: The path to the CGI interpreter (modify depending on your system).
+* dir_listing: Enables or disables directory listing (autoindex).
+* upload_dir: Specifies a custom upload directory (optional). The upload directory must be located under the home (/) directory.
+* return: Allows a 307 Temporary Redirect within a location inside the root (/) directory (optional).
+
+### Important Note:
+All of the above-mentioned variables end with a semicolon (;). However, the server and location blocks do not end with a semicolon.
 
 ## Test instructions
 ### Unit tests

@@ -19,6 +19,7 @@ make
 ```
 If you don't specify a configuration file, it will launch with the default configuration file (configurations/complete.conf) that will serve the sample web content we have provided in home/. You can then access it at:
 [http://localhost:8080](http://localhost:8080/)
+## Configuration instructions
 
 ## Test instructions
 ### Unit tests
@@ -59,3 +60,4 @@ Longest transaction:	        1.43
 Shortest transaction:	        0.00
 ```
 
+## Things we learned

@@ -66,7 +66,7 @@ The following variables are used within these location blocks:
 * methods: The allowed HTTP methods for that location.
 * cgi_path_php/python: The path to the CGI interpreter (modify depending on your system).
 * dir_listing: Enables or disables directory listing (autoindex).
-* upload_dir: Specifies a custom upload directory (optional). The upload directory must be located under the home (/) directory.
+* upload_dir: Specifies a specific upload directory (optional). The upload directory must be located inside the home (/) directory.
 * return: Allows a 307 Temporary Redirect within a location inside the root (/) directory (optional).
 
 #### Important Note:

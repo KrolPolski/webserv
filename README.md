@@ -116,5 +116,3 @@ Failed transactions:	           0
 Longest transaction:	        1.43
 Shortest transaction:	        0.00
 ```
-
-## Things we learned

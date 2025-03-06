@@ -381,7 +381,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 					clientPTR->pipeToCgi[1] = -1;
 				}
 
-				if (executeStatus == 0)
+				if (executeStatus == 0 && clientPTR->cgiPipeReadOK)
 				{
 					if (clientPTR->respHandler->m_cgiHandler->finishCgiResponse(clientPTR) == -1)
 					{
@@ -396,7 +396,7 @@ void	ConnectionHandler::handleClientAction(const pollfd &pollFdStuct)
 					clientPTR->pipeFromCgi[0] = -1;
 					resetClientTimeOut(clientPTR);
 				}
-				else if (executeStatus == 2 && clientPTR->pipeFromCgi[0] == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
+				else if (executeStatus != -1 && clientPTR->pipeFromCgi[0] == pollFdStuct.fd && pollFdStuct.revents & POLLIN)
 				{
 					if (clientPTR->respHandler->m_cgiHandler->buildCgiResponse(clientPTR) == -1)
 					{
@@ -771,7 +771,10 @@ bool	ConnectionHandler::checkForBody(clientInfo *clientPTR)
 	if (bodySize == clientPTR->reqBodyLen)
 		return true;
 	else
+	{
+		clientPTR->reqBodyDataRead = bodySize;
 		return false;
+	}
 
 }
 

@@ -66,6 +66,7 @@ struct clientInfo
 	bool 			bodyOK = false;
 	bool			chunkedOK = false;
 	bool			reqLenSet = false;
+	bool			cgiPipeReadOK = false;
 
 	int		clientFd;
 	int		errorFileFd = -1;

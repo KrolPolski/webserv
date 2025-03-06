@@ -214,6 +214,9 @@ void	CgiHandler::cgiChildProcess(clientInfo *clientPTR, std::vector<serverInfo> 
 
 int	CgiHandler::checkWaitStatus(clientInfo *clientPTR)
 {
+	if (m_childProcPid == -1) // Child proc has already ended, but reading process is still not finished.
+		return 0;
+
 	int statloc;
 	int	waitpidStatus;
 
@@ -282,6 +285,9 @@ int CgiHandler::finishCgiResponse(clientInfo *clientPTR)
 
 int	CgiHandler::buildCgiResponse(clientInfo *clientPTR)
 {
+	if (clientPTR->cgiPipeReadOK)
+		return 0;
+
 	char 	buffer[10001];
 	int		bytesRead;
 	int		readPerCall = 10000;
@@ -289,6 +295,13 @@ int	CgiHandler::buildCgiResponse(clientInfo *clientPTR)
 	bytesRead = read(clientPTR->pipeFromCgi[0], buffer, readPerCall);
 	if (bytesRead == -1)
 		return (errorExit(clientPTR, "Read() failed: ", false));
+	else if (bytesRead == 0)
+	{
+		clientPTR->cgiPipeReadOK = true;
+		return 0;
+	}
+
+	std::cout << "bytesRead from CGI pipe: " << bytesRead << "\n";
 
 	buffer[bytesRead] = '\0';
 
